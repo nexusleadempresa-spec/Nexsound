@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Supervivencia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --void: #07060b; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --ok: #3ddc97; --line: rgba(236,232,244,.14); --panel: #100e18;
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body { background: var(--void); color: var(--ink); font-family: var(--f-mono); font-size: 13px; line-height: 1.6; overflow-x: hidden; }
+.back { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); left: 16px; z-index: 20; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); text-decoration: none; padding: 6px 0; }
+.back:hover, .back:focus-visible { color: var(--ink); }
+main { max-width: 760px; margin: 0 auto; padding: calc(52px + env(safe-area-inset-top, 0px)) 16px 48px; }
+h1 { font: 900 clamp(52px, 14vw, 120px)/.85 var(--f-disp); margin: 0 0 14px; text-transform: uppercase; letter-spacing: -.01em; }
+h1 span { color: var(--heat); }
+h2 { font: 800 28px/1 var(--f-disp); text-transform: uppercase; margin: 0 0 10px; letter-spacing: .02em; }
+p { margin: 0 0 12px; color: var(--dim); max-width: 60ch; }
+b, strong { color: var(--ink); font-weight: 600; }
+button { font: 600 12px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 12px 14px; cursor: pointer; touch-action: manipulation; }
+button:hover { border-color: var(--uv); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button:disabled { opacity: .4; cursor: default; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+button.hot { border-color: var(--heat); color: var(--heat); }
+button.hot:hover { background: var(--heat); color: var(--void); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.panel { border: 1px solid var(--line); background: var(--panel); padding: 14px; margin: 12px 0; }
+.lbl { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+.num { font-variant-numeric: tabular-nums; }
+input[type=range] { width: 100%; accent-color: var(--uv); touch-action: none; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+td, th { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); font-weight: 400; }
+th { color: var(--dim); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+kbd { font: 600 11px var(--f-mono); border: 1px solid var(--line); padding: 1px 5px; color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+h1 { font-size: clamp(44px, 11.5vw, 120px); }
+.bar { height: 22px; border: 1px solid var(--line); position: relative; overflow: hidden; }
+.bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ok); transition: width .2s; }
+.bar.low i { background: var(--heat); }
+.inc { border: 1px solid var(--heat); background: #1a0d0c; padding: 14px; margin: 12px 0; }
+.inc h2 { color: var(--heat); }
+.opts { display: grid; gap: 8px; }
+.opts button { text-align: left; padding: 14px; line-height: 1.3; text-transform: none; letter-spacing: .02em; font-size: 13px; }
+.tbar { height: 4px; background: var(--heat); margin: 8px 0 12px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stats div div:last-child { font: 900 clamp(24px, 7vw, 40px)/1 var(--f-disp); }
+#feed { font-size: 12px; color: var(--dim); min-height: 20px; }
+</style>
+<a class="back" href="experiencias.html">← Experiencias</a>
+<main>
+  <h1>Nexsound<br><span>Supervivencia</span></h1>
+  <p>Estás pinchando. La pista tiene una barra de energía que baja sola si no haces nada bien. Irán pasando cosas: CDJ sin corriente, promotores con peticiones, pista vacía, cables que fallan, acoples de micro. Elige rápido (teclas <kbd>1</kbd>–<kbd>4</kbd>). Aguanta todo lo que puedas.</p>
+  <div class="row"><button class="hot" id="go">Empezar la sesión</button><button id="stop" disabled>Bajar de cabina</button></div>
+  <section class="panel">
+    <div class="row" style="justify-content:space-between"><span class="lbl">Energía de la pista</span><span class="num lbl" id="en">60 %</span></div>
+    <div class="bar" id="bar"><i id="barI" style="width:60%"></i></div>
+    <div class="stats" style="margin-top:12px">
+      <div><div class="lbl">Tiempo</div><div class="num" id="time">0:00</div></div>
+      <div><div class="lbl">Resueltos</div><div class="num" id="ok">0</div></div>
+      <div><div class="lbl">Deck</div><div class="num" id="deck">A</div></div>
+    </div>
+    <p id="feed" style="margin-top:10px">La cabina está lista.</p>
+  </section>
+  <section class="inc" id="inc" hidden aria-live="assertive">
+    <h2 id="incT"></h2><p id="incD" style="color:var(--ink)"></p>
+    <div class="tbar" id="tbar"></div>
+    <div class="opts" id="opts"></div>
+  </section>
+  <section class="panel" id="report" hidden>
+    <h2>Informe del bolo</h2>
+    <div id="rep"></div>
+  </section>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+  let ctx, out, deckG = [], nb, lp, sched, loop, running = false, energy = 60, t0, step = 0, nextT = 0, deck = 0, dembow = false, crackle = false, fb = null;
+  let inc = null, incT0 = 0, incDur = 0, nextIncAt = 0, stats;
+  const BPM = 124, S16 = 60 / BPM / 4;
+  function init() { ctx = new (window.AudioContext || window.webkitAudioContext)(); out = ctx.createGain(); out.gain.value = .5; lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3000; lp.connect(out); out.connect(ctx.destination);
+    for (let i = 0; i < 2; i++) { const g = ctx.createGain(); g.gain.value = i ? 0 : 1; g.connect(lp); deckG.push(g); }
+    nb = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  const D = () => deckG[deck];
+  function kick(t) { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(45, t + .1); g.gain.setValueAtTime(.9, t); g.gain.exponentialRampToValueAtTime(.001, t + .35); o.connect(g).connect(D()); o.start(t); o.stop(t + .4); }
+  function nz(t, f, v, len, type = 'highpass') { const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = nb; fl.type = type; fl.frequency.value = f; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + len); s.connect(fl).connect(g).connect(D()); s.start(t, Math.random() * .5); s.stop(t + len + .01); }
+  function bass(t, f) { const o = ctx.createOscillator(), f2 = ctx.createBiquadFilter(), g = ctx.createGain(); o.type = 'sawtooth'; o.frequency.value = f; f2.type = 'lowpass'; f2.frequency.value = 500; g.gain.setValueAtTime(.3, t); g.gain.exponentialRampToValueAtTime(.01, t + S16 * 1.8); o.connect(f2).connect(g).connect(D()); o.start(t); o.stop(t + S16 * 2); }
+  function stab(t, f) { [1, 1.26, 1.5].forEach(m => { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'square'; o.frequency.value = f * m; g.gain.setValueAtTime(.03, t); g.gain.exponentialRampToValueAtTime(.001, t + .18); o.connect(g).connect(D()); o.start(t); o.stop(t + .2); }); }
+  function schedule() {
+    while (nextT < ctx.currentTime + .12) { const s = step % 16, t = nextT, e = energy / 100, root = deck ? 49 : 55;
+      if (s % 4 === 0 && e > .12) kick(t);
+      if (dembow ? [3, 6, 11, 14].includes(s) : s === 4 || s === 12) nz(t, 1500, .35, .14, 'bandpass');
+      if (s % 2 === 0 && e > .3) nz(t + S16, 8000, .15 + e * .1, .05);
+      if (e > .45 && [2, 6, 10, 14].includes(s)) bass(t, root);
+      if (e > .65 && (s === 3 || s === 10) && Math.floor(step / 16) % 2) stab(t, root * 8);
+      if (crackle && Math.random() < .35) { const g = D(); g.gain.setValueAtTime(Math.random() < .5 ? 0 : 1, t); nz(t, 200, .5, .02, 'lowpass'); }
+      nextT += S16; step++; }
+    lp.frequency.setTargetAtTime(600 + energy * 120, ctx.currentTime, .3);
+  }
+  const R = a => a[Math.floor(Math.random() * a.length)];
+  const shuffle = a => a.map(v => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map(v => v[1]);
+  const INC = {
+    power() { const other = deck ? 'A' : 'B'; deckG[deck].gain.setTargetAtTime(0, ctx.currentTime, .01);
+      return { t: 'CDJ sin corriente', d: `El deck ${deck ? 'B' : 'A'} se ha apagado. Silencio en la sala.`, o: [[`Lanzar el deck ${other} ya`, 1, () => switchDeck()], ['Reiniciar el CDJ y esperar', -1, () => setTimeout(() => restoreDeck(), 2500)], ['Coger el micro y pedir paciencia', -1, () => restoreDeck()]] }; },
+    reggaeton() { return { t: 'El promotor pide reggaetón', d: 'Se acerca a la cabina: «¡Pon algo de reggaetón!». La pista está en 124 BPM.', o: [['Edit dembow tech-house a 124 BPM', 1, () => { dembow = true; setTimeout(() => dembow = false, 16000); }], ['Reggaetón clásico a 92 BPM a pelo', -1], ['Ignorarle y seguir', 0]] }; },
+    empty() { const early = (performance.now() - t0) < 90000;
+      return { t: 'La pista se vacía', d: early ? 'Es pronto y la gente se va a la barra.' : 'Pico de la noche y de repente se abre un hueco.', o: early ? [['Groove conocido y amable, sin forzar', 1], ['Subir a 140 BPM de golpe', -1], ['Breakdown de dos minutos', -1]] : [['Clásico reconocible con el drop entero', 1], ['Ambient para que descansen', -1], ['Bajar el volumen general', -1]] }; },
+    cable() { crackle = true; return { t: 'Falla un cable', d: 'El canal 1 cruje y se corta a ratos.', o: [['Pasar la música al canal 2', 1, () => { crackle = false; deckG[deck].gain.setValueAtTime(1, ctx.currentTime); }], ['Darle golpecitos al cable', -1, () => setTimeout(fixCrackle, 3000)], ['Subir la ganancia del canal 1', -1, () => setTimeout(fixCrackle, 3000)]] }; },
+    feedback() { const fs = [630, 1250, 2500, 4000], f = R(fs); fb = ctx.createOscillator(); const g = ctx.createGain(); fb.frequency.value = f; g.gain.setValueAtTime(0, ctx.currentTime); g.gain.linearRampToValueAtTime(.12, ctx.currentTime + 1.5); fb.connect(g).connect(out); fb.start();
+      return { t: 'Acople de micro', d: 'Un pitido crece desde el micro del MC. Escucha: ¿qué frecuencia cortas?', o: fs.map(x => [`Cortar ${x >= 1000 ? x / 1000 + ' kHz' : x + ' Hz'}`, x === f ? 1 : -1]), keepOrder: true }; }
+  };
+  function switchDeck() { deck = 1 - deck; deckG[deck].gain.setValueAtTime(1, ctx.currentTime); deckG[1 - deck].gain.setValueAtTime(0, ctx.currentTime); $('deck').textContent = deck ? 'B' : 'A'; }
+  function restoreDeck() { deckG[deck].gain.setTargetAtTime(1, ctx.currentTime, .05); }
+  function fixCrackle() { crackle = false; deckG[deck].gain.setValueAtTime(1, ctx.currentTime); }
+  function killFb() { if (fb) { try { fb.stop(); } catch (e) {} fb = null; } }
+  function spawn() {
+    const keys = Object.keys(INC).filter(k => k !== stats.lastKind), k = R(keys); stats.lastKind = k;
+    inc = INC[k](); inc.kind = k; if (!inc.keepOrder) inc.o = shuffle(inc.o);
+    const el = (performance.now() - t0) / 1000; incDur = Math.max(3.5, 7 - el / 40); incT0 = performance.now();
+    $('incT').textContent = inc.t; $('incD').textContent = inc.d;
+    $('opts').innerHTML = inc.o.map((o, i) => `<button data-i="${i}"><kbd>${i + 1}</kbd> ${o[0]}</button>`).join('');
+    $('inc').hidden = false; $('opts').querySelector('button').focus({ preventScroll: true });
+  }
+  function choose(i) {
+    if (!inc) return; const o = inc.o[i], rt = (performance.now() - incT0) / 1000;
+    if (o) { o[2] && o[2](); }
+    const good = o && o[1] > 0;
+    if (inc.kind === 'feedback') killFb();
+    if (!o) { energy -= 22; feed(`Tiempo agotado en «${inc.t}». La pista lo nota.`); stats.timeouts++; if (inc.kind === 'power') restoreDeck(); if (inc.kind === 'cable') fixCrackle(); }
+    else if (good) { energy += 10 + Math.max(0, 8 - rt * 2); stats.ok++; stats.rts.push(rt); stats.streak++; stats.best = Math.max(stats.best, stats.streak); feed(`Bien resuelto en ${rt.toFixed(1)} s: ${o[0].toLowerCase()}.`); }
+    else { energy -= o[1] < 0 ? 15 : 6; stats.bad++; stats.streak = 0; feed(`Mala decisión: ${o[0].toLowerCase()}.`); }
+    if (!o || !good) stats.streak = 0;
+    stats.log.push({ kind: inc.t, good, rt: o ? rt : null });
+    inc = null; $('inc').hidden = true; nextIncAt = performance.now() + (4000 + Math.random() * 6000) * Math.max(.5, 1 - (performance.now() - t0) / 240000);
+  }
+  function feed(s) { $('feed').textContent = s; }
+  function loopFn() {
+    if (!running) return; const now = performance.now();
+    schedule();
+    energy -= (inc ? 2.2 : .5) * .1; energy = Math.max(0, Math.min(100, energy));
+    if (inc) { const p = 1 - (now - incT0) / 1000 / incDur; $('tbar').style.width = Math.max(0, p * 100) + '%'; if (p <= 0) choose(-1); }
+    else if (now > nextIncAt) spawn();
+    $('barI').style.width = energy + '%'; $('bar').classList.toggle('low', energy < 30); $('en').textContent = Math.round(energy) + ' %';
+    const s = Math.floor((now - t0) / 1000); $('time').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; $('ok').textContent = stats.ok;
+    if (energy <= 0) end('La pista se ha vaciado.');
+  }
+  function start() {
+    if (!ctx) init(); ctx.resume();
+    energy = 60; deck = 0; dembow = crackle = false; deckG[0].gain.value = 1; deckG[1].gain.value = 0; $('deck').textContent = 'A';
+    stats = { ok: 0, bad: 0, timeouts: 0, rts: [], streak: 0, best: 0, log: [], lastKind: '' };
+    t0 = performance.now(); nextIncAt = t0 + 5000; nextT = ctx.currentTime + .1; step = 0; running = true;
+    out.gain.setValueAtTime(.5, ctx.currentTime);
+    $('report').hidden = true; $('go').disabled = true; $('stop').disabled = false; feed('Arranca la sesión. Mantén la pista viva.');
+    loop = setInterval(loopFn, 100);
+  }
+  function end(why) {
+    running = false; clearInterval(loop); killFb(); if (inc) { inc = null; $('inc').hidden = true; }
+    out.gain.setTargetAtTime(0, ctx.currentTime, .3);
+    const secs = Math.floor((performance.now() - t0) / 1000), best = Math.max(store.get('nx-superv', 0), secs); store.set('nx-superv', best);
+    const avg = stats.rts.length ? (stats.rts.reduce((a, b) => a + b, 0) / stats.rts.length).toFixed(1) + ' s' : '—';
+    const fails = {}; stats.log.filter(l => !l.good).forEach(l => fails[l.kind] = (fails[l.kind] || 0) + 1);
+    const worst = Object.entries(fails).sort((a, b) => b[1] - a[1])[0];
+    $('rep').innerHTML = `<p>${why}</p><table><tbody>
+      <tr><td>Aguantaste</td><td class="num"><b>${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</b></td></tr>
+      <tr><td>Récord</td><td class="num">${Math.floor(best / 60)}:${String(best % 60).padStart(2, '0')}</td></tr>
+      <tr><td>Incidentes resueltos</td><td class="num">${stats.ok} de ${stats.log.length}</td></tr>
+      <tr><td>Malas decisiones</td><td class="num">${stats.bad}</td></tr>
+      <tr><td>Sin respuesta</td><td class="num">${stats.timeouts}</td></tr>
+      <tr><td>Reacción media</td><td class="num">${avg}</td></tr>
+      <tr><td>Mejor racha</td><td class="num">${stats.best}</td></tr></tbody></table>
+      <p style="margin-top:10px">${worst ? `Tu punto débil: <b>${worst[0]}</b> (${worst[1]} fallo${worst[1] > 1 ? 's' : ''}).` : 'Ningún incidente mal resuelto. Cabina de hierro.'}</p>`;
+    $('report').hidden = false; $('go').disabled = false; $('go').textContent = 'Otro bolo'; $('stop').disabled = true; $('go').focus();
+  }
+  $('go').onclick = start; $('stop').onclick = () => end('Bajaste de cabina por tu cuenta.');
+  $('opts').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (b) choose(+b.dataset.i); });
+  addEventListener('keydown', e => { if (inc && /^[1-4]$/.test(e.key) && +e.key <= inc.o.length) choose(+e.key - 1); });
+})();
+</script>

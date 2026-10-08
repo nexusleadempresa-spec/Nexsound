@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Drop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --void: #07060b; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --ok: #3ddc97; --line: rgba(236,232,244,.14); --panel: #100e18;
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body { background: var(--void); color: var(--ink); font-family: var(--f-mono); font-size: 13px; line-height: 1.6; overflow-x: hidden; }
+.back { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); left: 16px; z-index: 20; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); text-decoration: none; padding: 6px 0; }
+.back:hover, .back:focus-visible { color: var(--ink); }
+main { max-width: 760px; margin: 0 auto; padding: calc(52px + env(safe-area-inset-top, 0px)) 16px 48px; }
+h1 { font: 900 clamp(52px, 14vw, 120px)/.85 var(--f-disp); margin: 0 0 14px; text-transform: uppercase; letter-spacing: -.01em; }
+h1 span { color: var(--heat); }
+h2 { font: 800 28px/1 var(--f-disp); text-transform: uppercase; margin: 0 0 10px; letter-spacing: .02em; }
+p { margin: 0 0 12px; color: var(--dim); max-width: 60ch; }
+b, strong { color: var(--ink); font-weight: 600; }
+button { font: 600 12px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 12px 14px; cursor: pointer; touch-action: manipulation; }
+button:hover { border-color: var(--uv); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button:disabled { opacity: .4; cursor: default; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+button.hot { border-color: var(--heat); color: var(--heat); }
+button.hot:hover { background: var(--heat); color: var(--void); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.panel { border: 1px solid var(--line); background: var(--panel); padding: 14px; margin: 12px 0; }
+.lbl { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+.num { font-variant-numeric: tabular-nums; }
+input[type=range] { width: 100%; accent-color: var(--uv); touch-action: none; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+td, th { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); font-weight: 400; }
+th { color: var(--dim); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+kbd { font: 600 11px var(--f-mono); border: 1px solid var(--line); padding: 1px 5px; color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+.stage { margin: 14px 0; border: 1px solid var(--line); background: var(--panel); min-height: 220px; display: grid; place-items: center; text-align: center; padding: 20px 16px; touch-action: manipulation; user-select: none; cursor: pointer; }
+.stage > div { min-width: 0; max-width: 100%; }
+.stage .st { font: 900 clamp(36px, 10vw, 96px)/.9 var(--f-disp); text-transform: uppercase; overflow-wrap: anywhere; }
+.stage.silent .st { color: var(--heat); }
+.stage.flash { background: var(--heat); }
+.stage.flash .st { color: var(--void); }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.stats div div:last-child { font: 900 clamp(24px, 7vw, 40px)/1 var(--f-disp); }
+#log li { color: var(--dim); }
+#log { padding-left: 18px; font-size: 12px; }
+</style>
+<a class="back" href="experiencias.html">← Experiencias</a>
+<main>
+  <h1>Nexsound<br><span>Drop</span></h1>
+  <p>Suena un build-up (8, 16 o 32 compases, a veces con huecos trampa). Justo antes del drop se corta a silencio. <b>Toca</b> la pantalla, pulsa <kbd>Espacio</kbd> o el botón en el instante exacto en que crees que entra el drop. Puntúas por milisegundos de error; los aciertos seguidos suman racha. Después suena el drop.</p>
+  <div class="row"><button class="hot" id="go">Empezar ronda</button><span class="lbl" id="roundLbl"></span></div>
+  <div class="stage" id="stage" role="button" tabindex="0" aria-label="Tocar cuando entre el drop"><div><div class="st" id="st">Listo</div><div class="lbl" id="sub">10 rondas por partida</div></div></div>
+  <div class="stats panel">
+    <div><div class="lbl">Puntos</div><div class="num" id="pts">0</div></div>
+    <div><div class="lbl">Racha</div><div class="num" id="streak">0</div></div>
+    <div><div class="lbl">Último</div><div class="num" id="last">—</div></div>
+    <div><div class="lbl">Récord</div><div class="num" id="best">0</div></div>
+  </div>
+  <ol id="log"></ol>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let ctx, out, nb, round = 0, pts = 0, streak = 0, state = 'idle', dropT = 0, tapped = false, missTimer, nodes = [];
+  $('best').textContent = store.get('nx-drop', 0);
+  function init() { ctx = new (window.AudioContext || window.webkitAudioContext)(); out = ctx.createGain(); out.gain.value = .55; out.connect(ctx.destination);
+    nb = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  const keep = n => (nodes.push(n), n);
+  function snare(t, v, f) { const s = keep(ctx.createBufferSource()), bp = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = nb; bp.type = 'bandpass'; bp.frequency.value = f; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + .09); s.connect(bp).connect(g).connect(out); s.start(t, Math.random()); s.stop(t + .1); }
+  function kick(t, v = 1) { const o = keep(ctx.createOscillator()), g = ctx.createGain(); o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(42, t + .12); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + .4); o.connect(g).connect(out); o.start(t); o.stop(t + .45); }
+  function riser(t0, t1, cutAt) { const s = keep(ctx.createBufferSource()), f = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = nb; s.loop = true; f.type = 'bandpass'; f.Q.value = 3; f.frequency.setValueAtTime(300, t0); f.frequency.exponentialRampToValueAtTime(9000, t1); g.gain.setValueAtTime(.02, t0); g.gain.linearRampToValueAtTime(.35, cutAt); g.gain.setValueAtTime(0, cutAt);
+    s.connect(f).connect(g).connect(out); s.start(t0); s.stop(cutAt + .01);
+    const o = keep(ctx.createOscillator()), og = ctx.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(110, t0); o.frequency.exponentialRampToValueAtTime(880, t1); og.gain.setValueAtTime(.0, t0); og.gain.linearRampToValueAtTime(.08, cutAt); og.gain.setValueAtTime(0, cutAt); o.connect(og).connect(out); o.start(t0); o.stop(cutAt + .01); }
+  function dropPart(t, b) { for (let i = 0; i < 16; i++) { kick(t + i * b, 1.1); const o = keep(ctx.createOscillator()), lp = ctx.createBiquadFilter(), g = ctx.createGain(); o.type = 'sawtooth'; o.frequency.value = [55, 55, 65.4, 49][Math.floor(i / 4)]; lp.type = 'lowpass'; lp.frequency.value = 600; const tt = t + i * b + b / 2; g.gain.setValueAtTime(.4, tt); g.gain.exponentialRampToValueAtTime(.01, tt + b / 2); o.connect(lp).connect(g).connect(out); o.start(tt); o.stop(tt + b / 2); snare(t + i * b + b / 2, .25, 9000); }
+    snare(t, .8, 3000); }
+  function play() {
+    if (!ctx) init(); ctx.resume();
+    nodes.forEach(n => { try { n.stop(); } catch (e) {} }); nodes = [];
+    if (round >= 10) { round = 0; pts = 0; streak = 0; $('log').innerHTML = ''; }
+    round++; tapped = false; state = 'build';
+    const bpm = 120 + Math.floor(Math.random() * 12), b = 60 / bpm, bars = [8, 16, 32][Math.floor(Math.random() * 3)];
+    const silBeats = [1, 2, 2, 3, 4][Math.floor(Math.random() * 5)];
+    const t0 = ctx.currentTime + .15, total = bars * 4 * b; dropT = t0 + total; const cut = dropT - silBeats * b;
+    // fakes: 1-beat gaps inside the build (not in last 2 bars)
+    const fakes = new Set(); if (bars >= 16) { const n = bars === 32 ? 2 : 1; for (let k = 0; k < n; k++) fakes.add(4 * (4 + Math.floor(Math.random() * (bars - 7))) - 1); }
+    for (let beat = 0; beat < bars * 4; beat++) { const t = t0 + beat * b; if (t >= cut - 1e-4 || fakes.has(beat)) continue;
+      const prog = beat / (bars * 4), div = prog < .5 ? 1 : prog < .75 ? 2 : prog < .9 ? 4 : 8;
+      for (let k = 0; k < div; k++) { const tt = t + k * b / div; if (tt < cut - 1e-4) snare(tt, .25 + prog * .5, 1200 + prog * 2500); }
+      if (prog < .5) kick(t, .7); }
+    riser(t0, dropT, cut);
+    dropPart(dropT, b);
+    $('roundLbl').textContent = `Ronda ${round}/10 · ${bars} compases`; setSt('Escucha', `${bpm} bpm${fakes.size ? ' · ojo con las trampas' : ''}`);
+    const ms = (cut - ctx.currentTime) * 1000; setTimeout(() => { if (state === 'build') { state = 'silence'; $('stage').classList.add('silent'); setSt('¡Ya!', 'toca cuando entre'); } }, Math.max(0, ms));
+    clearTimeout(missTimer); missTimer = setTimeout(() => { if (!tapped) judge(null); }, (dropT - ctx.currentTime) * 1000 + 600);
+    $('go').disabled = true;
+  }
+  function setSt(a, b) { $('st').textContent = a; $('sub').textContent = b; }
+  function tap() {
+    if (state === 'idle' || tapped || !ctx) return;
+    const err = (ctx.currentTime - dropT) * 1000; tapped = true; judge(err);
+  }
+  function judge(err) {
+    clearTimeout(missTimer); state = 'idle'; $('stage').classList.remove('silent');
+    let gain = 0, txt;
+    if (err === null) { streak = 0; txt = 'Sin toque'; }
+    else { const a = Math.abs(err); gain = Math.max(0, Math.round(100 - a / 3)); if (a <= 60) streak++; else streak = 0; gain += streak > 1 ? streak * 10 : 0; txt = `${err > 0 ? '+' : '−'}${Math.round(a)} ms`; }
+    pts += gain; $('pts').textContent = pts; $('streak').textContent = streak; $('last').textContent = err === null ? '—' : Math.round(err) + ' ms';
+    const verdict = err === null ? 'Se te escapó' : Math.abs(err) <= 30 ? 'Perfecto' : Math.abs(err) <= 60 ? 'Bien' : err < 0 ? 'Te adelantaste' : 'Llegaste tarde';
+    setSt(verdict, `${txt} · +${gain}`);
+    if (!RM) { const fl = () => { $('stage').classList.add('flash'); setTimeout(() => $('stage').classList.remove('flash'), 120); }; setTimeout(fl, Math.max(0, (dropT - ctx.currentTime) * 1000)); }
+    const li = document.createElement('li'); li.textContent = `${verdict} · ${txt} · +${gain}`; $('log').append(li);
+    if (round >= 10) { const best = Math.max(store.get('nx-drop', 0), pts); store.set('nx-drop', best); $('best').textContent = best; $('roundLbl').textContent = `Partida terminada: ${pts} puntos`; $('go').textContent = 'Nueva partida'; }
+    else $('go').textContent = 'Siguiente ronda';
+    setTimeout(() => { $('go').disabled = false; }, Math.max(0, (dropT - ctx.currentTime) * 1000 + 300));
+  }
+  $('go').onclick = play;
+  $('stage').addEventListener('pointerdown', e => { e.preventDefault(); tap(); });
+  addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && state !== 'idle') { e.preventDefault(); tap(); } });
+})();
+</script>
