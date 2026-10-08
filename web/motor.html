@@ -1,0 +1,217 @@
+<title>Nexsound Motor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one full-bleed canvas instrument; a thin control strip at the bottom, title card over it until the first touch. Single dark world by choice. */
+:root {
+  --void: #07060b; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --line: rgba(236,232,244,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { background: var(--void); color: var(--ink); font-family: var(--f-mono); overflow: hidden; }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+.intro { position: fixed; inset: 0; display: grid; place-items: center; padding-inline: 16px; background: radial-gradient(circle at 50% 55%, rgba(143,107,255,.18), transparent 60%), var(--void); z-index: 3; }
+.intro div { max-width: 640px; display: grid; gap: 18px; justify-items: start; }
+.intro h1 { font: 900 clamp(64px, 17vw, 168px)/.82 var(--f-disp); letter-spacing: -.01em; margin: 0; text-transform: uppercase; }
+.intro h1 span { color: var(--heat); }
+.intro p { margin: 0; color: var(--dim); font-size: 13px; line-height: 1.7; max-width: 52ch; }
+.intro ul { margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--dim); display: grid; gap: 4px; }
+.intro b { color: var(--ink); font-weight: 600; }
+button { font: 600 12px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 10px 12px; cursor: pointer; }
+button:hover { border-color: var(--uv); }
+button:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+#go { font-size: 14px; padding: 16px 22px; border-color: var(--heat); color: var(--heat); }
+#go:hover { background: var(--heat); color: var(--void); }
+.hud { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: linear-gradient(transparent, rgba(7,6,11,.85) 40%); }
+.hud .sp { flex: 1; }
+.read { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: 16px; right: 16px; z-index: 2; display: flex; justify-content: space-between; gap: 12px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); pointer-events: none; font-variant-numeric: tabular-nums; }
+.read b { color: var(--ink); font-weight: 600; }
+#scene { font: 900 clamp(28px, 6vw, 52px)/1 var(--f-disp); color: var(--ink); letter-spacing: .02em; }
+#hold { border-color: var(--heat); color: var(--heat); }
+#hold.on { background: var(--heat); color: var(--void); }
+@media (max-width: 560px) { .hud button { padding: 9px 8px; font-size: 11px; letter-spacing: .06em; } }
+</style>
+
+<canvas id="cv" aria-label="Visual reactivo al sonido"></canvas>
+<div class="read"><div><div id="scene">—</div><div id="sub">listo</div></div><div style="text-align:right"><div><b id="bpm">0</b> bpm</div><div>corte <b id="cut">0</b> Hz</div><div>daño <b id="dmg">0</b>%</div></div></div>
+
+<section class="intro" id="intro">
+  <div>
+    <h1>Motor<br><span>sónico</span></h1>
+    <p>Un instrumento que suena solo y que tú deformas. Todo se sintetiza en directo en tu navegador: no hay ni un sample. Las voces giran a tu alrededor en audio 3D, así que mejor con auriculares.</p>
+    <ul>
+      <li><b>Mover</b> el ratón o el dedo · horizontal abre el filtro, vertical aleja o acerca el espacio</li>
+      <li><b>Clic / toque</b> · impacto y onda expansiva</li>
+      <li><b>Mantener espacio</b> o el botón Romper · destrucción: bitcrush, tartamudeo y saturación</li>
+      <li><b>1 – 5</b> · cambiar de escena</li>
+    </ul>
+    <button id="go">Encender motor</button>
+  </div>
+</section>
+
+<nav class="hud" aria-label="Escenas">
+  <button data-s="0" aria-pressed="false">1 Vacío</button>
+  <button data-s="1" aria-pressed="false">2 Pulso</button>
+  <button data-s="2" aria-pressed="false">3 Fractura</button>
+  <button data-s="3" aria-pressed="false">4 Órbita</button>
+  <button data-s="4" aria-pressed="false">5 Colapso</button>
+  <span class="sp"></span>
+  <button id="hold">Romper</button>
+  <button id="mute">Silencio</button>
+</nav>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const SCENES = [
+    { name: 'VACÍO', sub: 'drón y polvo', bpm: 70, kick: 0, hat: 0, bass: 0, pad: 1, arp: 0, glitch: 0, drive: .05, root: 38 },
+    { name: 'PULSO', sub: 'cuatro al suelo', bpm: 128, kick: 1, hat: 1, bass: 1, pad: .6, arp: 0, glitch: .05, drive: .2, root: 41 },
+    { name: 'FRACTURA', sub: 'roto y nervioso', bpm: 172, kick: 2, hat: 2, bass: 1, pad: .3, arp: .4, glitch: .35, drive: .35, root: 43 },
+    { name: 'ÓRBITA', sub: 'arpegios que te rodean', bpm: 118, kick: 1, hat: 1, bass: .7, pad: .8, arp: 1, glitch: .05, drive: .15, root: 45 },
+    { name: 'COLAPSO', sub: 'todo a la vez', bpm: 140, kick: 3, hat: 2, bass: 1, pad: .7, arp: 1, glitch: .6, drive: .7, root: 36 },
+  ];
+  let A, S = SCENES[1], si = 1, mx = .6, my = .5, breaking = 0, step = 0, nextT = 0, muted = false;
+  let impacts = [], energy = { low: 0, mid: 0, high: 0 };
+  const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const MINOR = [0, 3, 5, 7, 10, 12, 15];
+
+  function curve(k) { const n = 2048, c = new Float32Array(n); for (let i = 0; i < n; i++) { const x = i / n * 2 - 1; c[i] = Math.tanh(x * (1 + k * 30)) ; } return c; }
+  function crushCurve(bits) { const n = 2048, c = new Float32Array(n), q = Math.pow(2, bits); for (let i = 0; i < n; i++) { const x = i / n * 2 - 1; c[i] = Math.round(x * q) / q; } return c; }
+  function impulse(ctx, sec) { const len = ctx.sampleRate * sec, b = ctx.createBuffer(2, len, ctx.sampleRate); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); } return b; }
+
+  function boot() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const bus = ctx.createGain(), drive = ctx.createWaveShaper(), crush = ctx.createWaveShaper(), filt = ctx.createBiquadFilter(), comp = ctx.createDynamicsCompressor(), out = ctx.createGain(), an = ctx.createAnalyser();
+    const verb = ctx.createConvolver(), verbG = ctx.createGain(), dly = ctx.createDelay(2), fb = ctx.createGain(), dlyG = ctx.createGain();
+    drive.curve = curve(.2); drive.oversample = '4x'; crush.curve = crushCurve(16);
+    filt.type = 'lowpass'; filt.Q.value = 6; comp.threshold.value = -16; comp.ratio.value = 6; out.gain.value = .8; an.fftSize = 2048; an.smoothingTimeConstant = .78;
+    verb.buffer = impulse(ctx, 4); verbG.gain.value = .3; dly.delayTime.value = .375; fb.gain.value = .35; dlyG.gain.value = .25;
+    bus.connect(drive); drive.connect(crush); crush.connect(filt); filt.connect(comp);
+    bus.connect(verb); verb.connect(verbG); verbG.connect(comp);
+    bus.connect(dly); dly.connect(fb); fb.connect(dly); dly.connect(dlyG); dlyG.connect(filt);
+    comp.connect(out); out.connect(an); an.connect(ctx.destination);
+    ctx.listener.positionX && (ctx.listener.positionX.value = 0);
+    const noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const nd = noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    A = { ctx, bus, drive, crush, filt, verbG, dly, fb, out, an, noise, fq: new Uint8Array(an.frequencyBinCount), wv: new Uint8Array(an.fftSize), pads: [], orbit: 0 };
+    padStart(); nextT = ctx.currentTime + .1; setInterval(sched, 25);
+  }
+
+  function panner(x, y, z) { const p = A.ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 1; setPos(p, x, y, z); return p; }
+  function setPos(p, x, y, z) { if (p.positionX) { p.positionX.value = x; p.positionY.value = y; p.positionZ.value = z; } else p.setPosition(x, y, z); }
+
+  function padStart() {
+    // three detuned saw clusters orbiting the listener
+    [0, 7, 15].forEach((iv, k) => {
+      const g = A.ctx.createGain(), f = A.ctx.createBiquadFilter(), p = panner(0, 0, -1); g.gain.value = 0; f.type = 'lowpass'; f.frequency.value = 900;
+      const oscs = [-9, 0, 9].map((det) => { const o = A.ctx.createOscillator(); o.type = 'sawtooth'; o.detune.value = det + k * 3; o.frequency.value = mtof(S.root + 12 + iv); o.connect(f); o.start(); return o; });
+      f.connect(g); g.connect(p); p.connect(A.bus); A.pads.push({ g, f, p, oscs, iv, ph: k * 2.1 });
+    });
+  }
+
+  function env(g, t, a, peak, d) { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); }
+  function kick(t, amt = 1) { const o = A.ctx.createOscillator(), g = A.ctx.createGain(); o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(42, t + .12); env(g, t, .002, .95 * amt, .42); o.connect(g); g.connect(A.bus); o.start(t); o.stop(t + .5); }
+  function hat(t, open, amt = .25) { const s = A.ctx.createBufferSource(), f = A.ctx.createBiquadFilter(), g = A.ctx.createGain(), p = panner(Math.random() * 2 - 1, .4, -.6); s.buffer = A.noise; f.type = 'highpass'; f.frequency.value = 7000 + Math.random() * 3000; env(g, t, .001, amt, open ? .22 : .04); s.connect(f); f.connect(g); g.connect(p); p.connect(A.bus); s.start(t, Math.random() * .5); s.stop(t + .3); }
+  function snare(t) { const s = A.ctx.createBufferSource(), f = A.ctx.createBiquadFilter(), g = A.ctx.createGain(); s.buffer = A.noise; f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = .7; env(g, t, .001, .5, .16); s.connect(f); f.connect(g); g.connect(A.bus); s.start(t); s.stop(t + .2); const o = A.ctx.createOscillator(), og = A.ctx.createGain(); o.frequency.value = 190; env(og, t, .001, .3, .08); o.connect(og); og.connect(A.bus); o.start(t); o.stop(t + .12); }
+  function bass(t, note, len) {
+    const car = A.ctx.createOscillator(), mod = A.ctx.createOscillator(), mg = A.ctx.createGain(), g = A.ctx.createGain(), f = A.ctx.createBiquadFilter();
+    const fr = mtof(note); car.frequency.value = fr; mod.frequency.value = fr * 2; mg.gain.setValueAtTime(fr * (3 + mx * 6), t); mg.gain.exponentialRampToValueAtTime(fr * .2, t + len);
+    f.type = 'lowpass'; f.frequency.value = 200 + mx * 2600; f.Q.value = 4;
+    mod.connect(mg); mg.connect(car.frequency); car.connect(f); f.connect(g); g.connect(A.bus); env(g, t, .004, .55, len);
+    car.start(t); mod.start(t); car.stop(t + len + .05); mod.stop(t + len + .05);
+  }
+  function arp(t, note) { const o = A.ctx.createOscillator(), g = A.ctx.createGain(), a = (A.orbit += .7), p = panner(Math.cos(a) * 2.5, Math.sin(a * .5), Math.sin(a) * 2.5); o.type = 'square'; o.frequency.value = mtof(note); env(g, t, .002, .12, .18); o.connect(g); g.connect(p); p.connect(A.bus); o.start(t); o.stop(t + .25); }
+  function stutter(t, dur) { const s = A.ctx.createBufferSource(), g = A.ctx.createGain(), f = A.ctx.createBiquadFilter(); s.buffer = A.noise; s.loop = true; s.loopStart = 0; s.loopEnd = .01 + Math.random() * .03; f.type = 'bandpass'; f.frequency.value = 300 + Math.random() * 4000; f.Q.value = 8; env(g, t, .001, .5, dur); s.connect(f); f.connect(g); g.connect(A.bus); s.start(t); s.stop(t + dur + .05); }
+  function boom(x, y) {
+    const t = A.ctx.currentTime; kick(t, 1.2);
+    const s = A.ctx.createBufferSource(), f = A.ctx.createBiquadFilter(), g = A.ctx.createGain(), p = panner((x - .5) * 4, (.5 - y) * 2, -1); s.buffer = A.noise; f.type = 'lowpass'; f.frequency.setValueAtTime(8000, t); f.frequency.exponentialRampToValueAtTime(120, t + 1.4); env(g, t, .003, .7, 1.5); s.connect(f); f.connect(g); g.connect(p); p.connect(A.bus); s.start(t); s.stop(t + 1.6);
+    impacts.push({ x, y, t: performance.now() });
+  }
+
+  function sched() {
+    const ctx = A.ctx, spb = 60 / S.bpm / 4;
+    while (nextT < ctx.currentTime + .12) {
+      const st = step % 16, bar = Math.floor(step / 16), t = nextT, scale = (i) => S.root + MINOR[((i % 7) + 7) % 7];
+      if (S.kick === 1 && st % 4 === 0) kick(t);
+      if (S.kick === 2 && [0, 6, 10].includes(st)) kick(t); if (S.kick === 2 && (st === 4 || st === 12)) snare(t);
+      if (S.kick === 3) { if (st % 4 === 0 || (st === 14 && Math.random() < .5)) kick(t); if (st === 4 || st === 12) snare(t); }
+      if (S.hat === 1 && st % 4 === 2) hat(t, true); if (S.hat === 2 && Math.random() < .7) hat(t, st % 4 === 2, .12 + Math.random() * .15);
+      if (S.bass && st % 4 !== 0 && (S.bass === 1 || Math.random() < S.bass)) bass(t, scale([0, 0, 3, 4][bar % 4]) - 12 + (st % 4 === 3 ? 12 : 0), spb * 1.8);
+      if (S.arp && Math.random() < S.arp * .9) arp(t, scale(Math.floor(Math.random() * 7)) + 24);
+      if ((S.glitch + breaking * .6) > Math.random() * 3) stutter(t, spb * (1 + Math.floor(Math.random() * 3)));
+      if (st === 0) A.pads.forEach((pd) => pd.oscs.forEach((o) => o.frequency.setTargetAtTime(mtof(scale([0, 5, 3, 4][bar % 4]) + 12 + pd.iv), t, .4)));
+      nextT += spb * (S.kick === 2 && st % 2 ? .9 : 1); step++;
+    }
+    // continuous parameters
+    const now = ctx.currentTime, cut = 120 * Math.pow(150, mx);
+    A.filt.frequency.setTargetAtTime(cut, now, .05);
+    A.verbG.gain.setTargetAtTime(.1 + my * .7, now, .1); A.fb.gain.setTargetAtTime(.2 + my * .45 + breaking * .3, now, .1);
+    const dmg = Math.min(1, S.drive + breaking * .9);
+    if (Math.abs((A._dmg || 0) - dmg) > .03) { A.drive.curve = curve(dmg); A.crush.curve = crushCurve(breaking ? 3 + Math.round((1 - breaking) * 5) : 16); A._dmg = dmg; }
+    A.dly.delayTime.setTargetAtTime(breaking ? 60 / S.bpm / 8 : 60 / S.bpm * .75, now, .02);
+    A.pads.forEach((pd) => { pd.ph += .02; const r = 1.2 + my * 3; setPos(pd.p, Math.cos(pd.ph) * r, Math.sin(pd.ph * .3) * .6, Math.sin(pd.ph) * r); pd.g.gain.setTargetAtTime(S.pad * .09, now, .5); pd.f.frequency.setTargetAtTime(300 + mx * 3000, now, .1); });
+    $('bpm').textContent = S.bpm; $('cut').textContent = Math.round(cut); $('dmg').textContent = Math.round(dmg * 100);
+  }
+
+  function scene(i) { si = i; S = SCENES[i]; document.querySelectorAll('[data-s]').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.s === i)); $('scene').textContent = S.name; $('sub').textContent = S.sub; }
+
+  // ---------- visuals ----------
+  const cv = $('cv'), g = cv.getContext('2d'); let W, H, DPR;
+  function size() { DPR = Math.min(2, devicePixelRatio || 1); W = cv.width = innerWidth * DPR; H = cv.height = innerHeight * DPR; }
+  addEventListener('resize', size); size();
+  const N = RM ? 500 : 1800, P = Array.from({ length: N }, () => ({ x: (Math.random() - .5) * 2, y: (Math.random() - .5) * 2, z: Math.random(), b: Math.random() }));
+  let rot = 0;
+  function band(a, b) { let s = 0; for (let i = a; i < b; i++) s += A.fq[i]; return s / (b - a) / 255; }
+  function frame() {
+    requestAnimationFrame(frame);
+    if (A) { A.an.getByteFrequencyData(A.fq); A.an.getByteTimeDomainData(A.wv); energy.low += (band(1, 8) - energy.low) * .4; energy.mid += (band(8, 80) - energy.mid) * .3; energy.high += (band(80, 400) - energy.high) * .3; }
+    const L = energy.low, M = energy.mid, Hh = energy.high, cx = W / 2, cy = H / 2, R = Math.min(W, H);
+    g.globalCompositeOperation = 'source-over'; g.fillStyle = `rgba(7,6,11,${breaking ? .12 : .22})`; g.fillRect(0, 0, W, H);
+    g.globalCompositeOperation = 'lighter';
+    rot += .002 + M * .02 + breaking * .03;
+    const cr = Math.cos(rot), sr = Math.sin(rot), speed = .002 + L * .03 + breaking * .03;
+    for (const p of P) {
+      p.z -= speed; if (p.z <= .02) { p.z = 1; p.x = (Math.random() - .5) * 2; p.y = (Math.random() - .5) * 2; }
+      const x = p.x * cr - p.y * sr, y = p.x * sr + p.y * cr, k = .35 / p.z, sx = cx + x * k * R * (.6 + (mx - .5) * .4), sy = cy + y * k * R * (.6 + (my - .5) * .4);
+      if (sx < 0 || sx > W || sy < 0 || sy > H) continue;
+      const s = (1 - p.z) * (1.5 + L * 5) * DPR, hot = p.b < Hh * 1.4;
+      g.fillStyle = hot ? `rgba(255,90,54,${.4 + (1 - p.z) * .6})` : `rgba(143,107,255,${.25 + (1 - p.z) * .6})`;
+      g.fillRect(sx, sy, s, s);
+    }
+    // spectrum ring
+    if (A) {
+      const r0 = R * (.12 + L * .09), bins = 180; g.lineWidth = 2 * DPR; g.strokeStyle = 'rgba(236,232,244,.55)'; g.beginPath();
+      for (let i = 0; i <= bins; i++) { const v = A.fq[Math.floor(Math.pow(i / bins, 2) * 500) + 1] / 255, a = i / bins * Math.PI * 2 - Math.PI / 2 + rot, r = r0 + v * R * .16; const X = cx + Math.cos(a) * r, Y = cy + Math.sin(a) * r; i ? g.lineTo(X, Y) : g.moveTo(X, Y); }
+      g.stroke();
+      // waveform scar
+      g.strokeStyle = `rgba(255,90,54,${.3 + breaking * .6})`; g.lineWidth = 1.5 * DPR; g.beginPath();
+      for (let i = 0; i < A.wv.length; i += 4) { const X = i / A.wv.length * W, Y = cy + (A.wv[i] - 128) / 128 * H * (.15 + breaking * .3); i ? g.lineTo(X, Y) : g.moveTo(X, Y); }
+      g.stroke();
+    }
+    // impact shockwaves
+    const now = performance.now(); impacts = impacts.filter((s) => now - s.t < 1400);
+    for (const s of impacts) { const k = (now - s.t) / 1400; g.strokeStyle = `rgba(255,90,54,${1 - k})`; g.lineWidth = (1 - k) * 10 * DPR; g.beginPath(); g.arc(s.x * W, s.y * H, k * R * .9, 0, Math.PI * 2); g.stroke(); }
+    // destruction: slice displacement
+    if (breaking && !RM) { g.globalCompositeOperation = 'source-over'; for (let i = 0; i < 6; i++) { const y = Math.random() * H, h = (4 + Math.random() * 40) * DPR, dx = (Math.random() - .5) * 80 * DPR * breaking; try { g.drawImage(cv, 0, y, W, h, dx, y, W, h); } catch (e) {} } }
+  }
+  frame();
+
+  // ---------- input ----------
+  const pos = (e) => { mx = Math.min(1, Math.max(0, e.clientX / innerWidth)); my = Math.min(1, Math.max(0, e.clientY / innerHeight)); };
+  cv.addEventListener('pointermove', pos);
+  cv.addEventListener('pointerdown', (e) => { pos(e); if (A) boom(mx, my); });
+  const setBreak = (v) => { breaking = v ? 1 : 0; $('hold').classList.toggle('on', !!v); };
+  addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); setBreak(1); } const n = +e.key; if (A && n >= 1 && n <= 5) scene(n - 1); });
+  addEventListener('keyup', (e) => { if (e.code === 'Space') setBreak(0); });
+  $('hold').addEventListener('pointerdown', () => setBreak(1)); ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => $('hold').addEventListener(ev, () => setBreak(0)));
+  document.querySelectorAll('[data-s]').forEach((b) => b.addEventListener('click', () => { if (!A) start(); scene(+b.dataset.s); }));
+  $('mute').addEventListener('click', () => { if (!A) return; muted = !muted; A.out.gain.setTargetAtTime(muted ? 0 : .8, A.ctx.currentTime, .05); $('mute').setAttribute('aria-pressed', muted); });
+  function start() { if (A) return; boot(); scene(si); $('intro').hidden = true; boom(.5, .5); }
+  $('go').addEventListener('click', start);
+  scene(1);
+})();
+</script>
