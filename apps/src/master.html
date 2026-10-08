@@ -1,0 +1,233 @@
+<title>Nexsound Master</title>
+<!--HEAD-->
+<style>
+.ab { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.ab .seg button { min-width: 92px; }
+.wave { width: 100%; height: 70px; display: block; cursor: pointer; }
+.cmp b { font-size: 20px; }
+.cmp .arrow { color: var(--muted); font-size: 14px; font-weight: 500; }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>Master</h1>
+    <p class="lede">Sube tu tema y sale masterizado: ecualización que lo acerca a una referencia (o a la curva del género), anchura estéreo, graves en mono, compresión suave y volumen final al nivel que pide cada plataforma, sin pasar de −1 dBTP.</p>
+  </header>
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2>Tu tema</h2>
+        <label class="drop" id="drop-a" for="in-a"><strong>Suelta tu tema</strong><small>MP3, WAV, AIFF, M4A, FLAC</small></label>
+        <input type="file" id="in-a" accept="audio/*" hidden>
+        <div class="file" id="name-a">Ejemplo cargado: mezcla de demostración sin masterizar</div>
+      </section>
+      <section class="panel">
+        <h2>Referencia (opcional)</h2>
+        <label class="drop" id="drop-b" for="in-b"><strong>Suelta un tema que suene como quieres</strong><small>Se iguala su balance tonal y su anchura</small></label>
+        <input type="file" id="in-b" accept="audio/*" hidden>
+        <div class="row"><div class="file" id="name-b">Sin referencia: se usa la curva del estilo</div><button class="btn small" id="clear-b" hidden>Quitar</button></div>
+      </section>
+      <section class="panel">
+        <h2>Ajustes</h2>
+        <label class="field"><span>Destino</span>
+          <div class="seg" id="target" role="group" aria-label="Destino de volumen">
+            <button data-v="-14" aria-pressed="false">Streaming −14</button><button data-v="-11" aria-pressed="true">Equilibrado −11</button><button data-v="-9" aria-pressed="false">Club −9</button>
+          </div></label>
+        <label class="field" id="style-field"><span>Estilo</span>
+          <select id="style"><option value="urbano">Urbano · reggaetón · trap</option><option value="electronica" selected>Electrónica · house</option><option value="pop">Pop</option><option value="acustico">Acústico · balada</option><option value="neutro">Neutro</option></select></label>
+        <label class="field"><span>Cuánto igualar el tono <output id="o-match">70 %</output></span><input type="range" id="match" min="0" max="100" value="70"></label>
+        <label class="field"><span>Cuerpo (graves) <output id="o-body">0 dB</output></span><input type="range" id="body" min="-4" max="4" step="0.5" value="0"></label>
+        <label class="field"><span>Brillo (agudos) <output id="o-air">0 dB</output></span><input type="range" id="air" min="-4" max="4" step="0.5" value="0"></label>
+        <label class="field"><span>Anchura estéreo <output id="o-width">100 %</output></span><input type="range" id="width" min="50" max="150" value="100"></label>
+        <label class="field"><span>Compresión <output id="o-comp">30 %</output></span><input type="range" id="comp" min="0" max="100" value="30"></label>
+        <label class="field"><span>Techo (pico real) <output id="o-ceil">−1,0 dBTP</output></span><input type="range" id="ceil" min="-2" max="-0.3" step="0.1" value="-1"></label>
+        <label class="row small"><input type="checkbox" id="monobass" checked> Graves en mono por debajo de 120 Hz</label>
+        <button class="btn primary" id="go">Masterizar</button>
+        <div class="progress" id="prog" hidden><i></i></div>
+        <div class="err" id="err" hidden></div>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel">
+        <h2>Antes y después</h2>
+        <div class="facts cmp">
+          <div class="fact"><span>Volumen</span><b id="r-lufs">—</b><small>LUFS integrado</small></div>
+          <div class="fact"><span>Pico real</span><b id="r-tp">—</b><small>dBTP</small></div>
+          <div class="fact"><span>Rango</span><b id="r-lra">—</b><small>LU (dinámica)</small></div>
+          <div class="fact"><span>Anchura</span><b id="r-width">—</b><small>lados / centro</small></div>
+        </div>
+        <div class="ab">
+          <button class="play" id="play" aria-label="Escuchar"></button>
+          <div class="seg" id="ab" role="group" aria-label="Versión"><button data-v="a" aria-pressed="false">Original</button><button data-v="b" aria-pressed="true">Master</button><button data-v="r" aria-pressed="false" hidden>Referencia</button></div>
+          <label class="row small"><input type="checkbox" id="fair" checked> Comparar al mismo volumen</label>
+        </div>
+        <canvas class="wave" id="wave" aria-label="Forma de onda: toca para saltar a ese punto"></canvas>
+        <div class="row">
+          <button class="btn primary" id="dl-wav" disabled>Descargar WAV 24 bits</button>
+          <button class="btn" id="dl-mp3" disabled>Descargar MP3 320</button>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Ecualización aplicada</h2>
+        <canvas class="chart" id="eq" aria-label="Curva de ecualización y espectros"></canvas>
+        <p class="note">Línea gruesa: la corrección que se aplica. Debajo, el espectro del original, del master y (si hay) de la referencia, en tercios de octava.</p>
+      </section>
+      <!--FOOT-->
+    </div>
+  </div>
+</div>
+<!--LIBS-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+<script>
+(() => {
+  const { $ } = NX;
+  let A = null, Bref = null, M = null, report = null, view = 'b', baseName = 'demostracion';
+  const TARGETS = { urbano: { tilt: -4.2, low: 2.5, air: 0.5 }, electronica: { tilt: -4.5, low: 2, air: 1 }, pop: { tilt: -3.8, low: 1, air: 1.5 }, acustico: { tilt: -3.2, low: -1, air: 1 }, neutro: { tilt: -4, low: 0, air: 0 } };
+  const fmt = (v, d = 1) => (v >= 0 && d ? '' : '') + v.toFixed(d).replace('.', ',').replace('-', '−');
+
+  // ----- controles
+  const bindOut = (id, f) => { const i = $(id), o = $('o-' + id); const u = () => (o.textContent = f(+i.value)); i.addEventListener('input', u); u(); };
+  bindOut('match', (v) => v + ' %'); bindOut('body', (v) => (v > 0 ? '+' : '') + fmt(v) + ' dB'); bindOut('air', (v) => (v > 0 ? '+' : '') + fmt(v) + ' dB');
+  bindOut('width', (v) => v + ' %'); bindOut('comp', (v) => v + ' %'); bindOut('ceil', (v) => fmt(v) + ' dBTP');
+  let target = -11;
+  $('target').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; target = +b.dataset.v; [...$('target').children].forEach((x) => x.setAttribute('aria-pressed', x === b)); });
+  $('ab').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; view = b.dataset.v; [...$('ab').children].forEach((x) => x.setAttribute('aria-pressed', x === b)); if (NX.player.playing()) startPlay(NX.player.position()); drawWave(); });
+
+  NX.dropzone($('drop-a'), $('in-a'), async (f) => { try { A = await NX.decodeFile(f[0]); baseName = NX.cleanName(f[0].name); $('name-a').textContent = f[0].name + ' · ' + NX.fmtTime(A.duration); M = null; run(); } catch (e) { showErr(e.message); } });
+  NX.dropzone($('drop-b'), $('in-b'), async (f) => { try { Bref = await NX.decodeFile(f[0]); $('name-b').textContent = f[0].name; $('clear-b').hidden = false; $('ab').children[2].hidden = false; $('style-field').hidden = true; if (A) run(); } catch (e) { showErr(e.message); } });
+  $('clear-b').addEventListener('click', () => { Bref = null; $('name-b').textContent = 'Sin referencia: se usa la curva del estilo'; $('clear-b').hidden = true; $('ab').children[2].hidden = true; $('style-field').hidden = false; if (view === 'r') $('ab').children[1].click(); if (A) run(); });
+  $('go').addEventListener('click', () => A && run());
+  const showErr = (m) => { $('err').textContent = m; $('err').hidden = false; };
+
+  // ----- cadena de mastering (corre en un Worker)
+  function chain(a, ref, opt, progress) {
+    const sr = a.sr; progress(0.05, 'Midiendo');
+    const before = NX.loudness(a.L, a.R, sr), sa = NX.spectrum(a.L, a.R, sr), sb = ref ? NX.spectrum(ref.L, ref.R, sr) : null;
+    const fcs = NX.THIRDS, norm = (bands) => { const v = bands.map((b) => b.mid), ref1k = v.filter((_, i) => fcs[i] > 300 && fcs[i] < 3000); const m = ref1k.reduce((s, x) => s + x, 0) / ref1k.length; return v.map((x) => x - m); };
+    const na = norm(sa.bands); let want;
+    if (sb) want = norm(sb.bands);
+    else { const T = opt.style; want = fcs.map((f) => T.tilt * Math.log2(f / 1000) + (f < 120 ? T.low : 0) + (f > 6000 ? T.air : 0)); const m = want.filter((_, i) => fcs[i] > 300 && fcs[i] < 3000); const mm = m.reduce((s, x) => s + x, 0) / m.length; want = want.map((x) => x - mm); }
+    let diff = na.map((x, i) => (want[i] - x) * opt.match);
+    diff = diff.map((_, i) => { let s = 0, c = 0; for (let j = i - 2; j <= i + 2; j++) if (j >= 0 && j < diff.length) { s += diff[j]; c++; } return s / c; });   // suavizado
+    diff = diff.map((d, i) => NX.clamp(d, sb ? -6 : -4.5, sb ? 6 : 4.5) * (fcs[i] < 25 || fcs[i] > 18000 ? 0.3 : 1));
+    diff = diff.map((d, i) => d + opt.body / (1 + Math.pow(fcs[i] / 150, 2)) + opt.air / (1 + Math.pow(7000 / fcs[i], 2)));
+    progress(0.2, 'Ecualizando');
+    const h = NX.firFromCurve(fcs, diff, sr, 4096);
+    let L = NX.convolve(a.L, h); progress(0.35); let R = NX.convolve(a.R, h); progress(0.5, 'Estéreo');
+    // estéreo: anchura (o la de la referencia) y graves en mono
+    const sideRatio = (s) => { let m = 0, si = 0; s.bands.forEach((b) => { if (b.fc > 150) { m += Math.pow(10, b.mid / 10); si += Math.pow(10, b.side / 10); } }); return si / (m + 1e-12); };
+    let width = opt.width; const ra = sideRatio(sa);
+    if (sb) width *= NX.clamp(Math.sqrt(sideRatio(sb) / (ra + 1e-12)), 0.6, 1.6);
+    const lp = NX.biquad('lowpass', 120, sr, 0.7071);
+    const S = new Float32Array(L.length), Mi = new Float32Array(L.length);
+    for (let i = 0; i < L.length; i++) { Mi[i] = (L[i] + R[i]) / 2; S[i] = (L[i] - R[i]) / 2; }
+    let Slow = null; if (opt.monobass) Slow = NX.filt(NX.filt(S, lp), lp);
+    for (let i = 0; i < L.length; i++) { let s = S[i]; if (Slow) s -= Slow[i]; s *= width; L[i] = Mi[i] + s; R[i] = Mi[i] - s; }
+    progress(0.6, 'Compresión');
+    // compresión de bus (detector RMS enlazado, 2:1 a 3:1, ataque 30 ms, liberación 250 ms)
+    if (opt.comp > 0) {
+      const env = NX.loudness(L, R, sr), thr = Math.pow(10, (env.I + 0.691 + 4 - 6 * opt.comp) / 20), ratio = 1.5 + 1.5 * opt.comp;
+      const at = Math.exp(-1 / (0.03 * sr)), rl = Math.exp(-1 / (0.25 * sr)); let e = 0, gmk = 0;
+      const hp = NX.biquad('highpass', 90, sr, 0.7071); const dl = NX.filt(L, hp), dr = NX.filt(R, hp);
+      for (let i = 0; i < L.length; i++) {
+        const p = (dl[i] * dl[i] + dr[i] * dr[i]) / 2; e = p > e ? at * e + (1 - at) * p : rl * e + (1 - rl) * p;
+        const lev = Math.sqrt(e) + 1e-9; let g = 1; if (lev > thr) g = Math.pow(lev / thr, 1 / ratio - 1);
+        L[i] *= g; R[i] *= g; gmk = Math.min(gmk, NX.db(g));
+      }
+    }
+    progress(0.75, 'Volumen');
+    // volumen final: dos pasadas de ganancia + limitador (el limitador baja algo el volumen)
+    let cur = NX.loudness(L, R, sr), gain = NX.undb(opt.target - cur.I), out = null;
+    for (let pass = 0; pass < 4; pass++) {
+      const gl = new Float32Array(L.length), gr = new Float32Array(L.length); for (let i = 0; i < L.length; i++) { gl[i] = L[i] * gain; gr[i] = R[i] * gain; }
+      out = NX.limit(gl, gr, sr, opt.ceil - 0.3, 60, 5); const m2 = NX.loudness(out.L, out.R, sr);
+      gain *= NX.undb(NX.clamp(opt.target - m2.I, -3, 6) * 1.15); cur = m2; if (Math.abs(opt.target - m2.I) < 0.15) break;
+      progress(0.8 + pass * 0.05);
+    }
+    const after = cur, sm = NX.spectrum(out.L, out.R, sr);
+    return { L: out.L, R: out.R, sr, before, after, curve: Float32Array.from(diff), fcs: Float32Array.from(fcs), spA: Float32Array.from(sa.bands.map((b) => b.mid)), spM: Float32Array.from(sm.bands.map((b) => b.mid)), spB: sb ? Float32Array.from(sb.bands.map((b) => b.mid)) : null, widthA: ra, widthM: sideRatio(sm), refLoud: ref ? NX.loudness(ref.L, ref.R, sr) : null };
+  }
+
+  async function run() {
+    if (!A) return; NX.player.stop(); $('err').hidden = true; $('go').disabled = true; $('prog').hidden = false; $('dl-wav').disabled = $('dl-mp3').disabled = true;
+    const opt = { target, style: TARGETS[$('style').value], match: +$('match').value / 100, body: +$('body').value, air: +$('air').value, width: +$('width').value / 100, comp: +$('comp').value / 100, ceil: +$('ceil').value, monobass: $('monobass').checked };
+    try {
+      const copy = (x) => x && { L: new Float32Array(x.L), R: new Float32Array(x.R), sr: x.sr };
+      report = await NX.task(chain, [copy(A), copy(Bref), opt], (p) => ($('prog').firstChild.style.width = Math.round(p * 100) + '%'));
+      M = { L: report.L, R: report.R, sr: report.sr };
+      const b = report.before, a = report.after;
+      $('r-lufs').innerHTML = `${fmt(b.I)} <span class="arrow">→</span> ${fmt(a.I)}`;
+      $('r-tp').innerHTML = `${fmt(b.truePeak)} <span class="arrow">→</span> ${fmt(a.truePeak)}`;
+      $('r-lra').innerHTML = `${fmt(b.LRA)} <span class="arrow">→</span> ${fmt(a.LRA)}`;
+      $('r-width').innerHTML = `${Math.round(report.widthA * 100)} <span class="arrow">→</span> ${Math.round(report.widthM * 100)} %`;
+      drawWave(); drawEq(); $('dl-wav').disabled = $('dl-mp3').disabled = !window.lamejs && false;
+      $('dl-mp3').disabled = !window.lamejs;
+      NX.toast('Master listo: ' + fmt(a.I) + ' LUFS, pico ' + fmt(a.truePeak) + ' dBTP');
+    } catch (e) { showErr(e.message); }
+    finally { $('go').disabled = false; $('prog').hidden = true; }
+  }
+
+  // ----- escucha A/B al mismo volumen
+  function current() { return view === 'a' ? A : view === 'r' ? Bref : M; }
+  function fairGain() {
+    if (!$('fair').checked || !report) return 1;
+    if (view === 'a') return NX.undb(report.after.I - report.before.I);
+    if (view === 'r' && report.refLoud) return NX.undb(report.after.I - report.refLoud.I);
+    return 1;
+  }
+  function startPlay(at = 0) {
+    const s = current(); if (!s) return; const btn = $('play');
+    NX.player.play(s.L, s.R, s.sr, { id: 'm', offset: at, gain: Math.min(fairGain(), 4), onStop: () => { btn.classList.remove('on'); btn.innerHTML = NX.ICON_PLAY; } });
+    btn.classList.add('on'); btn.innerHTML = NX.ICON_STOP; tick();
+  }
+  $('play').innerHTML = NX.ICON_PLAY;
+  $('play').addEventListener('click', () => (NX.player.playing() ? NX.player.stop() : startPlay(0)));
+  $('wave').addEventListener('click', (e) => { const s = current(); if (!s) return; const r = e.currentTarget.getBoundingClientRect(); startPlay(((e.clientX - r.left) / r.width) * s.L.length / s.sr); });
+  $('fair').addEventListener('change', () => NX.player.playing() && startPlay(NX.player.position()));
+  let raf; function tick() { cancelAnimationFrame(raf); drawWave(); if (NX.player.playing()) raf = requestAnimationFrame(tick); }
+  function drawWave() {
+    const s = current(); if (!s) return; const { x, w, h } = NX.drawWave($('wave'), s.L, s.R, view === 'a' ? NX.css('--muted') : view === 'r' ? NX.css('--signal') : NX.css('--accent'));
+    const p = NX.player.position(); if (p != null) { x.fillStyle = NX.css('--ink'); x.fillRect((p * s.sr / s.L.length) * w, 0, 2, h); }
+  }
+  function drawEq() {
+    if (!report) return; const cv = $('eq'), { x, w, h } = NX.setupCanvas(cv), fcs = [...report.fcs];
+    const pad = { l: 38, r: 10, t: 12, b: 24 }, X = (f) => pad.l + (Math.log(f / 20) / Math.log(1000)) * (w - pad.l - pad.r);
+    x.clearRect(0, 0, w, h); x.font = '11px ' + NX.css('--f-mono'); x.fillStyle = NX.css('--muted'); x.strokeStyle = NX.css('--line'); x.lineWidth = 1;
+    for (const f of [50, 100, 200, 500, 1000, 2000, 5000, 10000]) { x.beginPath(); x.moveTo(X(f), pad.t); x.lineTo(X(f), h - pad.b); x.stroke(); x.fillText(f >= 1000 ? f / 1000 + 'k' : f, X(f) - 8, h - 8); }
+    const Yc = (d) => pad.t + (h - pad.t - pad.b) * (0.5 - d / 16);   // ±8 dB
+    for (const d of [-6, 0, 6]) { x.beginPath(); x.moveTo(pad.l, Yc(d)); x.lineTo(w - pad.r, Yc(d)); x.stroke(); x.fillText((d > 0 ? '+' : '') + d + ' dB', 2, Yc(d) + 4); }
+    // espectros (escala relativa propia, abajo)
+    const all = [...report.spA, ...report.spM, ...(report.spB || [])], mx = Math.max(...all), Ys = (v) => h - pad.b - Math.max(0, (v - (mx - 50)) / 50) * (h - pad.t - pad.b) * 0.55;
+    const line = (arr, color, lw, Y) => { x.strokeStyle = color; x.lineWidth = lw; x.beginPath(); arr.forEach((v, i) => (i ? x.lineTo(X(fcs[i]), Y(v)) : x.moveTo(X(fcs[i]), Y(v)))); x.stroke(); };
+    x.globalAlpha = 0.55; line([...report.spA], NX.css('--muted'), 1.2, Ys); if (report.spB) line([...report.spB], NX.css('--signal'), 1.2, Ys); line([...report.spM], NX.css('--accent'), 1.2, Ys); x.globalAlpha = 1;
+    line([...report.curve], NX.css('--accent'), 3, Yc);
+  }
+  addEventListener('resize', () => { drawWave(); drawEq(); });
+
+  // ----- descargas
+  $('dl-wav').addEventListener('click', () => M && NX.save(baseName + '_master.wav', NX.wav(M.L, M.R, M.sr)));
+  $('dl-mp3').addEventListener('click', async () => {
+    if (!M || !window.lamejs) return; const btn = $('dl-mp3'); btn.disabled = true; btn.textContent = 'Codificando…'; await new Promise((r) => setTimeout(r, 20));
+    const enc = new lamejs.Mp3Encoder(2, M.sr, 320), blk = 1152, parts = [], toI = (a) => { const o = new Int16Array(a.length); for (let i = 0; i < a.length; i++) o[i] = Math.max(-32768, Math.min(32767, Math.round(a[i] * 32767))); return o; };
+    const li = toI(M.L), ri = toI(M.R);
+    for (let i = 0; i < li.length; i += blk) { const b = enc.encodeBuffer(li.subarray(i, i + blk), ri.subarray(i, i + blk)); if (b.length) parts.push(new Uint8Array(b)); }
+    parts.push(new Uint8Array(enc.flush()));
+    await NX.save(baseName + '_master.mp3', new Blob(parts, { type: 'audio/mpeg' })); btn.disabled = false; btn.textContent = 'Descargar MP3 320';
+  });
+
+  // ----- ejemplo al abrir: una mezcla sin masterizar generada aquí
+  function demo() {
+    const sr = 44100, n = sr * 12, L = new Float32Array(n), R = new Float32Array(n), beat = 60 / 124; let s = 5; const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296) * 2 - 1;
+    const f = (m) => 440 * Math.pow(2, (m - 69) / 12), ch = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
+    for (let b = 0; b * beat * 4 < 12; b++) for (let q = 0; q < 4; q++) {
+      const t0 = Math.round((b * 4 + q) * beat * sr); let ph = 0;
+      for (let i = 0; i < 0.4 * sr && t0 + i < n; i++) { const t = i / sr; ph += 2 * Math.PI * (52 + 120 * Math.exp(-t / 0.03)) / sr; const v = Math.sin(ph) * Math.exp(-t / 0.2) * 0.35; L[t0 + i] += v; R[t0 + i] += v; }
+      if (q % 2) for (let i = 0; i < 0.2 * sr && t0 + i < n; i++) { const v = rnd() * Math.exp(-i / sr / 0.06) * 0.12; L[t0 + i] += v; R[t0 + i] += v * 0.9; }
+      const c = ch[b % 4];
+      for (const [k, m] of c.entries()) for (let i = 0; i < beat * sr && t0 + i < n; i++) { const t = i / sr, v = (Math.sin(2 * Math.PI * f(m) * t) + 0.4 * Math.sin(4 * Math.PI * f(m) * t)) * 0.03 * Math.min(1, t / 0.02); L[t0 + i] += v * (k === 0 ? 1 : 0.7); R[t0 + i] += v * (k === 2 ? 1 : 0.7); }
+    }
+    return { L, R, sr, duration: 12 };
+  }
+  A = demo(); run();
+})();
+</script>

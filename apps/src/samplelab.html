@@ -1,0 +1,147 @@
+<title>Nexsound Sample Lab</title>
+<!--HEAD-->
+<style>
+.slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 640px) { .slots { grid-template-columns: minmax(0, 1fr); } }
+.slot { display: grid; gap: 8px; }
+.kitrow { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; align-items: start; padding: 14px 0; border-top: 1px solid var(--line); }
+.kitrow:first-child { border-top: 0; padding-top: 0; }
+@media (max-width: 640px) { .kitrow { grid-template-columns: minmax(0, 1fr); } }
+.kitrow h3 { font-size: 16px; }
+.srcs { display: flex; gap: 6px; flex-wrap: wrap; }
+.src { font: 600 12px/1.2 var(--f-body); padding: 8px 10px; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.src small { font: 400 11px/1 var(--f-mono); color: var(--muted); }
+.src[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.src[disabled] { opacity: .4; cursor: default; }
+.ctl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+@media (max-width: 560px) { .ctl { grid-template-columns: minmax(0, 1fr); } }
+.minis { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.minis canvas { width: 160px; height: 36px; }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>Sample Lab</h1>
+    <p class="lede">Saca el kit de cualquier tema. La app aísla el bombo, la caja y los hats (y los regenera limpios desde cero) y corta loops de batería, bajo y música en 1, 2 y 4 compases. Mezcla sonidos de dos temas, afínalos, escúchalos con el ritmo original y llévate el kit ordenado para tu DAW.</p>
+  </header>
+  <section class="panel">
+    <h2>Temas</h2>
+    <div class="slots">
+      <div class="slot"><label class="drop" id="drop-A" for="in-A"><strong>Tema A</strong><small>Suelta aquí</small></label><input type="file" id="in-A" accept="audio/*" hidden><div class="file" id="name-A"></div><div class="small muted" id="info-A"></div><div class="progress" id="prog-A" hidden><i></i></div></div>
+      <div class="slot"><label class="drop" id="drop-B" for="in-B"><strong>Tema B (opcional)</strong><small>Para combinar sonidos de dos temas</small></label><input type="file" id="in-B" accept="audio/*" hidden><div class="file" id="name-B"></div><div class="small muted" id="info-B"></div><div class="progress" id="prog-B" hidden><i></i></div></div>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="row" style="justify-content:space-between"><h2>Tu kit</h2>
+      <div class="row"><button class="play" id="play" aria-label="Escuchar el kit con el ritmo"></button><label class="field" style="min-width:160px"><span>Tempo <output id="o-bpm"></output></span><input type="range" id="bpm" min="70" max="180" value="124"></label><select id="patsrc" aria-label="Ritmo"><option value="A">Ritmo del tema A</option><option value="B">Ritmo del tema B</option></select></div></div>
+    <div id="kit"></div>
+  </section>
+  <section class="panel">
+    <div class="row" style="justify-content:space-between"><h2>Loops</h2><span class="small muted" id="loopinfo"></span></div>
+    <div class="items" id="loops"></div>
+  </section>
+  <section class="panel">
+    <h2>Llévatelo</h2>
+    <div class="row"><button class="btn primary" id="zip" disabled>Kit completo (ZIP)</button><button class="btn" id="mid" disabled>Ritmo en MIDI</button></div>
+    <p class="note">El ZIP trae carpetas Kicks, Snares, Hats (aislados, regenerados y tu versión afinada), Loops (a su tempo, cortados en el compás) y MIDI, más un LEEME con tempo y tonalidad. Arrastra la carpeta a Ableton, FL Studio o Logic.</p>
+  </section>
+  <!--FOOT-->
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $ } = NX; const T = { A: null, B: null }, names = { A: 'demostracion', B: '' };
+  const SOUNDS = [['kick', 'Bombo', 'Kicks'], ['caja', 'Caja / clap', 'Snares'], ['hat', 'Hat', 'Hats']];
+  const sel = { kick: { src: 'A', kind: 'regen', pitch: 0, len: 100, gain: 0 }, caja: { src: 'A', kind: 'shot', pitch: 0, len: 100, gain: 0 }, hat: { src: 'A', kind: 'shot', pitch: 0, len: 100, gain: 0 } };
+  async function load(slot, a, nm) {
+    names[slot] = NX.cleanName(nm); $('name-' + slot).textContent = nm; $('prog-' + slot).hidden = false; $('info-' + slot).textContent = 'Analizando…';
+    try {
+      T[slot] = await NX.engineWorker('kit', [new Float32Array(a.L), new Float32Array(a.R), a.sr], (s, p) => { $('prog-' + slot).firstChild.style.width = Math.round((p || 0) * 100) + '%'; $('info-' + slot).textContent = s; });
+      const r = T[slot]; $('info-' + slot).textContent = `${r.grid.bpm} BPM · ${r.key.name} · bombo de ${r.counts.kick} golpes`;
+      if (slot === 'A') { $('bpm').value = Math.round(r.grid.bpm); outs(); }
+      render();
+    } catch (e) { $('info-' + slot).textContent = e.message; } finally { $('prog-' + slot).hidden = true; }
+  }
+  ['A', 'B'].forEach((s) => NX.dropzone($('drop-' + s), $('in-' + s), async (f) => { try { const a = await NX.decodeFile(f[0]); await load(s, a, f[0].name); } catch (e) { NX.toast(e.message); } }));
+  const outs = () => ($('o-bpm').textContent = $('bpm').value + ' BPM'); $('bpm').addEventListener('input', () => { outs(); if (loopSrc) startKit(); }); outs();
+  $('patsrc').addEventListener('change', () => loopSrc && startKit());
+  // sonido elegido y procesado (afinación por remuestreo, corte y volumen)
+  function raw(k) { const s = sel[k], t = T[s.src] || T.A; if (!t) return null; return s.kind === 'regen' ? t.regen[k] : t.shots[k]; }
+  function processed(k) {
+    const s = sel[k], r = raw(k); if (!r) return null; const ratio = Math.pow(2, s.pitch / 12), n = Math.max(32, Math.floor(r.L.length / ratio * s.len / 100)), L = new Float32Array(n), R = new Float32Array(n), g = NX.undb(s.gain);
+    for (let i = 0; i < n; i++) { const p = i * ratio, i0 = Math.floor(p), fr = p - i0; if (i0 + 1 >= r.L.length) break; L[i] = (r.L[i0] * (1 - fr) + r.L[i0 + 1] * fr) * g; R[i] = (r.R[i0] * (1 - fr) + r.R[i0 + 1] * fr) * g; }
+    const fo = Math.min(n, Math.round(0.012 * 44100)); for (let i = 0; i < fo; i++) { const w = i / fo; L[n - 1 - i] *= w; R[n - 1 - i] *= w; }
+    return { L, R, sr: 44100 };
+  }
+  function render() {
+    $('kit').innerHTML = SOUNDS.map(([k, label]) => {
+      const s = sel[k], opt = (src, kind, txt) => { const ok = T[src] && (T[src][kind === 'regen' ? 'regen' : 'shots'][k]); const cnt = T[src] && kind === 'shot' ? T[src].counts[k] : null; return `<button class="src" data-k="${k}" data-src="${src}" data-kind="${kind}" aria-pressed="${s.src === src && s.kind === kind}" ${ok ? '' : 'disabled'}>${txt}${cnt ? `<small>${cnt} golpes</small>` : ''}</button>`; };
+      return `<div class="kitrow"><div><h3>${label}</h3></div><div>
+        <div class="srcs">${opt('A', 'shot', 'A · aislado')}${opt('A', 'regen', 'A · regenerado')}${opt('B', 'shot', 'B · aislado')}${opt('B', 'regen', 'B · regenerado')}</div>
+        <div class="ctl"><label class="field"><span>Afinación <output>${s.pitch > 0 ? '+' : ''}${s.pitch} st</output></span><input type="range" data-k="${k}" data-p="pitch" min="-12" max="12" value="${s.pitch}"></label>
+          <label class="field"><span>Duración <output>${s.len} %</output></span><input type="range" data-k="${k}" data-p="len" min="15" max="100" value="${s.len}"></label>
+          <label class="field"><span>Volumen <output>${s.gain > 0 ? '+' : ''}${s.gain} dB</output></span><input type="range" data-k="${k}" data-p="gain" min="-12" max="6" value="${s.gain}"></label></div>
+        <div class="minis"><button class="play" data-hit="${k}" aria-label="Escuchar ${label}">${NX.ICON_PLAY}</button><canvas data-wave="${k}" aria-hidden="true"></canvas><button class="dl" data-one="${k}">Descargar</button></div></div></div>`;
+    }).join('');
+    SOUNDS.forEach(([k]) => { const p = processed(k), cv = document.querySelector(`canvas[data-wave="${k}"]`); if (p && cv) NX.drawWave(cv, p.L, p.R); });
+    renderLoops(); $('zip').disabled = $('mid').disabled = !T.A;
+    $('patsrc').options[1].disabled = !T.B;
+  }
+  $('kit').addEventListener('click', (e) => {
+    const b = e.target.closest('.src'); if (b && !b.disabled) { sel[b.dataset.k].src = b.dataset.src; sel[b.dataset.k].kind = b.dataset.kind; render(); if (loopSrc) startKit(); return; }
+    const h = e.target.closest('[data-hit]'); if (h) { const p = processed(h.dataset.hit); if (p) NX.player.play(p.L, p.R, p.sr, { id: 'hit' }); return; }
+    const d = e.target.closest('[data-one]'); if (d) { const k = d.dataset.one, p = processed(k); NX.save(`NX_${k}_${sel[k].src}_${sel[k].kind}.wav`, NX.wav(p.L, p.R, p.sr)); }
+  });
+  $('kit').addEventListener('input', (e) => { const i = e.target.closest('input[data-p]'); if (!i) return; sel[i.dataset.k][i.dataset.p] = +i.value; const o = i.previousElementSibling.querySelector('output'), v = +i.value; o.textContent = i.dataset.p === 'pitch' ? `${v > 0 ? '+' : ''}${v} st` : i.dataset.p === 'len' ? v + ' %' : `${v > 0 ? '+' : ''}${v} dB`; const p = processed(i.dataset.k), cv = document.querySelector(`canvas[data-wave="${i.dataset.k}"]`); if (p) NX.drawWave(cv, p.L, p.R); clearTimeout(render.t); render.t = setTimeout(() => loopSrc && startKit(), 250); });
+  // escuchar el kit con el ritmo detectado (2 compases en bucle)
+  let loopSrc = null;
+  function kitLoop(bars = 2) {
+    const t = T[$('patsrc').value] || T.A, bpm = +$('bpm').value, st = 60 / bpm / 4, sr = 44100, n = Math.round(bars * 16 * st * sr), L = new Float32Array(n), R = new Float32Array(n);
+    for (const [k] of SOUNDS) { const p = processed(k); if (!p) continue; const g = k === 'kick' ? 0.9 : k === 'caja' ? 0.6 : 0.4; for (let b = 0; b < bars; b++) for (const q of t.slots[k]) { const a = Math.round((b * 16 + q) * st * sr); for (let i = 0; i < p.L.length; i++) { const j = (a + i) % n; L[j] += p.L[i] * g; R[j] += p.R[i] * g; } } }
+    return NX.limit(L, R, sr, -1.5, 50, 3);
+  }
+  function startKit() {
+    const ctx = NX.player.ctx(); stopKit(); const m = kitLoop(), b = ctx.createBuffer(2, m.L.length, 44100); b.copyToChannel(m.L, 0); b.copyToChannel(m.R, 1);
+    loopSrc = ctx.createBufferSource(); loopSrc.buffer = b; loopSrc.loop = true; loopSrc.connect(ctx.destination); loopSrc.start(); $('play').classList.add('on'); $('play').innerHTML = NX.ICON_STOP;
+  }
+  function stopKit() { if (loopSrc) { try { loopSrc.stop(); } catch (e) {} loopSrc = null; } $('play').classList.remove('on'); $('play').innerHTML = NX.ICON_PLAY; }
+  $('play').innerHTML = NX.ICON_PLAY; $('play').addEventListener('click', () => { NX.player.stop(); if (loopSrc) stopKit(); else if (T.A) startKit(); });
+  // loops
+  const LNAMES = { bateria: 'Batería', bajo: 'Bajo', musica: 'Música', instrumental: 'Instrumental' };
+  function loopList() { const out = []; for (const s of ['A', 'B']) if (T[s]) for (const k of ['instrumental', 'bateria', 'bajo', 'musica']) for (const bars of [4, 2, 1]) out.push({ s, k, bars, d: T[s].loops[k + '_' + bars] }); return out; }
+  function renderLoops() {
+    const list = loopList(); $('loopinfo').textContent = T.A ? `Tema A: compases ${T.A.loopBar + 1}–${T.A.loopBar + 4} (la frase con más energía)` : '';
+    $('loops').innerHTML = list.map((l, i) => `<div class="item"><button class="play" data-loop="${i}" aria-label="Escuchar en bucle">${NX.ICON_PLAY}</button><div><div class="name">${l.s} · ${LNAMES[l.k]} · ${l.bars} ${l.bars > 1 ? 'compases' : 'compás'}</div><div class="meta">${T[l.s].grid.bpm} BPM · ${T[l.s].key.short}</div></div><canvas data-lw="${i}" aria-hidden="true"></canvas><button class="dl" data-ldl="${i}">Descargar</button></div>`).join('') || '<div class="item"><span></span><span class="muted">Suelta un tema para sacar sus loops.</span></div>';
+    list.forEach((l, i) => { const cv = document.querySelector(`canvas[data-lw="${i}"]`); if (cv) NX.drawWave(cv, l.d.L, l.d.R); });
+  }
+  $('loops').addEventListener('click', (e) => {
+    const p = e.target.closest('[data-loop]'), list = loopList();
+    if (p) { stopKit(); const l = list[+p.dataset.loop]; if (NX.player.current() === 'loop' + p.dataset.loop) return NX.player.stop(); document.querySelectorAll('[data-loop].on').forEach((b) => { b.classList.remove('on'); b.innerHTML = NX.ICON_PLAY; }); const ctx = NX.player.ctx(); NX.player.stop(); const src = NX.player.play(l.d.L, l.d.R, 44100, { id: 'loop' + p.dataset.loop, onStop: () => { p.classList.remove('on'); p.innerHTML = NX.ICON_PLAY; } }); src.loop = true; p.classList.add('on'); p.innerHTML = NX.ICON_STOP; return; }
+    const d = e.target.closest('[data-ldl]'); if (d) { const l = list[+d.dataset.ldl]; NX.save(`${names[l.s]}_${l.k}_${l.bars}c_${Math.round(T[l.s].grid.bpm)}bpm_${T[l.s].key.short}.wav`, NX.wav(l.d.L, l.d.R, 44100)); }
+  });
+  // exportar
+  function midiPattern() { const t = T[$('patsrc').value] || T.A, bpm = +$('bpm').value, st = 60 / bpm / 4, ev = [], GM = { kick: 36, caja: 39, hat: 42 }; for (let b = 0; b < 4; b++) for (const [k] of SOUNDS) for (const q of t.slots[k]) ev.push({ t: (b * 16 + q) * st, dur: st, m: GM[k], vel: 0.85 }); return NX.E.midiFile({ bateria: ev }, bpm); }
+  $('mid').addEventListener('click', () => NX.save(`NX_ritmo_${$('bpm').value}bpm.mid`, midiPattern()));
+  $('zip').addEventListener('click', () => {
+    const files = [], w = (d) => NX.wav(d.L, d.R, 44100);
+    for (const [k, label, folder] of SOUNDS) { for (const s of ['A', 'B']) if (T[s]) { files.push({ name: `${folder}/${names[s]}_${k}_aislado.wav`, data: w(T[s].shots[k]) }); files.push({ name: `${folder}/${names[s]}_${k}_regenerado.wav`, data: w(T[s].regen[k]) }); } files.push({ name: `${folder}/NX_${k}_tu_version.wav`, data: w(processed(k)) }); }
+    for (const l of loopList()) files.push({ name: `Loops/${names[l.s]}_${l.k}_${l.bars}c_${Math.round(T[l.s].grid.bpm)}bpm_${T[l.s].key.short}.wav`, data: w(l.d) });
+    files.push({ name: `MIDI/NX_ritmo_${$('bpm').value}bpm.mid`, data: midiPattern() });
+    const info = ['NEXSOUND SAMPLE LAB', ''].concat(['A', 'B'].filter((s) => T[s]).map((s) => `Tema ${s}: ${names[s]} · ${T[s].grid.bpm} BPM · ${T[s].key.name} · patrón bombo ${T[s].slots.kick.join(',')} caja ${T[s].slots.caja.join(',')} hat ${T[s].slots.hat.join(',')}`));
+    files.push({ name: 'LEEME.txt', data: info.join('\n') + '\n\nLos loops empiezan justo en el compás. Los golpes empiezan en el ataque (muestra 0).\n' });
+    NX.save(`NX_kit_${names.A}${T.B ? '_' + names.B : ''}.zip`, NX.zip(files));
+  });
+  // ejemplo
+  function demo() {
+    const sr = 44100, bpm = 124, beat = 60 / bpm, bars = 16, n = Math.round(bars * 4 * beat * sr), L = new Float32Array(n), R = new Float32Array(n); let s = 3; const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296) * 2 - 1; const f = (m) => 440 * Math.pow(2, (m - 69) / 12);
+    for (let b = 0; b < bars; b++) { const ch = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]][b % 4]; for (let q = 0; q < 16; q++) { const t0 = Math.round((b * 16 + q) * beat / 4 * sr);
+      if (q % 4 === 0) { let ph = 0; for (let i = 0; i < 0.4 * sr && t0 + i < n; i++) { const t = i / sr; ph += 2 * Math.PI * (50 + 130 * Math.exp(-t / 0.03)) / sr; const v = Math.sin(ph) * Math.exp(-t / 0.18) * 0.8; L[t0 + i] += v; R[t0 + i] += v; } }
+      if (q === 4 || q === 12) for (let i = 0; i < 0.25 * sr && t0 + i < n; i++) { const v = rnd() * Math.exp(-i / sr / 0.06) * 0.35; L[t0 + i] += v; R[t0 + i] += v * 0.9; }
+      if (q % 4 === 2) { let p = 0; for (let i = 0; i < 0.06 * sr && t0 + i < n; i++) { const x = rnd(), v = (x - p) * Math.exp(-i / sr / 0.02) * 0.2; p = x; L[t0 + i] += v * 0.8; R[t0 + i] += v; } }
+      if (q % 4 === 2) for (let i = 0; i < beat / 2 * sr && t0 + i < n; i++) { const t = i / sr, v = Math.sin(2 * Math.PI * f(ch[0] - 24) * t) * Math.exp(-t / 0.15) * 0.4; L[t0 + i] += v; R[t0 + i] += v; }
+      if (q % 4 === 0) for (let i = 0; i < beat * sr && t0 + i < n; i++) { const t = i / sr; let v = 0; for (const m of ch) v += Math.sin(2 * Math.PI * f(m) * t); L[t0 + i] += v * 0.03; R[t0 + i] += v * 0.025; } } }
+    return { L, R, sr };
+  }
+  render(); load('A', demo(), 'demostracion_124bpm.wav');
+})();
+</script>

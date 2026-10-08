@@ -1,0 +1,107 @@
+<title>Nexsound Visualizador</title>
+<!--HEAD-->
+<style>
+.stage { display: grid; place-items: center; background: var(--sunk); border-radius: var(--r); padding: 12px; }
+.stage canvas { max-width: 100%; max-height: 70vh; height: auto; border-radius: 6px; box-shadow: 0 6px 24px rgba(0,0,0,.18); display: block; }
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatches button { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; }
+.swatches button[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--surface) inset; }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>Visualizador</h1>
+    <p class="lede">Convierte tu tema en un vídeo para YouTube, Instagram o TikTok: tu portada, el título y el audio animado al ritmo. Elige estilo y formato, míralo en directo y grábalo en vídeo con el sonido incluido.</p>
+  </header>
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2>Audio y portada</h2>
+        <label class="drop" id="drop-a" for="in-a"><strong>Suelta el tema</strong><small>MP3, WAV, M4A…</small></label><input type="file" id="in-a" accept="audio/*" hidden>
+        <div class="file" id="name-a"></div>
+        <label class="drop" id="drop-i" for="in-i"><strong>Suelta la portada</strong><small>JPG o PNG, mejor cuadrada</small></label><input type="file" id="in-i" accept="image/*" hidden>
+        <div class="row"><div class="file" id="name-i">Sin portada: se usa la marca</div><button class="btn small" id="clear-i" hidden>Quitar</button></div>
+      </section>
+      <section class="panel">
+        <h2>Texto</h2>
+        <label class="field"><span>Título</span><input type="text" id="title" value="Conéctate"></label>
+        <label class="field"><span>Artista</span><input type="text" id="artist" value="Nexsound"></label>
+        <label class="field"><span>Marca arriba</span><input type="text" id="brand" value="hecho con nexsound.es"></label>
+      </section>
+      <section class="panel">
+        <h2>Estilo</h2>
+        <div class="seg" id="style" role="group" aria-label="Animación"><button data-v="barras" aria-pressed="true">Barras</button><button data-v="circulo" aria-pressed="false">Círculo</button><button data-v="onda" aria-pressed="false">Onda</button><button data-v="particulas" aria-pressed="false">Partículas</button></div>
+        <div class="seg" id="fmt" role="group" aria-label="Formato"><button data-v="9:16" aria-pressed="true">9:16 · Reels/TikTok</button><button data-v="1:1" aria-pressed="false">1:1 · Feed</button><button data-v="16:9" aria-pressed="false">16:9 · YouTube</button></div>
+        <label class="field"><span>Colores</span><div class="swatches" id="sw"></div></label>
+      </section>
+      <section class="panel">
+        <h2>Tramo</h2>
+        <div class="two">
+          <label class="field"><span>Empieza <output id="o-from"></output></span><input type="range" id="from" min="0" max="100" value="0" step="0.5"></label>
+          <label class="field"><span>Dura <output id="o-len"></output></span><input type="range" id="len" min="5" max="100" value="30" step="1"></label>
+        </div>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel">
+        <div class="row" style="justify-content:space-between"><h2>Vista previa</h2>
+          <div class="row"><button class="play" id="play" aria-label="Ver en directo"></button><button class="btn primary" id="rec">Grabar vídeo</button></div></div>
+        <div class="stage"><canvas id="cv" width="1080" height="1920" aria-label="Vista previa del vídeo"></canvas></div>
+        <div class="progress" id="prog" hidden><i></i></div>
+        <p class="note" id="recnote">La grabación va en tiempo real: un tramo de 30 s tarda 30 s. Sale en WebM (vale para YouTube, Instagram y TikTok desde el ordenador; si tu móvil no lo abre, conviértelo a MP4 con cualquier conversor).</p>
+      </section>
+      <!--FOOT-->
+    </div>
+  </div>
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $ } = NX; let A = null, img = null, style = 'barras', fmt = '9:16', colors = null, auto = null;
+  const PALETTES = [{ bg1: '#0F3B31', bg2: '#06110C', fg: '#ffffff', accent: '#43C19F' }, { bg1: '#5A2A12', bg2: '#140806', fg: '#ffffff', accent: '#F0A257' }, { bg1: '#1D2550', bg2: '#070914', fg: '#ffffff', accent: '#8EA2FF' }, { bg1: '#4B1342', bg2: '#12040F', fg: '#ffffff', accent: '#FF6FB5' }, { bg1: '#EDEFEA', bg2: '#C9D2CB', fg: '#18211C', accent: '#0F7A62' }];
+  colors = PALETTES[0];
+  function swatches() { const list = (auto ? [auto] : []).concat(PALETTES); $('sw').innerHTML = list.map((p, i) => `<button data-i="${i}" aria-pressed="${p === colors}" aria-label="Paleta ${i + 1}${auto && i === 0 ? ' (de la portada)' : ''}" style="background:linear-gradient(135deg, ${p.bg1}, ${p.accent})"></button>`).join(''); $('sw').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; colors = list[+b.dataset.i]; swatches(); draw(); }; }
+  const segs = (id, set) => $(id).addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; [...$(id).children].forEach((x) => x.setAttribute('aria-pressed', x === b)); set(b.dataset.v); });
+  segs('style', (v) => { style = v; draw(); }); segs('fmt', (v) => { fmt = v; size(); draw(); });
+  function size() { const [w, h] = fmt === '9:16' ? [1080, 1920] : fmt === '1:1' ? [1080, 1080] : [1920, 1080]; $('cv').width = w; $('cv').height = h; }
+  ['title', 'artist', 'brand'].forEach((id) => $(id).addEventListener('input', () => draw()));
+  NX.dropzone($('drop-a'), $('in-a'), async (f) => { try { NX.player.stop(); A = await NX.decodeFile(f[0]); $('name-a').textContent = f[0].name + ' · ' + NX.fmtTime(A.duration); if (!$('title').dataset.edited) $('title').value = f[0].name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '); range(); } catch (e) { NX.toast(e.message); } });
+  $('title').addEventListener('input', () => ($('title').dataset.edited = 1));
+  NX.dropzone($('drop-i'), $('in-i'), (f) => { const im = new Image(); im.onload = () => { img = im; auto = NX.imageColors(im); colors = auto; swatches(); $('name-i').textContent = f[0].name; $('clear-i').hidden = false; draw(); }; im.onerror = () => NX.toast('No se pudo abrir esa imagen.'); im.src = URL.createObjectURL(f[0]); });
+  $('clear-i').addEventListener('click', () => { img = null; auto = null; colors = PALETTES[0]; swatches(); $('name-i').textContent = 'Sin portada: se usa la marca'; $('clear-i').hidden = true; draw(); });
+  function range() { const d = A.L.length / A.sr; $('from').max = Math.max(0, d - 5); $('len').max = Math.max(5, Math.floor(d)); if (+$('len').value > d) $('len').value = Math.floor(d); outs(); draw(); }
+  const outs = () => { $('o-from').textContent = NX.fmtTime(+$('from').value); $('o-len').textContent = $('len').value + ' s'; };
+  ['from', 'len'].forEach((id) => $(id).addEventListener('input', outs));
+  function seg() { const a = Math.round(+$('from').value * A.sr), b = Math.min(A.L.length, a + Math.round(+$('len').value * A.sr)), L = A.L.slice(a, b), R = A.R.slice(a, b), f = Math.round(0.25 * A.sr); for (let i = 0; i < f && i < L.length; i++) { const g = i / f; L[i] *= g; R[i] *= g; L[L.length - 1 - i] *= g; R[R.length - 1 - i] *= g; } return { L, R, sr: A.sr }; }
+  const opts = (t, freq, time, dur) => ({ style, freq, time, t, dur, img, title: $('title').value, artist: $('artist').value, brand: $('brand').value, colors });
+  const fake = new Uint8Array(1024).map((_, i) => Math.max(0, 200 - i * 0.6 + 40 * Math.sin(i / 7)));
+  const flat = new Uint8Array(2048).fill(128).map((v, i) => 128 + 40 * Math.sin(i / 30));
+  function draw(t = 0, freq = fake, time = flat) { const cv = $('cv'); NX.viz(cv.getContext('2d'), cv.width, cv.height, opts(t, freq, time, +$('len').value)); }
+  // vista previa en directo
+  let raf = null, an = null;
+  $('play').innerHTML = NX.ICON_PLAY;
+  $('play').addEventListener('click', () => {
+    if (NX.player.playing()) { NX.player.stop(); return; } if (!A) return;
+    const ctx = NX.player.ctx(); an = an || (() => { const a = ctx.createAnalyser(); a.fftSize = 2048; a.smoothingTimeConstant = 0.78; a.connect(ctx.destination); return a; })();
+    const s = seg(), btn = $('play'); NX.player.play(s.L, s.R, s.sr, { id: 'v', dest: an, onStop: () => { cancelAnimationFrame(raf); btn.classList.remove('on'); btn.innerHTML = NX.ICON_PLAY; } });
+    btn.classList.add('on'); btn.innerHTML = NX.ICON_STOP;
+    const fr = new Uint8Array(an.frequencyBinCount), tm = new Uint8Array(an.fftSize);
+    const loop = () => { an.getByteFrequencyData(fr); an.getByteTimeDomainData(tm); draw(NX.player.position() || 0, fr, tm); raf = requestAnimationFrame(loop); }; loop();
+  });
+  // grabar
+  $('rec').addEventListener('click', async () => {
+    if (!A) return; NX.player.stop(); const btn = $('rec'); btn.disabled = true; btn.textContent = 'Grabando…'; $('prog').hidden = false;
+    try {
+      const s = seg(), cv = $('cv'), x = cv.getContext('2d'), dur = s.L.length / s.sr;
+      const blob = await NX.recordCanvas(cv, s, 30, (t, fr, tm) => NX.viz(x, cv.width, cv.height, opts(t, fr, tm, dur)), (p) => ($('prog').firstChild.style.width = Math.round(p * 100) + '%'));
+      await NX.save(`${NX.cleanName($('title').value || 'tema')}_${fmt.replace(':', 'x')}.webm`, blob);
+    } catch (e) { NX.toast(e.message); }
+    finally { btn.disabled = false; btn.textContent = 'Grabar vídeo'; $('prog').hidden = true; draw(); }
+  });
+  // ejemplo: un loop generado aquí
+  function demo() { const sr = 44100, n = sr * 16, L = new Float32Array(n), R = new Float32Array(n), beat = 60 / 124, f = (m) => 440 * Math.pow(2, (m - 69) / 12); for (let k = 0; k * beat < 16; k++) { const t0 = Math.round(k * beat * sr); let ph = 0; for (let i = 0; i < 0.4 * sr && t0 + i < n; i++) { const t = i / sr; ph += 2 * Math.PI * (52 + 120 * Math.exp(-t / 0.03)) / sr; const v = Math.sin(ph) * Math.exp(-t / 0.2) * 0.6; L[t0 + i] += v; R[t0 + i] += v; } const ch = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]][Math.floor(k / 4) % 4]; for (let i = 0; i < beat * sr && t0 + i < n; i++) { const t = i / sr; let v = 0; for (const m of ch) v += Math.sin(2 * Math.PI * f(m + 12) * t) * Math.exp(-t / 0.3); L[t0 + i] += v * 0.08; R[t0 + i] += v * 0.08; } } return { L, R, sr, duration: 16 }; }
+  A = demo(); $('name-a').textContent = 'Ejemplo: loop de demostración (16 s)'; $('len').value = 15; swatches(); size(); range();
+  document.fonts && document.fonts.ready.then(() => draw());
+})();
+</script>

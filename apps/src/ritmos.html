@@ -1,0 +1,193 @@
+<title>Nexsound Ritmos</title>
+<!--HEAD-->
+<style>
+.seqwrap { overflow-x: auto; }
+.seqt { border-collapse: separate; border-spacing: 3px; min-width: 640px; width: 100%; }
+.seqt th { font: 600 12px/1.2 var(--f-body); text-align: left; white-space: nowrap; padding-right: 6px; }
+.seqt th small { display: block; font: 400 11px/1.2 var(--f-mono); color: var(--muted); }
+.seqt td { padding: 0; }
+.seqt td.beat { padding-left: 6px; }
+.cell { width: 100%; min-width: 30px; height: 34px; border-radius: 4px; border: 1px solid var(--line); background: var(--sunk); cursor: pointer; display: block; }
+.cell[data-v="1"] { background: color-mix(in srgb, var(--accent) 55%, var(--sunk)); border-color: var(--accent); }
+.cell[data-v="2"] { background: var(--accent); border-color: var(--accent); }
+.cell.now { box-shadow: 0 0 0 2px var(--signal); }
+.lanectl { display: flex; gap: 4px; }
+.lanectl button { font: 600 11px/1 var(--f-mono); width: 26px; height: 26px; border-radius: 4px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; }
+.lanectl button[aria-pressed="true"] { background: var(--signal); color: var(--accent-ink); border-color: var(--signal); }
+.styles { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; }
+.styles button { text-align: left; padding: 10px; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; display: grid; gap: 2px; font: 600 14px/1.2 var(--f-body); }
+.styles button small { font: 400 11px/1.2 var(--f-mono); color: var(--muted); }
+.styles button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.transport { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.bigplay { width: 52px; height: 52px; }
+.bigplay svg { width: 18px; height: 18px; }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>Ritmos</h1>
+    <p class="lede">Elige un estilo y tienes su patrón de batería sonando al momento: reggaetón, trap, house, afro, techno, drill y más. Edita cada paso, varía con un clic, ajusta tempo y swing, y llévatelo como WAV de 4 compases, MIDI para tu DAW o los sonidos sueltos.</p>
+  </header>
+  <section class="panel">
+    <h2>Estilo</h2>
+    <div class="styles" id="styles"></div>
+  </section>
+  <section class="panel">
+    <div class="transport">
+      <button class="play bigplay" id="play" aria-label="Reproducir o parar (barra espaciadora)"></button>
+      <label class="field" style="min-width:150px"><span>Tempo <output id="o-bpm"></output></span><input type="range" id="bpm" min="60" max="180" value="96"></label>
+      <label class="field" style="min-width:150px"><span>Swing <output id="o-swing"></output></span><input type="range" id="swing" min="0" max="60" value="0"></label>
+      <label class="field" style="min-width:150px"><span>Humano <output id="o-human"></output></span><input type="range" id="human" min="0" max="100" value="20"></label>
+      <label class="field" style="min-width:130px"><span>Tono del 808</span><select id="root"></select></label>
+      <div class="row">
+        <button class="btn" id="vary">Variar</button>
+        <button class="btn" id="fill">Redoble final</button>
+        <button class="btn" id="clear">Vaciar</button>
+      </div>
+    </div>
+    <div class="seqwrap"><table class="seqt" id="seq" aria-label="Secuenciador de 16 pasos"></table></div>
+    <p class="note">Clic en un paso: apagado → golpe → acento → apagado. M silencia una pista y S la deja sola. Barra espaciadora: reproducir o parar.</p>
+  </section>
+  <section class="panel">
+    <h2>Llévatelo</h2>
+    <div class="row">
+      <button class="btn primary" id="dl-wav">WAV · 4 compases</button>
+      <button class="btn" id="dl-mid">MIDI</button>
+      <button class="btn" id="dl-kit">Sonidos sueltos (kit)</button>
+      <label class="row small"><input type="checkbox" id="withfill" checked> El 4.º compás con redoble</label>
+    </div>
+  </section>
+  <!--FOOT-->
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $ } = NX; const SR = 44100;
+  // ---------- sonidos sintetizados desde cero
+  let seed = 7; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296) * 2 - 1;
+  const len = (s) => Math.round(s * SR), env = (t, a, d) => Math.min(1, t / a) * Math.exp(-t / d);
+  const hp = (x, f) => NX.filt(x, NX.biquad('highpass', f, SR, 0.7)), bp = (x, f, q) => NX.filt(x, NX.biquad('bandpass', f, SR, q));
+  const norm = (x, p = 0.9) => { let m = 0; for (const v of x) m = Math.max(m, Math.abs(v)); for (let i = 0; i < x.length; i++) x[i] *= p / (m || 1); return x; };
+  const SYN = {
+    kick: (k) => { const n = len(0.45), y = new Float32Array(n); let ph = 0; for (let i = 0; i < n; i++) { const t = i / SR; ph += 2 * Math.PI * (k.f + k.sweep * Math.exp(-t / 0.035)) / SR; y[i] = Math.tanh(1.6 * Math.sin(ph) * env(t, 0.001, k.d)) + (i < 300 ? rnd() * 0.2 * Math.exp(-t / 0.002) : 0); } return norm(y); },
+    snare: () => { const n = len(0.3), y = new Float32Array(n), nz = new Float32Array(n); for (let i = 0; i < n; i++) nz[i] = rnd(); const h = hp(nz, 1800); for (let i = 0; i < n; i++) { const t = i / SR; y[i] = 0.5 * Math.sin(2 * Math.PI * 185 * t) * env(t, 0.001, 0.05) + h[i] * env(t, 0.001, 0.09); } return norm(y); },
+    clap: () => { const n = len(0.35), nz = new Float32Array(n); for (let i = 0; i < n; i++) nz[i] = rnd(); const b = bp(nz, 1300, 0.9), y = new Float32Array(n); for (let i = 0; i < n; i++) { const t = i / SR; let e = 0; for (const o of [0, 0.011, 0.022]) if (t >= o) e = Math.max(e, Math.exp(-(t - o) / 0.007)); e = Math.max(e, t > 0.03 ? Math.exp(-(t - 0.03) / 0.1) * 0.8 : 0); y[i] = b[i] * e; } return norm(y); },
+    hat: (open) => { const n = len(open ? 0.35 : 0.08), y = new Float32Array(n); const fr = [205.3, 304.4, 369.6, 522.7, 540, 800]; for (let i = 0; i < n; i++) { const t = i / SR; let v = 0; for (const f of fr) v += Math.sign(Math.sin(2 * Math.PI * f * 1.7 * t)); y[i] = v / 6 + rnd() * 0.4; } const h = hp(hp(y, 7000), 7000); for (let i = 0; i < n; i++) h[i] *= env(i / SR, 0.0005, open ? 0.12 : 0.018); return norm(h, 0.7); },
+    rim: () => { const n = len(0.08), y = new Float32Array(n); for (let i = 0; i < n; i++) { const t = i / SR; y[i] = (Math.sin(2 * Math.PI * 1700 * t) * 0.6 + Math.sin(2 * Math.PI * 520 * t)) * env(t, 0.0003, 0.012); } return norm(y, 0.75); },
+    shaker: () => { const n = len(0.09), y = new Float32Array(n); for (let i = 0; i < n; i++) y[i] = rnd(); const h = hp(y, 5000); for (let i = 0; i < n; i++) { const t = i / SR; h[i] *= Math.min(1, t / 0.015) * Math.exp(-t / 0.025); } return norm(h, 0.55); },
+    conga: () => { const n = len(0.3), y = new Float32Array(n); let ph = 0; for (let i = 0; i < n; i++) { const t = i / SR; ph += 2 * Math.PI * (330 + 80 * Math.exp(-t / 0.01)) / SR; y[i] = Math.sin(ph) * env(t, 0.001, 0.08); } return norm(y, 0.8); },
+    b808: (m, d) => { const f = 440 * Math.pow(2, (m - 69) / 12), n = len(d + 0.05), y = new Float32Array(n); let ph = 0; for (let i = 0; i < n; i++) { const t = i / SR; ph += 2 * Math.PI * f * (1 + 0.6 * Math.exp(-t / 0.02)) / SR; y[i] = Math.tanh(1.8 * Math.sin(ph)) * Math.min(1, t / 0.002) * (t < d ? Math.exp(-t / 1.2) : Math.exp(-d / 1.2) * Math.exp(-(t - d) / 0.03)); } return norm(y, 0.85); },
+  };
+  // ---------- estilos: probabilidad por paso (1 = siempre, 0,5 = a veces); 2 = acento
+  const P = (s) => s.split('').map((c) => ({ x: 1, X: 2, o: 0.5, '.': 0, '-': 0.25 }[c] ?? 0));
+  const LANES = [['kick', 'Bombo'], ['snare', 'Caja'], ['clap', 'Clap'], ['hat', 'Hat cerrado'], ['ohat', 'Hat abierto'], ['rim', 'Rim / perc'], ['shaker', 'Shaker'], ['conga', 'Conga'], ['b808', '808']];
+  const STYLES = {
+    reggaeton: { n: 'Reggaetón', bpm: 94, swing: 0, kick: { f: 52, sweep: 110, d: 0.18 }, p: { kick: 'X...x...X...x...', snare: '...x..x....x..x.', clap: '................', hat: 'x.x.x.x.x.x.x.x.', ohat: '................', rim: '..........-.....', shaker: '-.-.-.-.-.-.-.-.', conga: '................', b808: 'x...........x...' } },
+    trap: { n: 'Trap', bpm: 140, swing: 0, kick: { f: 48, sweep: 140, d: 0.12 }, p: { kick: 'X......x..x.....', snare: '................', clap: '........X.......', hat: 'xxxxxxxxxxxxxxXx', ohat: '................', rim: '..............-.', shaker: '................', conga: '................', b808: 'x......x..x.....' } },
+    house: { n: 'House', bpm: 124, swing: 8, kick: { f: 50, sweep: 120, d: 0.2 }, p: { kick: 'X...x...X...x...', snare: '................', clap: '....X.......X...', hat: '..x...x...x...x.', ohat: '..........o.....', rim: '.......-......-.', shaker: 'x-x-x-x-x-x-x-x-', conga: '................', b808: '................' } },
+    afro: { n: 'Afro house', bpm: 122, swing: 12, kick: { f: 52, sweep: 100, d: 0.2 }, p: { kick: 'X...x...X...x...', snare: '................', clap: '............o...', hat: '..x...x...x...x.', ohat: '................', rim: '...x..x...x..x..', shaker: 'xxxxxxxxxxxxxxxx', conga: 'x..x..x.....x.x.', b808: '................' } },
+    techno: { n: 'Techno', bpm: 132, swing: 0, kick: { f: 48, sweep: 150, d: 0.16 }, p: { kick: 'X...X...X...X...', snare: '................', clap: '....o.......x...', hat: '..x...x...x...x.', ohat: '..x...x...x...x.', rim: '-..-..-..-..-...', shaker: 'x.x.x.x.x.x.x.x.', conga: '................', b808: '................' } },
+    drill: { n: 'Drill UK', bpm: 142, swing: 0, kick: { f: 48, sweep: 130, d: 0.12 }, p: { kick: 'X.....x...x.....', snare: '........X.....o.', clap: '................', hat: 'x..x..x.x..x.x..', ohat: '................', rim: '...........-....', shaker: '................', conga: '................', b808: 'x.....x...x...x.' } },
+    pop: { n: 'Pop', bpm: 110, swing: 0, kick: { f: 54, sweep: 110, d: 0.16 }, p: { kick: 'X.......x.x.....', snare: '....X.......X...', clap: '....x.......x...', hat: 'x.x.x.x.x.x.x.x.', ohat: '..............o.', rim: '................', shaker: '................', conga: '................', b808: '................' } },
+    boombap: { n: 'Boom bap', bpm: 90, swing: 28, kick: { f: 56, sweep: 90, d: 0.14 }, p: { kick: 'X......x..x.....', snare: '....X.......X...', clap: '................', hat: 'x.x.x.x.x.x.x.x.', ohat: '................', rim: '.............-..', shaker: '................', conga: '................', b808: '................' } },
+    dancehall: { n: 'Dancehall', bpm: 100, swing: 6, kick: { f: 52, sweep: 110, d: 0.16 }, p: { kick: 'X.....x.X.....x.', snare: '....X.......X...', clap: '....x.......x...', hat: 'x.xxx.xxx.xxx.xx', ohat: '................', rim: '..x.....-.x.....', shaker: '................', conga: '................', b808: 'x.....x.........' } },
+  };
+  let st = 'reggaeton', grid = {}, mute = {}, solo = {}, bpm = 94, swing = 0, human = 0.2, root = 31, buffers = {}, fillOn = false;
+  const KEYS = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
+  $('root').innerHTML = KEYS.map((k, i) => `<option value="${24 + i}">${k}</option>`).join(''); $('root').value = '31';
+  function buildKit() { const k = STYLES[st].kick; buffers = { kick: SYN.kick(k), snare: SYN.snare(), clap: SYN.clap(), hat: SYN.hat(false), ohat: SYN.hat(true), rim: SYN.rim(), shaker: SYN.shaker(), conga: SYN.conga() }; }
+  function loadStyle(id, random = false) {
+    st = id; const S = STYLES[id]; grid = {};
+    for (const [l] of LANES) grid[l] = P(S.p[l]).map((p) => (p >= 1 ? p : random && Math.random() < p ? 1 : 0));
+    bpm = S.bpm; swing = S.swing; $('bpm').value = bpm; $('swing').value = swing; outs(); buildKit(); renderStyles(); renderSeq();
+  }
+  function vary() { // cambia algunos pasos según las probabilidades del estilo, sin tocar el pulso principal
+    const S = STYLES[st];
+    for (const [l] of LANES) { const pr = P(S.p[l]); grid[l] = grid[l].map((v, i) => (pr[i] >= 1 ? v : Math.random() < 0.18 ? (v ? 0 : Math.random() < Math.max(pr[i], 0.12) ? 1 : 0) : v)); }
+    renderSeq();
+  }
+  function renderStyles() { $('styles').innerHTML = Object.entries(STYLES).map(([k, s]) => `<button data-s="${k}" aria-pressed="${k === st}">${s.n}<small>${s.bpm} BPM${s.swing ? ' · swing' : ''}</small></button>`).join(''); }
+  function renderSeq() {
+    let h = '<thead><tr><th></th><th></th>' + Array.from({ length: 16 }, (_, q) => `<th class="${q % 4 === 0 && q ? 'beat' : ''}" style="text-align:center;font:500 10px var(--f-mono);color:var(--muted)">${q % 4 === 0 ? q / 4 + 1 : '·'}</th>`).join('') + '</tr></thead><tbody>';
+    for (const [l, name] of LANES) h += `<tr><th>${name}${l === 'b808' ? '<small>' + KEYS[root % 12] + '</small>' : ''}</th><td><div class="lanectl"><button data-m="${l}" aria-pressed="${!!mute[l]}" aria-label="Silenciar ${name}">M</button><button data-so="${l}" aria-pressed="${!!solo[l]}" aria-label="Solo ${name}">S</button></div></td>` + grid[l].map((v, q) => `<td class="${q % 4 === 0 && q ? 'beat' : ''}"><button class="cell" data-l="${l}" data-q="${q}" data-v="${v}" aria-label="${name} paso ${q + 1}"></button></td>`).join('') + '</tr>';
+    $('seq').innerHTML = h + '</tbody>';
+  }
+  const outs = () => { $('o-bpm').textContent = bpm + ' BPM'; $('o-swing').textContent = swing + ' %'; $('o-human').textContent = Math.round(human * 100) + ' %'; };
+  $('styles').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) loadStyle(b.dataset.s); });
+  $('seq').addEventListener('click', (e) => {
+    const c = e.target.closest('.cell'); if (c) { const v = (+c.dataset.v + 1) % 3; grid[c.dataset.l][+c.dataset.q] = v; c.dataset.v = v; if (!playing) audition(c.dataset.l, v); return; }
+    const m = e.target.closest('[data-m]'); if (m) { mute[m.dataset.m] = !mute[m.dataset.m]; m.setAttribute('aria-pressed', mute[m.dataset.m]); return; }
+    const s = e.target.closest('[data-so]'); if (s) { solo[s.dataset.so] = !solo[s.dataset.so]; s.setAttribute('aria-pressed', solo[s.dataset.so]); }
+  });
+  $('bpm').addEventListener('input', (e) => { bpm = +e.target.value; outs(); });
+  $('swing').addEventListener('input', (e) => { swing = +e.target.value; outs(); });
+  $('human').addEventListener('input', (e) => { human = +e.target.value / 100; outs(); });
+  $('root').addEventListener('change', (e) => { root = +e.target.value; renderSeq(); });
+  $('vary').addEventListener('click', vary);
+  $('clear').addEventListener('click', () => { for (const [l] of LANES) grid[l] = grid[l].map(() => 0); renderSeq(); });
+  $('fill').addEventListener('click', () => { fillOn = !fillOn; $('fill').classList.toggle('primary', fillOn); });
+
+  // ---------- reproducción en directo (planificador con anticipación)
+  let ctx = null, playing = false, step = 0, nextT = 0, timer = null, barN = 0; const abuf = {};
+  function ab(name, data) { if (!abuf[name] || abuf[name].src !== data) { const b = ctx.createBuffer(1, data.length, SR); b.copyToChannel(data, 0); abuf[name] = { b, src: data }; } return abuf[name].b; }
+  const audible = (l) => !mute[l] && (!Object.values(solo).some(Boolean) || solo[l]);
+  const GAIN = { kick: 0.95, snare: 0.6, clap: 0.6, hat: 0.35, ohat: 0.3, rim: 0.4, shaker: 0.3, conga: 0.45, b808: 0.7 };
+  function stepTime(q, base, stepDur) { return base + q * stepDur + (q % 2 ? swing / 100 * stepDur * 0.5 : 0); }
+  function hits(barIdx, withFill) { // lista de golpes de un compás {l, q, v}
+    const out = []; const fillBar = withFill;
+    for (const [l] of LANES) grid[l].forEach((v, q) => { if (v) out.push({ l, q, v }); });
+    if (fillBar) { for (let q = 12; q < 16; q++) out.push({ l: 'snare', q, v: q > 13 ? 2 : 1 }); }
+    return out;
+  }
+  function eightOhEightDur(q) { const g = grid.b808; let n = 1; while (q + n < 16 && !g[q + n]) n++; return n * 60 / bpm / 4; }
+  function audition(l, v) { ensureCtx(); const s = ctx.createBufferSource(); s.buffer = l === 'b808' ? ab('808a', SYN.b808(root, 0.4)) : ab(l, buffers[l]); const g = ctx.createGain(); g.gain.value = (v === 2 ? 1 : 0.75) * GAIN[l]; s.connect(g).connect(ctx.destination); s.start(); }
+  function ensureCtx() { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)({ sampleRate: SR }); if (ctx.state === 'suspended') ctx.resume(); }
+  function schedule() {
+    const stepDur = 60 / bpm / 4;
+    while (nextT < ctx.currentTime + 0.12) {
+      const q = step % 16, bar = Math.floor(step / 16), withFill = fillOn && bar % 4 === 3;
+      for (const h of hits(bar, withFill)) if (h.q === q && audible(h.l)) {
+        const t = stepTime(0, nextT, stepDur) + (q % 2 ? swing / 100 * stepDur * 0.5 : 0) + (Math.random() - 0.5) * human * 0.012;
+        const s = ctx.createBufferSource(); s.buffer = h.l === 'b808' ? ab('808_' + root + '_' + q, SYN.b808(root, eightOhEightDur(q))) : ab(h.l, buffers[h.l]);
+        const g = ctx.createGain(); g.gain.value = (h.v === 2 ? 1 : 0.72) * GAIN[h.l] * (1 - human * 0.25 * Math.random()); s.connect(g).connect(ctx.destination); s.start(Math.max(ctx.currentTime, t));
+      }
+      const show = q, at = nextT; setTimeout(() => highlight(show), Math.max(0, (at - ctx.currentTime) * 1000));
+      nextT += stepDur; step++;
+    }
+  }
+  function highlight(q) { document.querySelectorAll('.cell.now').forEach((c) => c.classList.remove('now')); if (playing) document.querySelectorAll(`.cell[data-q="${q}"]`).forEach((c) => c.classList.add('now')); }
+  function toggle() {
+    ensureCtx(); playing = !playing; const b = $('play');
+    if (playing) { step = 0; nextT = ctx.currentTime + 0.05; timer = setInterval(schedule, 25); schedule(); b.classList.add('on'); b.innerHTML = NX.ICON_STOP; }
+    else { clearInterval(timer); highlight(-1); b.classList.remove('on'); b.innerHTML = NX.ICON_PLAY; }
+  }
+  $('play').innerHTML = NX.ICON_PLAY; $('play').addEventListener('click', toggle);
+  addEventListener('keydown', (e) => { if (e.code === 'Space' && !/input|select|textarea|button/i.test(e.target.tagName)) { e.preventDefault(); toggle(); } });
+
+  // ---------- exportar
+  function render(bars = 4) {
+    const stepDur = 60 / bpm / 4, n = Math.round(bars * 16 * stepDur * SR) + SR, L = new Float32Array(n), R = new Float32Array(n), midi = [];
+    const PAN = { hat: 0.15, ohat: -0.1, rim: -0.3, shaker: 0.35, conga: -0.25 }, GM = { kick: 36, snare: 38, clap: 39, hat: 42, ohat: 46, rim: 37, shaker: 70, conga: 63 };
+    for (let bar = 0; bar < bars; bar++) for (const h of hits(bar, $('withfill').checked && bar === bars - 1)) {
+      if (!audible(h.l)) continue;
+      const t = (bar * 16 + h.q) * stepDur + (h.q % 2 ? swing / 100 * stepDur * 0.5 : 0) + (Math.random() - 0.5) * human * 0.012, a = Math.max(0, Math.round(t * SR));
+      const vel = (h.v === 2 ? 1 : 0.72) * (1 - human * 0.25 * Math.random()), g = vel * GAIN[h.l], p = PAN[h.l] || 0;
+      const data = h.l === 'b808' ? SYN.b808(root, eightOhEightDur(h.q)) : buffers[h.l];
+      const gl = g * Math.cos((p + 1) * Math.PI / 4) * Math.SQRT2, gr = g * Math.sin((p + 1) * Math.PI / 4) * Math.SQRT2;
+      for (let i = 0; i < data.length && a + i < n; i++) { L[a + i] += data[i] * gl; R[a + i] += data[i] * gr; }
+      midi.push({ track: h.l === 'b808' ? '808' : 'bateria', t, dur: h.l === 'b808' ? eightOhEightDur(h.q) : stepDur, m: h.l === 'b808' ? root + 12 : GM[h.l], vel });
+    }
+    const lim = NX.limit(L, R, SR, -1.6, 60, 3), cut = Math.round(bars * 16 * stepDur * SR);
+    return { L: lim.L.slice(0, cut), R: lim.R.slice(0, cut), midi };
+  }
+  const base = () => `nexsound_${st}_${bpm}bpm`;
+  $('dl-wav').addEventListener('click', () => { const r = render(4); NX.save(base() + '.wav', NX.wav(r.L, r.R, SR)); });
+  $('dl-mid').addEventListener('click', () => { const r = render(4); NX.save(base() + '.mid', NX.E.midiFile({ bateria: r.midi.filter((m) => m.track === 'bateria'), '808': r.midi.filter((m) => m.track === '808') }, bpm)); });
+  $('dl-kit').addEventListener('click', () => {
+    const files = Object.entries(buffers).map(([k, d]) => ({ name: `${st}_${k}.wav`, data: NX.wav(d, d, SR) }));
+    const b8 = SYN.b808(root, 1.2); files.push({ name: `${st}_808_${KEYS[root % 12].replace('#', 's')}.wav`, data: NX.wav(b8, b8, SR) });
+    NX.save(`nexsound_kit_${st}.zip`, NX.zip(files));
+  });
+  loadStyle('reggaeton');
+})();
+</script>

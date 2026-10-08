@@ -1,0 +1,48 @@
+<title>Nexsound</title>
+<!--HEAD-->
+<style>
+.hero { display: grid; gap: 14px; padding-block: 18px 8px; }
+.hero h1 { font-size: clamp(44px, 9vw, 96px); }
+.hero p { font-size: clamp(16px, 2.2vw, 20px); color: var(--muted); max-width: 46ch; margin: 0; }
+.meter { display: flex; gap: 3px; align-items: end; height: 54px; }
+.meter i { width: 8px; border-radius: 2px; background: var(--accent); animation: lvl 1.6s ease-in-out infinite; transform-origin: bottom; }
+@keyframes lvl { 0%, 100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
+.tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.tool-card { display: grid; gap: 6px; padding: 18px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); text-decoration: none; transition: border-color .15s, transform .15s; min-height: 112px; align-content: start; }
+.tool-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.tool-card b { font: 800 22px/1.05 var(--f-display); font-stretch: 112%; }
+.tool-card span { color: var(--muted); font-size: 14px; }
+.tool-card:first-child { border-color: var(--accent); }
+.points { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 720px) { .points { grid-template-columns: minmax(0, 1fr); } }
+.points div { display: grid; gap: 4px; }
+.points b { font: 700 16px/1.2 var(--f-display); }
+.points span { color: var(--muted); font-size: 14px; }
+</style>
+<div class="wrap">
+  <div class="top"><span class="brand"><b>Nexsound</b> · Laboratorio de producción</span><a class="btn small" href="despiece.html">Abrir Despiece</a></div>
+  <section class="hero">
+    <div class="meter" aria-hidden="true"><i style="height:30%;animation-delay:-.2s"></i><i style="height:70%;animation-delay:-.9s"></i><i style="height:100%;animation-delay:-.4s"></i><i style="height:55%;animation-delay:-1.2s"></i><i style="height:85%;animation-delay:-.6s"></i><i style="height:40%;animation-delay:-1s"></i><i style="height:65%;animation-delay:-.3s"></i></div>
+    <h1>Nexsound</h1>
+    <p>Herramientas de producción musical que funcionan en tu navegador: desmonta, masteriza, afina y lanza tus temas sin instalar nada y sin subir tu audio a ningún sitio.</p>
+  </section>
+  <section class="col">
+    <h2>Herramientas</h2>
+    <div class="tools">
+<!--TOOLS-->
+    </div>
+  </section>
+  <section class="panel">
+    <div class="points">
+      <div><b>Tu audio no sale de tu equipo</b><span>Todo se calcula en tu navegador: nada se sube a un servidor.</span></div>
+      <div><b>Gratis y sin registro</b><span>Abres, sueltas tu tema y te llevas el resultado en WAV, MIDI o vídeo.</span></div>
+      <div><b>Hecho para productores</b><span>Rejilla exacta al compás, loudness EBU R128 y exportación para cualquier DAW.</span></div>
+    </div>
+  </section>
+  <section class="panel">
+    <h2>Para tu Mac</h2>
+    <p class="note">Convertidor de URLs a temas: pega enlaces de YouTube, SoundCloud o archivos y te deja cada tema en WAV de 24 bits y MP3 320, listo para estas herramientas. Úsalo con música tuya o con permiso.</p>
+    <div class="row"><a class="btn" href="Convertir_URL_a_tema.command" download>Descargar el convertidor (Mac)</a></div>
+  </section>
+  <!--FOOT-->
+</div>

@@ -1,0 +1,171 @@
+<title>Nexsound Comparador</title>
+<!--HEAD-->
+<style>
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 560px) { .pair { grid-template-columns: minmax(0, 1fr); } }
+.legend2 { display: flex; gap: 16px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.legend2 i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
+.bands { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+@media (max-width: 640px) { .bands { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.band { background: var(--surface); padding: 10px 12px; display: grid; gap: 4px; }
+.band span { font: 500 11px/1.2 var(--f-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.band b { font: 700 18px/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
+.meter { height: 6px; background: var(--sunk); border-radius: 3px; position: relative; }
+.meter i { position: absolute; top: -2px; width: 3px; height: 10px; border-radius: 1px; }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>Comparador</h1>
+    <p class="lede">Pon tu mezcla al lado de un tema de referencia. Te dice dónde sobra o falta energía (en dB y en Hz), cómo está tu volumen, tu anchura estéreo y tu fase, con consejos concretos para acercarte. Escúchalos al mismo volumen para comparar con justicia.</p>
+  </header>
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2>Tu mezcla</h2>
+        <label class="drop" id="drop-a" for="in-a"><strong>Suelta tu mezcla</strong><small>MP3, WAV, AIFF, M4A, FLAC</small></label><input type="file" id="in-a" accept="audio/*" hidden>
+        <div class="file" id="name-a"></div>
+      </section>
+      <section class="panel">
+        <h2>Referencia</h2>
+        <label class="drop" id="drop-b" for="in-b"><strong>Suelta la referencia</strong><small>Un tema del estilo al que quieres sonar</small></label><input type="file" id="in-b" accept="audio/*" hidden>
+        <div class="file" id="name-b"></div>
+      </section>
+      <section class="panel">
+        <h2>Escuchar</h2>
+        <div class="row"><button class="play" id="play" aria-label="Escuchar"></button>
+          <div class="seg" id="ab" role="group" aria-label="Qué escuchar"><button data-v="a" aria-pressed="true">Mi mezcla</button><button data-v="b" aria-pressed="false">Referencia</button></div></div>
+        <label class="row small"><input type="checkbox" id="fair" checked> Al mismo volumen (LUFS igualados)</label>
+        <p class="note">Cambia entre las dos mientras suena: sigue en el mismo segundo.</p>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel">
+        <h2>Volumen y dinámica</h2>
+        <div class="facts" id="facts"></div>
+      </section>
+      <section class="panel">
+        <h2>Balance tonal</h2>
+        <canvas class="chart" id="spec" aria-label="Espectro de tu mezcla y de la referencia"></canvas>
+        <div class="legend2"><span><i style="background:var(--accent)"></i>Tu mezcla</span><span><i style="background:var(--signal)"></i>Referencia</span><span><i style="background:var(--ink)"></i>Diferencia (eje derecho)</span></div>
+        <div class="bands" id="bands"></div>
+      </section>
+      <section class="panel">
+        <h2>Estéreo y fase</h2>
+        <div class="bands" id="stereo"></div>
+      </section>
+      <section class="panel">
+        <div class="row" style="justify-content:space-between"><h2>Qué cambiaría</h2><div class="row"><button class="btn small" id="pdf" disabled>Informe PDF</button><button class="btn small" id="txt" disabled>Informe TXT</button></div></div>
+        <ul class="advice" id="advice"></ul>
+      </section>
+      <!--FOOT-->
+    </div>
+  </div>
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $, esc } = NX; let A = null, B = null, rA = null, rB = null, view = 'a', report = [];
+  const f1 = (v) => (Math.round(v * 10) / 10).toFixed(1).replace('.', ',').replace('-', '−');
+  const GROUPS = [['Graves', 20, 150, 'bombo y bajo'], ['Medios graves', 150, 500, 'cuerpo y barro'], ['Medios', 500, 2000, 'voz e instrumentos'], ['Presencia', 2000, 6000, 'claridad y ataque'], ['Aire', 6000, 20000, 'brillo']];
+  NX.dropzone($('drop-a'), $('in-a'), async (f) => { try { A = await NX.decodeFile(f[0]); A.name = f[0].name; $('name-a').textContent = f[0].name; go(); } catch (e) { NX.toast(e.message); } });
+  NX.dropzone($('drop-b'), $('in-b'), async (f) => { try { B = await NX.decodeFile(f[0]); B.name = f[0].name; $('name-b').textContent = f[0].name; go(); } catch (e) { NX.toast(e.message); } });
+
+  function measure(s) {
+    const L = s.L, R = s.R, sr = s.sr, lo = NX.loudness(L, R, sr), sp = NX.spectrum(L, R, sr);
+    let sl = 0, srr = 0, sc = 0; for (let i = 0; i < L.length; i += 2) { sl += L[i] * L[i]; srr += R[i] * R[i]; sc += L[i] * R[i]; }
+    const corr = sc / Math.sqrt(sl * srr + 1e-12);
+    const grp = GROUPS.map(([n, a, b]) => { let m = 0, si = 0; sp.bands.forEach((x) => { if (x.fc >= a && x.fc < b) { m += Math.pow(10, x.mid / 10); si += Math.pow(10, x.side / 10); } }); return { n, mid: 10 * Math.log10(m + 1e-15), width: si / (m + 1e-15) }; });
+    return { lo, sp, corr, grp };
+  }
+  function go() {
+    if (!A || !B) { renderPartial(); return; }
+    NX.player.stop(); rA = measure(A); rB = measure(B); render();
+  }
+  function renderPartial() {
+    const s = A || B; if (!s) return; const r = measure(s);
+    $('facts').innerHTML = factHtml('Volumen', f1(r.lo.I), 'LUFS') + factHtml('Pico real', f1(r.lo.truePeak), 'dBTP') + factHtml('Rango', f1(r.lo.LRA), 'LU') + factHtml('Correlación', r.corr.toFixed(2).replace('.', ','), '+1 mono · 0 ancho');
+    $('advice').innerHTML = '<li><span class="pill info">falta</span><span>Sube también ' + (A ? 'la referencia' : 'tu mezcla') + ' para comparar.</span></li>';
+  }
+  const factHtml = (t, v, s) => `<div class="fact"><span>${t}</span><b>${v}</b><small>${s}</small></div>`;
+  function render() {
+    const a = rA, b = rB;
+    $('facts').innerHTML = factHtml('Volumen', `${f1(a.lo.I)} <small class="muted">/ ${f1(b.lo.I)}</small>`, 'LUFS · tú / referencia') + factHtml('Pico real', `${f1(a.lo.truePeak)} <small class="muted">/ ${f1(b.lo.truePeak)}</small>`, 'dBTP') + factHtml('Rango dinámico', `${f1(a.lo.LRA)} <small class="muted">/ ${f1(b.lo.LRA)}</small>`, 'LU') + factHtml('Pegada', `${f1(a.lo.crest)} <small class="muted">/ ${f1(b.lo.crest)}</small>`, 'dB pico/volumen');
+    // balance tonal con los dos al mismo volumen
+    const off = b.lo.I - a.lo.I, diffs = GROUPS.map((g, i) => a.grp[i].mid + off - b.grp[i].mid);
+    $('bands').innerHTML = GROUPS.map((g, i) => { const d = diffs[i], cls = Math.abs(d) < 1.5 ? 'good' : Math.abs(d) < 3 ? 'warn' : 'bad'; return `<div class="band"><span>${g[0]}</span><b>${d > 0 ? '+' : ''}${f1(d)} dB</b><span class="pill ${cls}">${Math.abs(d) < 1.5 ? 'igual' : d > 0 ? 'te sobra' : 'te falta'}</span><small class="muted">${g[3]} · ${g[1]}–${g[2] >= 1000 ? g[2] / 1000 + 'k' : g[2]} Hz</small></div>`; }).join('');
+    $('stereo').innerHTML = GROUPS.map((g, i) => { const wa = Math.sqrt(a.grp[i].width) * 100, wb = Math.sqrt(b.grp[i].width) * 100; return `<div class="band"><span>${g[0]}</span><b>${Math.round(wa)} <small class="muted">/ ${Math.round(wb)}</small></b><div class="meter"><i style="left:${Math.min(98, wb / 1.2)}%;background:var(--signal)"></i><i style="left:${Math.min(98, wa / 1.2)}%;background:var(--accent)"></i></div><small class="muted">anchura % · tú / ref.</small></div>`; }).join('')
+      + `<div class="band"><span>Correlación</span><b>${a.corr.toFixed(2).replace('.', ',')} <small class="muted">/ ${b.corr.toFixed(2).replace('.', ',')}</small></b><small class="muted">+1 mono · 0 muy ancho · negativo: problema de fase</small></div>`;
+    drawSpec(off); advise(off, diffs);
+    $('pdf').disabled = $('txt').disabled = false;
+  }
+  function advise(off, diffs) {
+    const a = rA, b = rB, out = [];
+    const add = (lvl, txt) => out.push({ lvl, txt });
+    const dl = b.lo.I - a.lo.I;
+    if (Math.abs(dl) > 1) add(dl > 0 ? 'warn' : 'info', dl > 0 ? `Tu mezcla suena ${f1(dl)} dB más baja que la referencia (${f1(a.lo.I)} frente a ${f1(b.lo.I)} LUFS). En el máster sube el volumen con un limitador hasta unos ${f1(b.lo.I)} LUFS.` : `Tu mezcla ya va ${f1(-dl)} dB más fuerte que la referencia. Más volumen no la hará sonar mejor: cuida que no pierda pegada.`);
+    if (a.lo.truePeak > -1) add('bad', `Tu pico real llega a ${f1(a.lo.truePeak)} dBTP. Spotify y Apple piden −1 dBTP o menos: pon el techo del limitador en −1.`);
+    // bandas finas (tercios de octava) con más diferencia
+    const fine = NX.THIRDS.map((fc, i) => ({ fc, d: a.sp.bands[i].mid + off - b.sp.bands[i].mid })).filter((x) => x.fc > 30 && x.fc < 16000);
+    const sm = fine.map((x, i) => ({ fc: x.fc, d: (fine.slice(Math.max(0, i - 1), i + 2).reduce((s, y) => s + y.d, 0)) / fine.slice(Math.max(0, i - 1), i + 2).length }));
+    const peaks = [...sm].sort((p, q) => Math.abs(q.d) - Math.abs(p.d)).filter((p, i, arr) => arr.findIndex((o) => Math.abs(Math.log2(o.fc / p.fc)) < 1) === i).slice(0, 3);
+    const hz = (f) => (f >= 1000 ? (f / 1000).toFixed(1).replace('.', ',') + ' kHz' : Math.round(f) + ' Hz');
+    for (const p of peaks) if (Math.abs(p.d) > 2) add(Math.abs(p.d) > 4 ? 'bad' : 'warn', p.d > 0 ? `Sobran ${f1(p.d)} dB alrededor de ${hz(p.fc)}. Prueba un ecualizador de campana: −${f1(Math.min(6, p.d * 0.7))} dB en ${hz(p.fc)}, Q 1,2.` : `Faltan ${f1(-p.d)} dB alrededor de ${hz(p.fc)}. Prueba +${f1(Math.min(5, -p.d * 0.6))} dB en ${hz(p.fc)}, Q 1 (mejor en la pista que lleva esa zona que en todo el máster).`);
+    const lowW = Math.sqrt(a.grp[0].width);
+    if (lowW > 0.35) add('warn', `Tus graves tienen mucha información estéreo (${Math.round(lowW * 100)} %). En club y en móviles se pierden: pon los graves en mono por debajo de 120 Hz.`);
+    const mw = (g) => Math.sqrt((g[2].width + g[3].width + g[4].width) / 3);
+    const dw = mw(a.grp) - mw(b.grp);
+    if (Math.abs(dw) > 0.12) add('info', dw < 0 ? `Tu mezcla es más estrecha que la referencia en medios y agudos. Abre coros, pads y efectos (no el bajo ni la voz principal).` : `Tu mezcla es más ancha que la referencia. Si la voz o la caja pierden fuerza, cierra un poco los efectos estéreo.`);
+    if (a.corr < 0.1) add('bad', `La correlación entre canales es ${a.corr.toFixed(2).replace('.', ',')}: hay partes en contrafase que desaparecen en mono. Revisa ensanchadores y capas desfasadas.`);
+    if (a.lo.LRA - b.lo.LRA > 4) add('info', `Tu tema tiene bastante más dinámica que la referencia (${f1(a.lo.LRA)} frente a ${f1(b.lo.LRA)} LU). Si buscas ese mismo impacto, compresión de bus suave (2:1, ataque 30 ms).`);
+    if (b.lo.LRA - a.lo.LRA > 3) add('warn', `Tu tema está más aplastado que la referencia (${f1(a.lo.LRA)} frente a ${f1(b.lo.LRA)} LU). Afloja el limitador o la compresión para recuperar contraste entre partes.`);
+    if (!out.length) add('good', 'Tu mezcla está muy cerca de la referencia en volumen, balance y estéreo.');
+    report = out;
+    const lbl = { good: 'bien', info: 'idea', warn: 'mejorable', bad: 'arreglar' };
+    $('advice').innerHTML = out.map((o) => `<li><span class="pill ${o.lvl === 'info' ? 'info' : o.lvl}">${lbl[o.lvl]}</span><span>${esc(o.txt)}</span></li>`).join('');
+  }
+  function drawSpec(off) {
+    const { x, w, h } = NX.setupCanvas($('spec')), fcs = NX.THIRDS, pad = { l: 34, r: 40, t: 10, b: 22 };
+    const X = (f) => pad.l + (Math.log(f / 20) / Math.log(1000)) * (w - pad.l - pad.r);
+    const va = rA.sp.bands.map((b) => b.mid + off), vb = rB.sp.bands.map((b) => b.mid), mx = Math.max(...va, ...vb), Y = (v) => pad.t + (mx - v) / 60 * (h - pad.t - pad.b);
+    const Yd = (d) => pad.t + (h - pad.t - pad.b) * (0.5 - d / 24);
+    x.clearRect(0, 0, w, h); x.strokeStyle = NX.css('--line'); x.fillStyle = NX.css('--muted'); x.font = '10px ' + NX.css('--f-mono'); x.lineWidth = 1;
+    for (const f of [50, 100, 200, 500, 1000, 2000, 5000, 10000]) { x.beginPath(); x.moveTo(X(f), pad.t); x.lineTo(X(f), h - pad.b); x.stroke(); x.fillText(f >= 1000 ? f / 1000 + 'k' : f, X(f) - 8, h - 6); }
+    for (const d of [-6, 0, 6]) { x.fillText((d > 0 ? '+' : '') + d, w - pad.r + 6, Yd(d) + 3); }
+    const line = (arr, col, lw, Yf) => { x.strokeStyle = col; x.lineWidth = lw; x.beginPath(); arr.forEach((v, i) => (i ? x.lineTo(X(fcs[i]), Yf(v)) : x.moveTo(X(fcs[i]), Yf(v)))); x.stroke(); };
+    line(vb, NX.css('--signal'), 2, Y); line(va, NX.css('--accent'), 2, Y);
+    x.setLineDash([4, 3]); x.strokeStyle = NX.css('--line'); x.beginPath(); x.moveTo(pad.l, Yd(0)); x.lineTo(w - pad.r, Yd(0)); x.stroke(); x.setLineDash([]);
+    line(va.map((v, i) => NX.clamp(v - vb[i], -12, 12)), NX.css('--ink'), 1.5, Yd);
+  }
+  addEventListener('resize', () => rA && rB && drawSpec(rB.lo.I - rA.lo.I));
+  // escucha A/B sincronizada
+  function startPlay(at) {
+    const s = view === 'a' ? A : B; if (!s) return;
+    // al mismo volumen: el más fuerte se baja hasta el más suave
+    const r = view === 'a' ? rA : rB, lo = rA && rB ? Math.min(rA.lo.I, rB.lo.I) : null;
+    const gain = $('fair').checked && r && lo != null ? NX.undb(lo - r.lo.I) : 1;
+    const btn = $('play'); NX.player.play(s.L, s.R, s.sr, { id: 'c', offset: at, gain, onStop: () => { btn.classList.remove('on'); btn.innerHTML = NX.ICON_PLAY; } }); btn.classList.add('on'); btn.innerHTML = NX.ICON_STOP;
+  }
+  $('play').innerHTML = NX.ICON_PLAY; $('play').addEventListener('click', () => (NX.player.playing() ? NX.player.stop() : startPlay(30)));
+  $('ab').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; view = b.dataset.v; [...$('ab').children].forEach((x) => x.setAttribute('aria-pressed', x === b)); if (NX.player.playing()) startPlay(NX.player.position()); });
+  // informes
+  function lines() {
+    const a = rA, b = rB; return ['# Nexsound · Comparador', `Mezcla: ${A.name}`, `Referencia: ${B.name}`, '', '# Volumen y dinámica', `Volumen: ${f1(a.lo.I)} LUFS (referencia ${f1(b.lo.I)})`, `Pico real: ${f1(a.lo.truePeak)} dBTP (referencia ${f1(b.lo.truePeak)})`, `Rango: ${f1(a.lo.LRA)} LU (referencia ${f1(b.lo.LRA)})`, '', '# Balance tonal (al mismo volumen)', ...GROUPS.map((g, i) => `${g[0]} (${g[1]}-${g[2]} Hz): ${f1(a.grp[i].mid + b.lo.I - a.lo.I - b.grp[i].mid)} dB`), '', '# Qué cambiaría', ...report.flatMap((r) => wrap('- ' + r.txt, 95))];
+  }
+  const wrap = (s, n) => { const out = []; let cur = ''; for (const w of s.split(' ')) { if ((cur + ' ' + w).length > n) { out.push(cur); cur = '  ' + w; } else cur = cur ? cur + ' ' + w : w; } if (cur) out.push(cur); return out; };
+  $('txt').addEventListener('click', () => NX.save('comparador_' + NX.cleanName(A.name) + '.txt', lines().map((l) => l.replace(/^# /, '')).join('\n')));
+  $('pdf').addEventListener('click', () => NX.save('comparador_' + NX.cleanName(A.name) + '.pdf', NX.textPdf(lines(), 'Nexsound Comparador')));
+  // ejemplo: la misma pista con dos mezclas distintas
+  function demo(variant) {
+    const sr = 44100, n = sr * 10, L = new Float32Array(n), R = new Float32Array(n), beat = 60 / 124; let s = 9 + variant; const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296) * 2 - 1;
+    const f = (m) => 440 * Math.pow(2, (m - 69) / 12);
+    for (let k = 0; k * beat < 10; k++) {
+      const t0 = Math.round(k * beat * sr); let ph = 0;
+      for (let i = 0; i < 0.4 * sr && t0 + i < n; i++) { const t = i / sr; ph += 2 * Math.PI * (50 + 120 * Math.exp(-t / 0.03)) / sr; const v = Math.sin(ph) * Math.exp(-t / 0.2) * (variant ? 0.5 : 0.75); L[t0 + i] += v; R[t0 + i] += v; }
+      for (let i = 0; i < beat * sr && t0 + i < n; i++) { const t = i / sr; let v = 0; for (const m of [57, 60, 64, 69]) v += Math.sin(2 * Math.PI * f(m) * t) + 0.5 * Math.sin(4 * Math.PI * f(m) * t); const nz = rnd() * (variant ? 0.03 : 0.006) * Math.exp(-t / 0.05); L[t0 + i] += v * 0.04 + nz; R[t0 + i] += v * (variant ? 0.03 : 0.04) - nz; }
+    }
+    return { L, R, sr, name: variant ? 'referencia_demo.wav' : 'mi_mezcla_demo.wav' };
+  }
+  A = demo(0); B = demo(1); $('name-a').textContent = 'Ejemplo: mi_mezcla_demo.wav'; $('name-b').textContent = 'Ejemplo: referencia_demo.wav'; go();
+})();
+</script>

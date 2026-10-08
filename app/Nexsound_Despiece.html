@@ -371,11 +371,29 @@ const Engine = (function () {
       const dbl = found.find((f) => Math.abs(f.bpm / fine.bpm - 2) < 0.03 && f.s >= 0.7 * fine.s && f.bpm <= 180);
       if (!dbl) break; fine = dbl;
     }
+    // tempos muy lentos: casi siempre es el doble (los DJ trabajan entre 75 y 180)
+    while (fine.bpm < 75) { const dbl = found.find((f) => Math.abs(f.bpm / fine.bpm - 2) < 0.03); if (!dbl) break; fine = dbl; }
     {
       const c0 = { ...fine };                                        // afinado a 0,005 BPM
       for (let bpm = c0.bpm - 0.06; bpm <= c0.bpm + 0.06; bpm += 0.005) {
         for (let off = c0.off - 6; off <= c0.off + 6; off += 0.5) { if (off < 0) continue; const s = meanScore(bpm, off); if (s > fine.s) fine = { ...fine, s, bpm, off }; }
       }
+    }
+    // ajuste fino por regresión: cada tiempo se coloca en su ataque real (±25 ms) y se ajusta una recta
+    {
+      const perU = 60 / fine.bpm / unit, win = Math.round(0.025 / unit), T = [], Nn = [];
+      for (let k = 0, t = fine.off; t < nE - win - 1; k++, t += perU) {
+        const c = Math.round(t); let bi = c, bv = -1;
+        for (let i = Math.max(1, c - win); i <= c + win; i++) if (on[i] > bv) { bv = on[i]; bi = i; }
+        if (bv > 0) { T.push(bi); Nn.push(k); }
+      }
+      let a = fine.off, b = perU;
+      for (let it = 0; it < 4 && T.length > 24; it++) {
+        let sx = 0, sy = 0, sxx = 0, sxy = 0, n2 = 0;
+        for (let i = 0; i < T.length; i++) { const r = T[i] - (a + b * Nn[i]); if (it && Math.abs(r) > Math.max(4, 8 - it * 2)) continue; sx += Nn[i]; sy += T[i]; sxx += Nn[i] * Nn[i]; sxy += Nn[i] * T[i]; n2++; }
+        if (n2 < 16) break; const bb = (n2 * sxy - sx * sy) / (n2 * sxx - sx * sx); if (!(Math.abs(bb / perU - 1) < 0.02)) break; b = bb; a = (sy - b * sx) / n2;
+      }
+      const bpm2 = 60 / (b * unit); if (Math.abs(bpm2 - fine.bpm) < 1.5) { fine.bpm = Math.round(bpm2 * 200) / 200; fine.off = ((a % b) + b) % b; }
     }
     // ¿pulso o contratiempo? el bombo es el golpe con más graves sostenidos: probamos la fase y sus desplazamientos de 1/4
     {
@@ -409,7 +427,9 @@ const Engine = (function () {
       if (s / Math.max(c, 1) > ps) { ps = s / Math.max(c, 1); phase = p; }
     }
     const bar = 4 * per; let down = bestOff + phase * per; down -= Math.floor(down / bar) * bar;
-    return { bpm: Math.round(fine.bpm * 1000) / 1000, beat: per, bar, firstBar: down, nBars: Math.floor((L.length / sr - down) / bar) };
+    let onMean = 0; for (let i = 0; i < nE; i++) onMean += on[i]; onMean /= nE || 1;
+    const confidence = meanScore(fine.bpm, fine.off) / (onMean + 1e-9);      // >2,5: pulso claro; <1,8: dudoso
+    return { bpm: Math.round(fine.bpm * 1000) / 1000, beat: per, bar, firstBar: down, nBars: Math.floor((L.length / sr - down) / bar), confidence };
   }
 
   // ---------------------------------------------------------------- 3) tonalidad y acordes por compás
@@ -850,7 +870,71 @@ const Engine = (function () {
     return parts.concat(central, [new Uint8Array(e.buffer)]);
   }
 
-  return { run, wav24, midiFile, zipParts, crc32, NOTE, NOTE_ES, _t: { separate, findGrid, harmony, drumPattern, fft } };
+  // kit de samples: golpes aislados y regenerados + loops de 1, 2 y 4 compases cortados en la rejilla (sin pistas enteras)
+  function kit(L, R, sr, onProgress) {
+    const P = (stage, pct) => onProgress && onProgress(stage, pct);
+    const { stems, feat } = separate(L, R, sr, (p) => P('Separando los sonidos', p));
+    const n = L.length;
+    stems.musica = [new Float32Array(n), new Float32Array(n)];
+    for (let c = 0; c < 2; c++) { const src = c ? R : L, m = stems.musica[c]; for (let i = 0; i < n; i++) m[i] = src[i] - stems.voz[c][i] - stems.bateria[c][i] - stems.bajo[c][i]; }
+    P('Midiendo tempo y compases', 0);
+    const grid = findGrid(L, R, sr, feat, stems.bateria), harm = harmony(feat, grid, sr);
+    P('Aislando cada golpe de batería', 0);
+    const envs = bandEnvs(stems, sr), pat = drumPattern(feat, grid, sr, envs, stems), shots = extractOneShots(stems, [L, R], sr, grid, pat);
+    P('Regenerando los golpes desde cero', 0);
+    const kp = analyzeKick(shots.kick, sr), kickMono = synthKick(kp, sr);
+    const hpf = (s, lo) => normStereo({ L: fftFilter(s.L, sr, lo), R: fftFilter(s.R, sr, lo) });
+    const regen = { kick: { L: kickMono, R: Float32Array.from(kickMono) }, caja: hpf(synthNoiseHit(analyzeNoiseHit(shots.caja, sr), sr, 11), 180), hat: hpf(synthNoiseHit(analyzeNoiseHit(shots.hat, sr), sr, 23), 4500) };
+    P('Cortando loops', 0);
+    // la frase de 4 compases con más batería, empezando en un múltiplo de 4
+    const barE = []; for (let b = 0; b < grid.nBars; b++) { const a = Math.round((grid.firstBar + b * grid.bar) * sr), z = Math.min(n, Math.round((grid.firstBar + (b + 1) * grid.bar) * sr)); let e = 0; for (let i = a; i < z; i += 7) e += stems.bateria[0][i] ** 2 + stems.bajo[0][i] ** 2 + stems.musica[0][i] ** 2; barE.push(e); }
+    let best = 0, bs = -1; for (let b = 0; b + 4 <= grid.nBars; b += 4) { const s = barE[b] + barE[b + 1] + barE[b + 2] + barE[b + 3]; if (s > bs) { bs = s; best = b; } }
+    const loops = {};
+    const inst = [new Float32Array(n), new Float32Array(n)]; for (let c = 0; c < 2; c++) for (let i = 0; i < n; i++) inst[c][i] = stems.bateria[c][i] + stems.bajo[c][i] + stems.musica[c][i];
+    for (const [k, st] of [['bateria', stems.bateria], ['bajo', stems.bajo], ['musica', stems.musica], ['instrumental', inst]]) for (const bars of [1, 2, 4]) {
+      const a = Math.round((grid.firstBar + best * grid.bar) * sr), z = Math.min(n, Math.round((grid.firstBar + (best + bars) * grid.bar) * sr));
+      const l = st[0].slice(a, z), r = st[1].slice(a, z), f = Math.min(64, l.length); for (let i = 0; i < f; i++) { const g = i / f; l[l.length - 1 - i] *= g; r[r.length - 1 - i] *= g; }
+      loops[k + '_' + bars] = { L: l, R: r, bars };
+    }
+    const bassNotes = pitchTrack(Float32Array.from(stems.bajo[0], (v, i) => (v + stems.bajo[1][i]) / 2), sr, grid, 28, 57, 4, -24);
+    P('Listo', 1);
+    return { sr, grid, key: harm.key, slots: { kick: pat.hits.kick.slots, caja: pat.hits.caja.slots, hat: pat.hits.hat.slots }, pattern: pat.pattern, shots, regen, kp, loops, loopBar: best, bassNotes: bassNotes.slice(0, 64), counts: { kick: shots.kick.count, caja: shots.caja.count, hat: shots.hat.count } };
+  }
+
+  // análisis rápido sin separar stems: tempo, rejilla, tonalidad, acordes, energía por compás
+  function analyzeLite(L, R, sr, progress) {
+    const N = 4096, H = 1024, B = N / 2 + 1, n = L.length, pad = N, total = n + 2 * pad, frames = Math.floor((total - N) / H) + 1;
+    const w = hann(N), re = new Float64Array(N), im = new Float64Array(N);
+    const feat = { fps: sr / H, hop: H, offset: -pad + N / 2, flux: new Float32Array(frames), eLow: new Float32Array(frames), eMid: new Float32Array(frames), eHigh: new Float32Array(frames), eAll: new Float32Array(frames), chroma: new Float32Array(frames * 12), bassChroma: new Float32Array(frames * 12) };
+    const pcOf = new Int8Array(B).fill(-1), freqs = new Float64Array(B);
+    for (let k = 0; k < B; k++) { freqs[k] = k * sr / N; const f = freqs[k]; if (f > 55 && f < 2100) pcOf[k] = ((Math.round(12 * Math.log2(f / 440)) + 9) % 12 + 12) % 12; }
+    const prev = new Float64Array(B), get = (a, i) => (i >= pad && i < pad + n ? a[i - pad] : 0);
+    for (let t = 0; t < frames; t++) {
+      const a0 = t * H;
+      for (let i = 0; i < N; i++) { re[i] = get(L, a0 + i) * w[i]; im[i] = get(R, a0 + i) * w[i]; }
+      fft(re, im, false);
+      let flux = 0, eL = 0, eM = 0, eH = 0, eA = 0;
+      for (let k = 0; k < B; k++) {
+        const nk = (N - k) % N, lr = (re[k] + re[nk]) / 2, li = (im[k] - im[nk]) / 2, rr = (im[k] + im[nk]) / 2, ri = (re[nk] - re[k]) / 2;
+        const m = (Math.hypot(lr, li) + Math.hypot(rr, ri)) / 2, f = freqs[k], lg = Math.log1p(m * 10);
+        if (f < 8000) flux += Math.max(0, lg - prev[k]); prev[k] = lg;
+        const e = m * m; eA += e; if (f < 150) eL += e; else if (f > 900 && f < 5000) eM += e; else if (f > 6000) eH += e;
+        const pc = pcOf[k]; if (pc >= 0) { if (f < 170) feat.bassChroma[t * 12 + pc] += e; else feat.chroma[t * 12 + pc] += e; }
+      }
+      feat.flux[t] = flux; feat.eLow[t] = eL; feat.eMid[t] = eM; feat.eHigh[t] = eH; feat.eAll[t] = eA;
+      if (progress && t % 300 === 0) progress(t / frames);
+    }
+    const grid = findGrid(L, R, sr, feat, null), harm = harmony(feat, grid, sr);
+    // energía por compás (dB) para buscar estribillos y secciones
+    const barDb = [];
+    for (let b = 0; b < grid.nBars; b++) {
+      const f0 = Math.max(0, Math.floor(((grid.firstBar + b * grid.bar) * sr - feat.offset) / H)), f1 = Math.min(frames, Math.floor(((grid.firstBar + (b + 1) * grid.bar) * sr - feat.offset) / H));
+      let e = 0; for (let f = f0; f < f1; f++) e += feat.eAll[f]; barDb.push(10 * Math.log10(e / Math.max(1, f1 - f0) + 1e-12));
+    }
+    return { grid, key: harm.key, chords: harm.chords, feat, barDb };
+  }
+
+  return { run, kit, analyzeLite, wav24, midiFile, zipParts, crc32, NOTE, NOTE_ES, mtof, fft, fftFilter, hann, nextPow2, _t: { separate, findGrid, harmony, drumPattern, fft } };
 })();
 if (typeof module !== 'undefined') module.exports = Engine;
 </script>

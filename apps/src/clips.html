@@ -1,0 +1,150 @@
+<title>Nexsound Clips</title>
+<!--HEAD-->
+<style>
+.timeline { width: 100%; height: 110px; display: block; cursor: pointer; }
+.cands { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 640px) { .cands { grid-template-columns: minmax(0, 1fr); } }
+.cand { text-align: left; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 12px; display: grid; gap: 4px; cursor: pointer; color: var(--ink); font: inherit; }
+.cand[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.cand b { font: 700 18px/1.1 var(--f-display); }
+.cand .why { font-size: 12px; color: var(--muted); }
+.stage { display: grid; place-items: center; background: var(--sunk); border-radius: var(--r); padding: 10px; }
+.stage canvas { max-width: 100%; max-height: 52vh; height: auto; border-radius: 6px; display: block; }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>Clips</h1>
+    <p class="lede">Encuentra solo el trozo de tu tema con más gancho: el estribillo o el drop que más se repite y más energía tiene, cortado justo en el compás. Escúchalo y llévatelo en audio o en vídeo vertical para Reels, TikTok y Shorts.</p>
+  </header>
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2>Tema</h2>
+        <label class="drop" id="drop" for="in"><strong>Suelta tu tema</strong><small>MP3, WAV, M4A…</small></label><input type="file" id="in" accept="audio/*" hidden>
+        <div class="file" id="name"></div>
+        <div class="progress" id="prog" hidden><i></i></div>
+      </section>
+      <section class="panel">
+        <h2>Duración del clip</h2>
+        <div class="seg" id="lens" role="group" aria-label="Duración"><button data-v="15" aria-pressed="true">15 s</button><button data-v="30" aria-pressed="false">30 s</button><button data-v="45" aria-pressed="false">45 s</button><button data-v="60" aria-pressed="false">60 s</button></div>
+        <label class="field"><span>Ajuste fino: empieza en el compás <output id="o-bar"></output></span><input type="range" id="bar" min="0" max="10" value="0"></label>
+        <label class="row small"><input type="checkbox" id="fades" checked> Fundido de entrada y salida</label>
+      </section>
+      <section class="panel">
+        <h2>Vídeo</h2>
+        <label class="field"><span>Título</span><input type="text" id="title" value="Conéctate"></label>
+        <label class="field"><span>Artista</span><input type="text" id="artist" value="Nexsound"></label>
+        <label class="drop" id="drop-i" for="in-i"><strong>Portada (opcional)</strong><small>JPG o PNG</small></label><input type="file" id="in-i" accept="image/*" hidden>
+        <div class="seg" id="vstyle" role="group" aria-label="Animación"><button data-v="barras" aria-pressed="true">Barras</button><button data-v="circulo" aria-pressed="false">Círculo</button><button data-v="onda" aria-pressed="false">Onda</button></div>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel">
+        <h2>Los mejores fragmentos</h2>
+        <canvas class="timeline" id="tl" aria-label="Tema completo con los fragmentos propuestos; toca para escuchar desde ese punto"></canvas>
+        <div class="cands" id="cands"></div>
+        <div class="row">
+          <button class="play" id="play" aria-label="Escuchar el clip"></button>
+          <button class="btn primary" id="wav" disabled>Descargar audio (WAV)</button>
+          <button class="btn" id="vid" disabled>Grabar vídeo vertical</button>
+        </div>
+        <div class="progress" id="vprog" hidden><i></i></div>
+      </section>
+      <section class="panel">
+        <h2>Así se verá</h2>
+        <div class="stage"><canvas id="cv" width="1080" height="1920" aria-label="Vista previa del vídeo"></canvas></div>
+      </section>
+      <!--FOOT-->
+    </div>
+  </div>
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $, esc } = NX; let A = null, an = null, len = 15, cands = [], pick = 0, startBar = 0, img = null, colors = null, vstyle = 'barras', baseName = 'demostracion';
+  const COLS = ['--accent', '--signal', '--muted'];
+  NX.dropzone($('drop'), $('in'), async (f) => { try { NX.player.stop(); A = await NX.decodeFile(f[0]); baseName = NX.cleanName(f[0].name); $('name').textContent = f[0].name + ' · ' + NX.fmtTime(A.duration); $('title').value = f[0].name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '); await analyze(); } catch (e) { NX.toast(e.message); } });
+  NX.dropzone($('drop-i'), $('in-i'), (f) => { const im = new Image(); im.onload = () => { img = im; colors = NX.imageColors(im); preview(); }; im.src = URL.createObjectURL(f[0]); });
+  $('lens').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; len = +b.dataset.v; [...$('lens').children].forEach((x) => x.setAttribute('aria-pressed', x === b)); if (an) choose(); });
+  $('vstyle').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; vstyle = b.dataset.v; [...$('vstyle').children].forEach((x) => x.setAttribute('aria-pressed', x === b)); preview(); });
+  ['title', 'artist'].forEach((id) => $(id).addEventListener('input', preview));
+
+  async function analyze() {
+    $('prog').hidden = false; $('wav').disabled = $('vid').disabled = true;
+    an = await NX.engineWorker('analyzeLite', [new Float32Array(A.L), new Float32Array(A.R), A.sr], (s, p) => ($('prog').firstChild.style.width = Math.round((p || 0) * 100) + '%'));
+    $('prog').hidden = true;
+    // croma por compás para medir qué partes se repiten
+    const g = an.grid, f = an.feat, hop = f.hop; an.barChroma = [];
+    for (let b = 0; b < g.nBars; b++) { const f0 = Math.max(0, Math.floor(((g.firstBar + b * g.bar) * A.sr - f.offset) / hop)), f1 = Math.min(f.flux.length, Math.floor(((g.firstBar + (b + 1) * g.bar) * A.sr - f.offset) / hop)); const v = new Float64Array(12); for (let t = f0; t < f1; t++) for (let k = 0; k < 12; k++) v[k] += f.chroma[t * 12 + k]; const n = Math.hypot(...v) || 1; an.barChroma.push(v.map((x) => x / n)); }
+    choose();
+  }
+  function choose() {
+    const g = an.grid, nb = Math.max(2, Math.round(len / g.bar)), N = g.nBars, db = an.barDb;
+    const mean = db.reduce((s, v) => s + v, 0) / N, sd = Math.sqrt(db.reduce((s, v) => s + (v - mean) ** 2, 0) / N) || 1;
+    const rep = an.barChroma.map((v, i) => { let best = 0, cnt = 0; an.barChroma.forEach((w, j) => { if (Math.abs(i - j) >= 8) { let d = 0; for (let k = 0; k < 12; k++) d += v[k] * w[k]; if (d > 0.92) cnt++; best = Math.max(best, d); } }); return { best, cnt }; });
+    const scored = [];
+    for (let b = 0; b + nb <= N; b++) {
+      let e = 0, r = 0, c = 0; for (let i = b; i < b + nb; i++) { e += (db[i] - mean) / sd; r += rep[i].best; c += rep[i].cnt; } e /= nb; r /= nb; c /= nb;
+      const jump = b > 0 ? db[b] - db[b - 1] : 0, phrase = b % 4 === 0 ? 0.25 : 0, edge = b < 4 || b + nb > N - 2 ? -0.6 : 0;
+      scored.push({ b, nb, s: e * 1.0 + r * 1.6 + Math.min(jump, 6) * 0.12 + phrase + edge, e, reps: Math.round(c), jump });
+    }
+    scored.sort((p, q) => q.s - p.s); cands = [];
+    for (const s of scored) { if (cands.every((c) => Math.abs(c.b - s.b) >= s.nb)) cands.push(s); if (cands.length === 3) break; }
+    pick = 0; startBar = cands[0] ? cands[0].b : 0; $('bar').max = Math.max(0, N - nb); $('bar').value = startBar;
+    renderCands(); drawTl(); preview(); $('wav').disabled = $('vid').disabled = !cands.length;
+  }
+  function why(c) {
+    const t = []; if (c.e > 0.6) t.push('de lo más fuerte del tema'); else if (c.e > 0) t.push('energía por encima de la media');
+    const share = c.reps / an.grid.nBars;
+    if (share > 0.25) t.push('su armonía vuelve una y otra vez (gancho)'); else if (c.reps >= 4) t.push('se repite más adelante (estribillo)'); else if (c.reps >= 1) t.push('vuelve a sonar más adelante');
+    if (c.jump > 3) t.push('arranca justo tras una subida'); return t.join(' · ') || 'parte equilibrada del tema';
+  }
+  function renderCands() {
+    const g = an.grid;
+    $('cands').innerHTML = cands.map((c, i) => `<button class="cand" data-i="${i}" aria-pressed="${i === pick}"><span class="pill" style="color:var(${COLS[i]})">${'ABC'[i]}${i === 0 ? ' · el mejor' : ''}</span><b>${NX.fmtTime(g.firstBar + c.b * g.bar)} – ${NX.fmtTime(g.firstBar + (c.b + c.nb) * g.bar)}</b><span class="why">${esc(why(c))}</span></button>`).join('');
+  }
+  $('cands').addEventListener('click', (e) => { const b = e.target.closest('.cand'); if (!b) return; pick = +b.dataset.i; startBar = cands[pick].b; $('bar').value = startBar; renderCands(); drawTl(); playClip(); });
+  $('bar').addEventListener('input', () => { startBar = +$('bar').value; drawTl(); });
+  function clipRange() { const g = an.grid, nb = Math.max(2, Math.round(len / g.bar)), a = Math.max(0, Math.round((g.firstBar + startBar * g.bar) * A.sr)), b = Math.min(A.L.length, Math.round((g.firstBar + (startBar + nb) * g.bar) * A.sr)); return [a, b]; }
+  function clip() {
+    const [a, b] = clipRange(), L = A.L.slice(a, b), R = A.R.slice(a, b);
+    if ($('fades').checked) { const fi = Math.round(0.03 * A.sr), fo = Math.round(Math.min(1.5, an.grid.bar / 2) * A.sr); for (let i = 0; i < fi; i++) { L[i] *= i / fi; R[i] *= i / fi; } for (let i = 0; i < fo; i++) { const g = Math.pow(i / fo, 1.5); L[L.length - 1 - i] *= g; R[R.length - 1 - i] *= g; } }
+    return { L, R, sr: A.sr };
+  }
+  function drawTl() {
+    const { x, w, h } = NX.drawWave($('tl'), A.L, A.R, NX.css('--line')), g = an.grid, s = A.L.length / A.sr;
+    cands.forEach((c, i) => { const a = (g.firstBar + c.b * g.bar) / s * w, b = (g.firstBar + (c.b + c.nb) * g.bar) / s * w; x.fillStyle = NX.css(COLS[i]); x.globalAlpha = 0.16; x.fillRect(a, 0, b - a, h); x.globalAlpha = 1; x.font = '600 11px ' + NX.css('--f-mono'); x.fillText('ABC'[i], a + 4, 12); });
+    const [ra, rb] = clipRange(); x.strokeStyle = NX.css('--ink'); x.lineWidth = 2; x.strokeRect(ra / A.L.length * w, 1, (rb - ra) / A.L.length * w, h - 2);
+    $('o-bar').textContent = (startBar + 1) + ' · ' + NX.fmtTime(ra / A.sr);
+  }
+  $('tl').addEventListener('click', (e) => { const r = e.currentTarget.getBoundingClientRect(), t = (e.clientX - r.left) / r.width * A.L.length / A.sr; startBar = Math.max(0, Math.min(+$('bar').max, Math.round((t - an.grid.firstBar) / an.grid.bar))); $('bar').value = startBar; drawTl(); playClip(); });
+  function playClip() { const c = clip(), btn = $('play'); NX.player.play(c.L, c.R, c.sr, { id: 'clip', onStop: () => { btn.classList.remove('on'); btn.innerHTML = NX.ICON_PLAY; } }); btn.classList.add('on'); btn.innerHTML = NX.ICON_STOP; }
+  $('play').innerHTML = NX.ICON_PLAY; $('play').addEventListener('click', () => (NX.player.playing() ? NX.player.stop() : playClip()));
+  addEventListener('resize', () => an && drawTl());
+  const vopts = (t, fr, tm, dur) => ({ style: vstyle, freq: fr, time: tm, t, dur, img, title: $('title').value, artist: $('artist').value, colors: colors || { bg1: '#0F3B31', bg2: '#06110C', fg: '#ffffff', accent: '#43C19F' } });
+  function preview() { const cv = $('cv'); const fr = new Uint8Array(1024).map((_, i) => Math.max(0, 210 - i * 0.7 + 30 * Math.sin(i / 5))), tm = new Uint8Array(2048).map((_, i) => 128 + 50 * Math.sin(i / 25)); NX.viz(cv.getContext('2d'), cv.width, cv.height, vopts(len * 0.4, fr, tm, len)); }
+  $('wav').addEventListener('click', () => { const c = clip(), [a] = clipRange(); NX.save(`${baseName}_clip_${len}s_${NX.fmtTime(a / A.sr).replace(':', 'm')}.wav`, NX.wav(c.L, c.R, c.sr)); });
+  $('vid').addEventListener('click', async () => {
+    NX.player.stop(); const btn = $('vid'); btn.disabled = true; btn.textContent = 'Grabando…'; $('vprog').hidden = false;
+    try { const c = clip(), cv = $('cv'), x = cv.getContext('2d'), dur = c.L.length / c.sr; const blob = await NX.recordCanvas(cv, c, 30, (t, fr, tm) => NX.viz(x, cv.width, cv.height, vopts(t, fr, tm, dur)), (p) => ($('vprog').firstChild.style.width = Math.round(p * 100) + '%')); await NX.save(`${baseName}_clip_${len}s.webm`, blob); }
+    catch (e) { NX.toast(e.message); } finally { btn.disabled = false; btn.textContent = 'Grabar vídeo vertical'; $('vprog').hidden = true; preview(); }
+  });
+  // ejemplo: tema corto con intro, estrofa, estribillo que se repite y final
+  function demo() {
+    const sr = 44100, bpm = 124, beat = 60 / bpm, bars = 32, n = Math.round(bars * 4 * beat * sr), L = new Float32Array(n), R = new Float32Array(n), f = (m) => 440 * Math.pow(2, (m - 69) / 12);
+    const verse = [[57, 60, 64], [53, 57, 60]], chorus = [[48, 52, 55], [55, 59, 62], [57, 60, 64], [53, 57, 60]];
+    for (let b = 0; b < bars; b++) {
+      const sec = b < 4 ? 'intro' : b < 12 ? 'verse' : b < 20 ? 'chorus' : b < 24 ? 'verse' : b < 30 ? 'chorus' : 'outro', loud = sec === 'chorus' ? 1 : sec === 'verse' ? 0.55 : 0.3;
+      const ch = sec === 'chorus' ? chorus[b % 4] : verse[b % 2];
+      for (let q = 0; q < 4; q++) {
+        const t0 = Math.round((b * 4 + q) * beat * sr); let ph = 0;
+        if (sec !== 'intro' && sec !== 'outro') for (let i = 0; i < 0.35 * sr && t0 + i < n; i++) { const t = i / sr; ph += 2 * Math.PI * (52 + 120 * Math.exp(-t / 0.03)) / sr; const v = Math.sin(ph) * Math.exp(-t / 0.18) * 0.5 * loud; L[t0 + i] += v; R[t0 + i] += v; }
+        for (let i = 0; i < beat * sr && t0 + i < n; i++) { const t = i / sr; let v = 0; for (const m of ch) v += Math.sin(2 * Math.PI * f(m) * t) + 0.4 * Math.sin(4 * Math.PI * f(m) * t); if (sec === 'chorus') v += 1.5 * Math.sin(2 * Math.PI * f(ch[2] + 12) * t) * Math.exp(-t / 0.2); L[t0 + i] += v * 0.035 * (0.5 + loud); R[t0 + i] += v * 0.035 * (0.5 + loud); }
+      }
+    }
+    return { L, R, sr, duration: n / sr };
+  }
+  A = demo(); $('name').textContent = 'Ejemplo: tema de demostración con estribillo (1:02)'; preview(); analyze();
+})();
+</script>

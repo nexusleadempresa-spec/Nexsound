@@ -1,5 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style><title>Nexsound</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"><style>/* Nexsound · estilo común. Layout: mesa de trabajo — cabecera de herramienta, columna de entrada y banco de resultados. */
+/* Nexsound · estilo común. Layout: mesa de trabajo — cabecera de herramienta, columna de entrada y banco de resultados. */
 :root {
   --bg: #EEF1EC; --surface: #F8FAF6; --sunk: #E3E8E2; --ink: #18211C; --muted: #5E6C64; --line: #CDD5CF;
   --accent: #0F7A62; --accent-ink: #FFFFFF; --signal: #B8661F; --danger: #A63A2B; --good: #2F7D3A; --warn: #A8741A;
@@ -109,61 +108,3 @@ table.data tr:last-child td { border-bottom: 0; }
 footer.nx { font-size: 12px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 14px; }
 footer.nx a { color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-</style></head><body>
-<style>
-.hero { display: grid; gap: 14px; padding-block: 18px 8px; }
-.hero h1 { font-size: clamp(44px, 9vw, 96px); }
-.hero p { font-size: clamp(16px, 2.2vw, 20px); color: var(--muted); max-width: 46ch; margin: 0; }
-.meter { display: flex; gap: 3px; align-items: end; height: 54px; }
-.meter i { width: 8px; border-radius: 2px; background: var(--accent); animation: lvl 1.6s ease-in-out infinite; transform-origin: bottom; }
-@keyframes lvl { 0%, 100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
-.tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
-.tool-card { display: grid; gap: 6px; padding: 18px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); color: var(--ink); text-decoration: none; transition: border-color .15s, transform .15s; min-height: 112px; align-content: start; }
-.tool-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-.tool-card b { font: 800 22px/1.05 var(--f-display); font-stretch: 112%; }
-.tool-card span { color: var(--muted); font-size: 14px; }
-.tool-card:first-child { border-color: var(--accent); }
-.points { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 720px) { .points { grid-template-columns: minmax(0, 1fr); } }
-.points div { display: grid; gap: 4px; }
-.points b { font: 700 16px/1.2 var(--f-display); }
-.points span { color: var(--muted); font-size: 14px; }
-</style>
-<div class="wrap">
-  <div class="top"><span class="brand"><b>Nexsound</b> · Laboratorio de producción</span><a class="btn small" href="despiece.html">Abrir Despiece</a></div>
-  <section class="hero">
-    <div class="meter" aria-hidden="true"><i style="height:30%;animation-delay:-.2s"></i><i style="height:70%;animation-delay:-.9s"></i><i style="height:100%;animation-delay:-.4s"></i><i style="height:55%;animation-delay:-1.2s"></i><i style="height:85%;animation-delay:-.6s"></i><i style="height:40%;animation-delay:-1s"></i><i style="height:65%;animation-delay:-.3s"></i></div>
-    <h1>Nexsound</h1>
-    <p>Herramientas de producción musical que funcionan en tu navegador: desmonta, masteriza, afina y lanza tus temas sin instalar nada y sin subir tu audio a ningún sitio.</p>
-  </section>
-  <section class="col">
-    <h2>Herramientas</h2>
-    <div class="tools">
-<a class="tool-card" href="despiece.html"><b>Despiece</b><span>Stems, golpes aislados, sonidos regenerados y MIDI</span></a>
-<a class="tool-card" href="master.html"><b>Master</b><span>Masteriza tu tema en un clic, con o sin referencia</span></a>
-<a class="tool-card" href="samplelab.html"><b>Sample Lab</b><span>De cualquier tema a un kit de samples</span></a>
-<a class="tool-card" href="bpm.html"><b>BPM y Tono</b><span>Tempo, tonalidad, Camelot y acordes de tus temas</span></a>
-<a class="tool-card" href="afinador.html"><b>Afinador de voz</b><span>Corrige la afinación de una voz grabada</span></a>
-<a class="tool-card" href="ritmos.html"><b>Ritmos</b><span>Patrones de batería por estilo, con MIDI y WAV</span></a>
-<a class="tool-card" href="comparador.html"><b>Comparador</b><span>Tu mezcla frente a una referencia, con consejos</span></a>
-<a class="tool-card" href="clips.html"><b>Clips</b><span>El mejor fragmento de tu tema, listo para redes</span></a>
-<a class="tool-card" href="visualizador.html"><b>Visualizador</b><span>Vídeo con tu portada y el audio animado</span></a>
-<a class="tool-card" href="splits.html"><b>Reparto</b><span>Porcentajes, royalties y hoja de reparto</span></a>
-<a class="tool-card" href="radar.html"><b>Radar</b><span>A qué se parece tu tema y dónde encaja</span></a>
-    </div>
-  </section>
-  <section class="panel">
-    <div class="points">
-      <div><b>Tu audio no sale de tu equipo</b><span>Todo se calcula en tu navegador: nada se sube a un servidor.</span></div>
-      <div><b>Gratis y sin registro</b><span>Abres, sueltas tu tema y te llevas el resultado en WAV, MIDI o vídeo.</span></div>
-      <div><b>Hecho para productores</b><span>Rejilla exacta al compás, loudness EBU R128 y exportación para cualquier DAW.</span></div>
-    </div>
-  </section>
-  <section class="panel">
-    <h2>Para tu Mac</h2>
-    <p class="note">Convertidor de URLs a temas: pega enlaces de YouTube, SoundCloud o archivos y te deja cada tema en WAV de 24 bits y MP3 320, listo para estas herramientas. Úsalo con música tuya o con permiso.</p>
-    <div class="row"><a class="btn" href="Convertir_URL_a_tema.command" download>Descargar el convertidor (Mac)</a></div>
-  </section>
-  <footer class="nx"><span>Nexsound · todo se procesa en tu navegador</span><a href="despiece.html">Despiece</a> <a href="master.html">Master</a> <a href="samplelab.html">Sample Lab</a> <a href="bpm.html">BPM y Tono</a> <a href="afinador.html">Afinador de voz</a> <a href="ritmos.html">Ritmos</a> <a href="comparador.html">Comparador</a> <a href="clips.html">Clips</a> <a href="visualizador.html">Visualizador</a> <a href="splits.html">Reparto</a> <a href="radar.html">Radar</a></footer>
-</div>
-</body></html>

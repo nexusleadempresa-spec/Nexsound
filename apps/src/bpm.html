@@ -1,0 +1,183 @@
+<title>Nexsound BPM y Tono</title>
+<!--HEAD-->
+<style>
+.tap { width: 100%; padding: 26px 12px; font: 800 20px/1 var(--f-display); font-stretch: 112%; border-radius: var(--r); border: 1px solid var(--line); background: var(--sunk); color: var(--ink); cursor: pointer; }
+.tap:active { background: var(--accent); color: var(--accent-ink); }
+.tapres { font: 800 40px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+table.data tr.sel td { background: var(--sunk); }
+table.data td.name { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.cam { font: 700 13px/1 var(--f-mono); padding: 4px 6px; border-radius: 4px; color: var(--accent-ink); display: inline-block; min-width: 34px; text-align: center; }
+.ok { color: var(--good); font-weight: 600; } .jump { color: var(--warn); font-weight: 600; }
+.chordstrip { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 6px; }
+.chordstrip div { flex: 0 0 auto; min-width: 46px; border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; display: grid; gap: 2px; }
+.chordstrip span { font: 500 10px/1 var(--f-mono); color: var(--muted); } .chordstrip b { font: 700 14px/1.1 var(--f-display); }
+.wheel { width: 100%; max-width: 300px; aspect-ratio: 1; display: block; margin: 0 auto; }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>BPM y Tono</h1>
+    <p class="lede">Suelta uno o muchos temas: tempo exacto, tonalidad, código Camelot para mezclar en armonía, acordes compás a compás y energía. Ordena tu set para que cada tema case con el siguiente y expórtalo a CSV.</p>
+  </header>
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2>Temas</h2>
+        <label class="drop" id="drop" for="files"><strong>Suelta tus temas</strong><small>Puedes soltar varios a la vez</small></label>
+        <input type="file" id="files" accept="audio/*" multiple hidden>
+        <div class="progress" id="prog" hidden><i></i></div>
+        <div class="small muted" id="queue"></div>
+      </section>
+      <section class="panel">
+        <h2>Tap tempo</h2>
+        <button class="tap" id="tap">Toca al ritmo (o pulsa T)</button>
+        <div class="row"><span class="tapres" id="tapres">—</span><span class="muted small">BPM</span><button class="btn small" id="tapreset">Reiniciar</button></div>
+      </section>
+      <section class="panel">
+        <h2>Rueda Camelot</h2>
+        <canvas class="wheel" id="wheel" aria-label="Rueda Camelot con los temas analizados"></canvas>
+        <p class="note">Mezclan bien: el mismo número, ±1 con la misma letra, o el mismo número con la otra letra (relativo mayor/menor).</p>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel">
+        <div class="row" style="justify-content:space-between">
+          <h2>Resultados</h2>
+          <div class="row">
+            <div class="seg" id="order" role="group" aria-label="Orden"><button data-v="in" aria-pressed="true">Como entraron</button><button data-v="bpm" aria-pressed="false">Por BPM</button><button data-v="set" aria-pressed="false">Set armónico</button></div>
+            <button class="btn small" id="csv" disabled>Exportar CSV</button>
+          </div>
+        </div>
+        <div class="tablewrap"><table class="data" id="tbl"><thead><tr><th></th><th>Tema</th><th class="num">BPM</th><th>Tonalidad</th><th>Camelot</th><th class="num">LUFS</th><th class="num">Duración</th><th>Enlace</th><th></th></tr></thead><tbody></tbody></table></div>
+        <p class="note" id="setnote" hidden></p>
+      </section>
+      <section class="panel" id="detail" hidden>
+        <h2 id="d-title">Detalle</h2>
+        <div class="facts">
+          <div class="fact"><span>Tempo</span><b id="d-bpm"></b><small id="d-beat"></small></div>
+          <div class="fact"><span>Tonalidad</span><b id="d-key"></b><small id="d-cam"></small></div>
+          <div class="fact"><span>Progresión</span><b id="d-prog" style="font-size:18px"></b><small>la más repetida</small></div>
+          <div class="fact"><span>Primer compás</span><b id="d-first"></b><small>segundos</small></div>
+        </div>
+        <canvas class="chart" id="energy" style="height:140px" aria-label="Energía por compás"></canvas>
+        <div class="chordstrip" id="d-chords"></div>
+      </section>
+      <!--FOOT-->
+    </div>
+  </div>
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $, esc } = NX; let rows = [], order = 'in', sel = null, busy = false; const queue = [];
+  const COLORS = (n) => `hsl(${(n * 30 + 150) % 360} 55% 42%)`;
+  NX.dropzone($('drop'), $('files'), (fs) => { fs.forEach((f) => queue.push(f)); pump(); });
+  async function pump() {
+    if (busy) return; busy = true;
+    while (queue.length) {
+      const f = queue.shift(); $('queue').textContent = `Analizando «${f.name}»` + (queue.length ? ` · quedan ${queue.length}` : ''); $('prog').hidden = false;
+      try { const a = await NX.decodeFile(f); await analyze(a, f.name); } catch (e) { NX.toast(e.message); }
+    }
+    $('queue').textContent = rows.length ? `${rows.length} temas analizados` : ''; $('prog').hidden = true; busy = false;
+  }
+  async function analyze(a, name, demo = false) {
+    const lufs = NX.loudness(a.L, a.R, a.sr).I, dur = a.L.length / a.sr;
+    const r = await NX.engineWorker('analyzeLite', [new Float32Array(a.L), new Float32Array(a.R), a.sr], (s, p) => ($('prog').firstChild.style.width = Math.round((p || 0) * 100) + '%'));
+    const row = { id: rows.length + 1, name, demo, bpm: r.grid.bpm, grid: r.grid, key: r.key, cam: NX.camelot(r.key.root, r.key.mode), lufs, dur, chords: r.chords, barDb: r.barDb, audio: a };
+    rows.push(row); render(); select(row);
+  }
+  // progresión de 4 acordes más repetida
+  function topProg(ch) {
+    const names = ch.map((c) => c.name).filter((n) => n !== '—'), cnt = new Map();
+    for (let i = 0; i + 4 <= names.length; i++) { const k = names.slice(i, i + 4).join(' – '); cnt.set(k, (cnt.get(k) || 0) + 1); }
+    let best = '', bc = 0; for (const [k, v] of cnt) if (v > bc) { bc = v; best = k; } return best || '—';
+  }
+  function ordered() {
+    if (order === 'bpm') return [...rows].sort((a, b) => a.bpm - b.bpm);
+    if (order === 'set') { // camino voraz: siguiente tema compatible en Camelot con el BPM más cercano
+      const left = [...rows].sort((a, b) => a.bpm - b.bpm), out = [left.shift()];
+      while (left.length) {
+        const cur = out[out.length - 1]; let bi = 0, bs = Infinity;
+        left.forEach((r, i) => { const s = (NX.camelotCompatible(cur.cam, r.cam) ? 0 : 40) + Math.abs(r.bpm - cur.bpm); if (s < bs) { bs = s; bi = i; } });
+        out.push(left.splice(bi, 1)[0]);
+      }
+      return out;
+    }
+    return rows;
+  }
+  function render() {
+    const list = ordered();
+    $('tbl').tBodies[0].innerHTML = list.map((r, i) => {
+      const prev = list[i - 1], link = !prev ? '' : NX.camelotCompatible(prev.cam, r.cam) ? '<span class="ok">casa</span>' : '<span class="jump">salto</span>';
+      return `<tr data-id="${r.id}" class="${sel === r ? 'sel' : ''}"><td><button class="play" data-play="${r.id}" aria-label="Escuchar ${esc(r.name)}">${NX.ICON_PLAY}</button></td>
+        <td class="name" title="${esc(r.name)}">${esc(r.name)}${r.demo ? ' <span class="tag">ejemplo</span>' : ''}</td>
+        <td class="num">${r.grid.confidence < 1.1 ? '<span class="pill warn" title="El pulso no es claro: revísalo con tap tempo">aprox.</span> ' : ''}<b>${r.bpm.toFixed(r.bpm % 1 ? 2 : 0).replace('.', ',')}</b> <button class="btn small" data-half="${r.id}" title="Mitad">½</button> <button class="btn small" data-dbl="${r.id}" title="Doble">×2</button></td>
+        <td>${r.key.name}</td><td><span class="cam" style="background:${COLORS(parseInt(r.cam))}">${r.cam}</span></td>
+        <td class="num">${r.lufs.toFixed(1).replace('.', ',')}</td><td class="num">${NX.fmtTime(r.dur)}</td><td>${link}</td>
+        <td><button class="dl" data-del="${r.id}" aria-label="Quitar">Quitar</button></td></tr>`;
+    }).join('') || '<tr><td colspan="9" class="muted">Suelta temas para empezar.</td></tr>';
+    $('csv').disabled = !rows.length;
+    const jumps = list.filter((r, i) => i && !NX.camelotCompatible(list[i - 1].cam, r.cam)).length;
+    $('setnote').hidden = order !== 'set'; $('setnote').textContent = `Orden armónico: ${list.length - 1 - jumps} enlaces casan en tonalidad y ${jumps} son saltos (mézclalos con un efecto o un break).`;
+    drawWheel();
+  }
+  $('tbl').addEventListener('click', (e) => {
+    const t = e.target.closest('button, tr'); if (!t) return; const id = +(t.dataset.play || t.dataset.half || t.dataset.dbl || t.dataset.del || t.dataset.id); const r = rows.find((x) => x.id === id); if (!r) return;
+    if (t.dataset.play) { if (NX.player.current() === id) return NX.player.stop(); NX.player.stop(); const b = t; NX.player.play(r.audio.L, r.audio.R, r.audio.sr, { id, offset: Math.min(r.dur * 0.35, Math.max(0, r.dur - 30)), duration: 30, onStop: () => { b.classList.remove('on'); b.innerHTML = NX.ICON_PLAY; } }); b.classList.add('on'); b.innerHTML = NX.ICON_STOP; return; }
+    if (t.dataset.half) { r.bpm /= 2; render(); return; } if (t.dataset.dbl) { r.bpm *= 2; render(); return; }
+    if (t.dataset.del) { rows = rows.filter((x) => x !== r); if (sel === r) { sel = null; $('detail').hidden = true; } render(); return; }
+    select(r);
+  });
+  $('order').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; order = b.dataset.v; [...$('order').children].forEach((x) => x.setAttribute('aria-pressed', x === b)); render(); });
+  function select(r) {
+    sel = r; render(); $('detail').hidden = false;
+    $('d-title').textContent = r.name; $('d-bpm').textContent = r.bpm.toFixed(2).replace('.', ','); $('d-beat').textContent = `${(r.grid.beat * 1000).toFixed(1).replace('.', ',')} ms por tiempo · ${r.grid.nBars} compases`;
+    $('d-key').textContent = r.key.name; $('d-cam').textContent = 'Camelot ' + r.cam; $('d-prog').textContent = topProg(r.chords); $('d-first').textContent = r.grid.firstBar.toFixed(3).replace('.', ',');
+    $('d-chords').innerHTML = r.chords.map((c) => `<div><span>${c.bar + 1}</span><b>${c.name}</b></div>`).join('');
+    drawEnergy(r);
+  }
+  function drawEnergy(r) {
+    const { x, w, h } = NX.setupCanvas($('energy')), v = r.barDb, mx = Math.max(...v), mn = mx - 24, bw = w / v.length;
+    x.clearRect(0, 0, w, h); x.fillStyle = NX.css('--accent');
+    v.forEach((d, i) => { const hh = Math.max(1, ((d - mn) / 24) * (h - 18)); x.globalAlpha = 0.35 + 0.65 * Math.max(0, (d - mn) / 24); x.fillRect(i * bw, h - 14 - hh, Math.max(1, bw - 1), hh); });
+    x.globalAlpha = 1; x.fillStyle = NX.css('--muted'); x.font = '10px ' + NX.css('--f-mono');
+    for (let b = 0; b < v.length; b += 16) x.fillText(String(b + 1), b * bw + 2, h - 2);
+  }
+  function drawWheel() {
+    const cv = $('wheel'), { x, w, h } = NX.setupCanvas(cv), cx = w / 2, cy = h / 2, R1 = w * 0.47, R2 = w * 0.32, R3 = w * 0.18;
+    x.clearRect(0, 0, w, h); x.font = '600 11px ' + NX.css('--f-mono'); x.textAlign = 'center'; x.textBaseline = 'middle';
+    const used = new Set(rows.map((r) => r.cam)), selC = sel && sel.cam;
+    for (let n = 1; n <= 12; n++) for (const [ring, letter] of [[0, 'B'], [1, 'A']]) {
+      const a0 = ((n - 1) / 12) * 2 * Math.PI - Math.PI / 2 - Math.PI / 12, a1 = a0 + Math.PI / 6, ro = ring ? R2 : R1, ri = ring ? R3 : R2, code = n + letter;
+      x.beginPath(); x.arc(cx, cy, ro, a0, a1); x.arc(cx, cy, ri, a1, a0, true); x.closePath();
+      const comp = selC && NX.camelotCompatible(selC, code);
+      x.fillStyle = used.has(code) ? COLORS(n) : NX.css('--sunk'); x.globalAlpha = used.has(code) ? 1 : comp ? 0.9 : 1; x.fill();
+      x.strokeStyle = comp ? NX.css('--signal') : NX.css('--line'); x.lineWidth = comp ? 2 : 1; x.stroke(); x.globalAlpha = 1;
+      const am = (a0 + a1) / 2, rm = (ro + ri) / 2; x.fillStyle = used.has(code) ? '#fff' : NX.css('--muted'); x.fillText(code, cx + Math.cos(am) * rm, cy + Math.sin(am) * rm);
+    }
+  }
+  addEventListener('resize', () => { drawWheel(); sel && drawEnergy(sel); });
+  // tap tempo
+  let taps = []; const tap = () => { const t = performance.now(); if (taps.length && t - taps[taps.length - 1] > 2000) taps = []; taps.push(t); if (taps.length > 1) { const iv = (taps[taps.length - 1] - taps[0]) / (taps.length - 1); $('tapres').textContent = (60000 / iv).toFixed(1).replace('.', ','); } };
+  $('tap').addEventListener('click', tap); addEventListener('keydown', (e) => { if ((e.key === 't' || e.key === 'T') && !/input|textarea|select/i.test(e.target.tagName)) tap(); });
+  $('tapreset').addEventListener('click', () => { taps = []; $('tapres').textContent = '—'; });
+  // CSV
+  $('csv').addEventListener('click', () => {
+    const lines = [['orden', 'tema', 'bpm', 'tonalidad', 'camelot', 'lufs', 'duracion', 'progresion'].join(';')];
+    ordered().forEach((r, i) => lines.push([i + 1, '"' + r.name.replace(/"/g, '""') + '"', r.bpm.toFixed(2), r.key.name, r.cam, r.lufs.toFixed(1), NX.fmtTime(r.dur), '"' + topProg(r.chords) + '"'].join(';')));
+    NX.save('nexsound_bpm_tono.csv', '﻿' + lines.join('\n'));
+  });
+  // ejemplo al abrir
+  function demo() {
+    const sr = 44100, bpm = 126, beat = 60 / bpm, n = Math.round(16 * beat * 4 * sr), L = new Float32Array(n), R = new Float32Array(n), f = (m) => 440 * Math.pow(2, (m - 69) / 12);
+    const ch = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]], roots = [45, 41, 36, 43];
+    for (let b = 0; b < 16; b++) for (let q = 0; q < 4; q++) {
+      const t0 = Math.round((b * 4 + q) * beat * sr); let ph = 0;
+      for (let i = 0; i < 0.35 * sr && t0 + i < n; i++) { const t = i / sr; ph += 2 * Math.PI * (50 + 130 * Math.exp(-t / 0.03)) / sr; const v = Math.sin(ph) * Math.exp(-t / 0.15) * 0.5; L[t0 + i] += v; R[t0 + i] += v; }
+      for (let i = 0; i < beat * sr && t0 + i < n; i++) { const t = i / sr; let v = 0; for (const m of ch[b % 4]) v += Math.sin(2 * Math.PI * f(m) * t); v += 0.8 * Math.sin(2 * Math.PI * f(roots[b % 4] - 12) * t); L[t0 + i] += v * 0.05; R[t0 + i] += v * 0.05; }
+    }
+    return { L, R, sr };
+  }
+  render(); $('prog').hidden = false; analyze(demo(), 'demostracion_126bpm.wav', true).then(() => ($('prog').hidden = true, $('queue').textContent = 'Ejemplo analizado. Suelta tus temas.'));
+})();
+</script>
