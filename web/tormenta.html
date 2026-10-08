@@ -1,0 +1,248 @@
+<title>Nexsound Tormenta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: full-bleed night city in the rain; readout on top, a thin control strip below, title card until the first gesture. Single dark world by choice. */
+:root {
+  --void: #05070b; --ink: #e8eef4; --dim: #7f8ba0; --uv: #8f6bff; --bolt: #cfe0ff; --heat: #ff5a36; --line: rgba(232,238,244,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--void); color: var(--ink); font-family: var(--f-mono); overflow: hidden; }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+.intro { position: fixed; inset: 0; display: grid; place-items: center; padding-inline: 16px; background: radial-gradient(circle at 50% 40%, rgba(143,107,255,.16), transparent 60%), var(--void); z-index: 3; overflow-y: auto; }
+.intro div { max-width: 640px; display: grid; gap: 18px; justify-items: start; }
+.intro h1 { font: 900 clamp(64px, 17vw, 168px)/.82 var(--f-disp); letter-spacing: -.01em; margin: 0; text-transform: uppercase; }
+.intro h1 span { color: var(--bolt); }
+.intro p { margin: 0; color: var(--dim); font-size: 13px; line-height: 1.7; max-width: 52ch; }
+.intro ul { margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--dim); display: grid; gap: 4px; }
+.intro b { color: var(--ink); font-weight: 600; }
+button { font: 600 12px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 10px 12px; cursor: pointer; }
+button:hover { border-color: var(--uv); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+#go { font-size: 14px; padding: 16px 22px; border-color: var(--bolt); color: var(--bolt); }
+#go:hover { background: var(--bolt); color: var(--void); }
+.hud { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; background: linear-gradient(transparent, rgba(5,7,11,.88) 35%); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+.hud label { display: flex; align-items: center; gap: 8px; flex: 1 1 150px; min-width: 0; }
+.hud input { flex: 1; min-width: 60px; accent-color: var(--bolt); }
+.read { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: 16px; right: 16px; z-index: 2; display: flex; justify-content: space-between; gap: 12px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); pointer-events: none; font-variant-numeric: tabular-nums; }
+.read b { color: var(--ink); font-weight: 600; }
+#bolt { font: 900 clamp(26px, 6vw, 48px)/1 var(--f-disp); color: var(--ink); letter-spacing: .02em; }
+@media (max-width: 560px) { .hud button { padding: 9px 8px; font-size: 11px; letter-spacing: .06em; } }
+</style>
+
+<canvas id="cv" aria-label="Ciudad nocturna bajo la tormenta"></canvas>
+<div class="read"><div><div id="bolt">Tormenta</div><div id="sub">toca el cielo para invocar un rayo</div></div><div style="text-align:right"><div>viento <b id="wind">0</b> km/h</div><div>gotas <b id="dps">0</b>/s</div><div>ritmo <b id="rq">0</b>%</div></div></div>
+
+<section class="intro" id="intro">
+  <div>
+    <h1>Tormen<br><span>ta</span></h1>
+    <p>Una tormenta entera sintetizada en tu navegador: ni un sample. La lluvia, el viento y los truenos se generan en directo, y el trueno llega con el retraso real del sonido según lo lejos que caiga el rayo. Mejor con auriculares.</p>
+    <ul>
+      <li><b>Mover</b> el ratón o el dedo · cuanto más rápido, más viento</li>
+      <li><b>Clic / toque</b> · rayo; arriba cae lejos (10 km), abajo cerca (300 m)</li>
+      <li><b>Lluvia</b> · densidad de gotas</li>
+      <li><b>La lluvia se vuelve ritmo</b> · de natural a cuadrícula con un pad suave</li>
+    </ul>
+    <button id="go">Desatar tormenta</button>
+  </div>
+</section>
+
+<nav class="hud" aria-label="Controles">
+  <label>Lluvia <input id="dens" type="range" min="0" max="1" step="0.01" value="0.55"></label>
+  <label>La lluvia se vuelve ritmo <input id="quant" type="range" min="0" max="1" step="0.01" value="0"></label>
+  <button id="mute">Silencio</button>
+</nav>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const C = 343, BPM = 96, SIX = 60 / BPM / 4;
+  const PENTA = [0, 3, 5, 7, 10, 12, 15, 17];
+  const CHORDS = [[57, 60, 64, 67], [53, 57, 60, 64], [48, 52, 55, 59], [55, 59, 62, 65]];
+  const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  let A, dens = .55, quant = 0, muted = false, windAmt = 0, speed = 0, lastP = null, flash = 0;
+  let bolts = [], pending = [], dropsVis = 0, dropCount = 0;
+
+  function noiseBuf(ctx, sec, ch = 1) { const b = ctx.createBuffer(ch, ctx.sampleRate * sec, ctx.sampleRate); for (let c = 0; c < ch; c++) { const d = b.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } return b; }
+  function impulse(ctx, sec) { const len = ctx.sampleRate * sec, b = ctx.createBuffer(2, len, ctx.sampleRate); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); } return b; }
+  // thunder: brown-ish noise with baked irregular rumbling amplitude + crackle near the start
+  function thunderBuf(ctx, sec, near) {
+    const sr = ctx.sampleRate, len = Math.floor(sr * sec), b = ctx.createBuffer(2, len, sr);
+    for (let c = 0; c < 2; c++) {
+      const d = b.getChannelData(c); let last = 0, amp = 1, target = 1;
+      for (let i = 0; i < len; i++) {
+        if (i % 2400 === 0) target = .25 + Math.random() * (1 - i / len);
+        amp += (target - amp) * .0008;
+        last = (last + .02 * (Math.random() * 2 - 1)) / 1.02;
+        let v = last * 3.5 * amp;
+        if (i < sr * .5 * near && Math.random() < .02 * near) v += (Math.random() * 2 - 1) * (1 - i / (sr * .5));
+        d[i] = v * Math.pow(1 - i / len, 1.4);
+      }
+    }
+    return b;
+  }
+
+  function boot() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const comp = ctx.createDynamicsCompressor(), out = ctx.createGain(), verb = ctx.createConvolver(), verbG = ctx.createGain(), bus = ctx.createGain();
+    comp.threshold.value = -14; comp.ratio.value = 4; out.gain.value = .85; verb.buffer = impulse(ctx, 3.5); verbG.gain.value = .35;
+    bus.connect(comp); bus.connect(verb); verb.connect(verbG); verbG.connect(comp); comp.connect(out); out.connect(ctx.destination);
+    const noise = noiseBuf(ctx, 2, 2);
+    // rain bed
+    const bed = ctx.createBufferSource(), hp = ctx.createBiquadFilter(), lp = ctx.createBiquadFilter(), bedG = ctx.createGain();
+    bed.buffer = noise; bed.loop = true; hp.type = 'highpass'; hp.frequency.value = 700; lp.type = 'lowpass'; lp.frequency.value = 7000; bedG.gain.value = 0;
+    bed.connect(hp); hp.connect(lp); lp.connect(bedG); bedG.connect(comp); bed.start();
+    // wind: two band-passed layers with moving resonance
+    const winds = [0, 1].map((k) => { const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), p = ctx.createStereoPanner(); s.buffer = noise; s.loop = true; s.playbackRate.value = .6 + k * .3; f.type = 'bandpass'; f.Q.value = 6; f.frequency.value = 400; g.gain.value = 0; s.connect(f); f.connect(g); g.connect(p); p.connect(bus); s.start(); return { f, g, p, ph: k * 3 }; });
+    // pad
+    const padG = ctx.createGain(), padF = ctx.createBiquadFilter(); padG.gain.value = 0; padF.type = 'lowpass'; padF.frequency.value = 900; padF.connect(padG); padG.connect(bus);
+    const pad = [0, 1, 2, 3].map(() => [-7, 7].map((det) => { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.detune.value = det; o.frequency.value = 220; o.connect(padF); o.start(); return o; }));
+    A = { ctx, bus, comp, out, noise, bedG, winds, padG, pad, nextDrop: ctx.currentTime + .05, step: 0, gridT0: ctx.currentTime + .1, chord: -1 };
+    setInterval(sched, 25);
+  }
+
+  function panner(x, y, z) { const p = A.ctx.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 1; if (p.positionX) { p.positionX.value = x; p.positionY.value = y; p.positionZ.value = z; } else p.setPosition(x, y, z); return p; }
+
+  function drop(t, tuned) {
+    const ctx = A.ctx, g = ctx.createGain(), p = ctx.createStereoPanner(); p.pan.value = Math.random() * 2 - 1; g.connect(p); p.connect(A.bus);
+    if (tuned > 0 && Math.random() < tuned) {
+      const o = ctx.createOscillator(), ch = CHORDS[Math.max(0, A.chord) % 4]; o.type = 'sine';
+      const n = ch[0] + 12 + PENTA[Math.floor(Math.random() * PENTA.length)]; o.frequency.setValueAtTime(mtof(n) * 1.5, t); o.frequency.exponentialRampToValueAtTime(mtof(n), t + .02);
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.09 * tuned, t + .003); g.gain.exponentialRampToValueAtTime(.0001, t + .25);
+      o.connect(g); o.start(t); o.stop(t + .3);
+    } else {
+      // a droplet: tiny pitched blip + click of noise
+      const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), s = ctx.createBufferSource(), sg = ctx.createGain(), fr = 1800 + Math.random() * 3500;
+      o.frequency.setValueAtTime(fr, t); o.frequency.exponentialRampToValueAtTime(fr * 1.6, t + .015);
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.025 + Math.random() * .03, t + .001); g.gain.exponentialRampToValueAtTime(.0001, t + .02 + Math.random() * .02);
+      s.buffer = A.noise; f.type = 'highpass'; f.frequency.value = 3000; sg.gain.value = .6; s.connect(f); f.connect(sg); sg.connect(g);
+      o.connect(g); o.start(t); o.stop(t + .05); s.start(t, Math.random() * 1.5, .01);
+    }
+    dropCount++;
+  }
+
+  function sched() {
+    const ctx = A.ctx, now = ctx.currentTime, horizon = now + .12;
+    const rate = 4 + dens * dens * 260; // drops per second
+    while (A.nextDrop < horizon) {
+      const tn = A.nextDrop; A.nextDrop += -Math.log(1 - Math.random()) / rate;
+      if (quant > 0) {
+        const k = Math.round((tn - A.gridT0) / SIX), tq = A.gridT0 + k * SIX;
+        // drops snap toward the grid; on strong steps they survive, elsewhere thin out as quant grows
+        const strong = k % 4 === 0 ? 1 : k % 2 === 0 ? .6 : .25;
+        if (Math.random() < quant * (1 - strong) * .9) continue;
+        const t = tn + (tq - tn) * quant; drop(Math.max(now + .005, t), quant * strong);
+      } else drop(tn, 0);
+    }
+    // pad chord change every 2 bars
+    const bar = Math.floor((now - A.gridT0) / (SIX * 32));
+    if (bar !== A.chord) { A.chord = bar; const ch = CHORDS[((bar % 4) + 4) % 4]; A.pad.forEach((pr, i) => pr.forEach((o) => o.frequency.setTargetAtTime(mtof(ch[i] - 12), now, .6))); }
+    A.padG.gain.setTargetAtTime(muted ? 0 : quant * quant * .05, now, .5);
+    A.bedG.gain.setTargetAtTime(.02 + dens * .16, now, .3);
+    // wind: speed-driven with gusts
+    const tt = now;
+    A.winds.forEach((w) => { w.ph += .025; const gust = .5 + .5 * Math.sin(tt * .31 + w.ph) * Math.sin(tt * .13 + w.ph * 2); const amt = Math.min(1, windAmt * .9 + gust * .12);
+      w.f.frequency.setTargetAtTime(250 + amt * 1400 + Math.sin(tt * 1.7 + w.ph) * 180 * amt, now, .15); w.g.gain.setTargetAtTime(amt * .5, now, .2); w.p.pan.setTargetAtTime(Math.sin(tt * .4 + w.ph) * .8, now, .3); });
+  }
+
+  function thunder(nx, d) {
+    const ctx = A.ctx, delay = d / C, t = ctx.currentTime + delay, near = 1 - (d - 300) / 9700;
+    const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(), p = panner((nx - .5) * 8, 1, -2 - (1 - near) * 4);
+    s.buffer = thunderBuf(ctx, 3 + (1 - near) * 4, near); f.type = 'lowpass'; f.frequency.value = 160 + near * near * 2400; f.Q.value = .5;
+    g.gain.value = .5 + near * 1.6; s.connect(f); f.connect(g); g.connect(p); p.connect(A.bus); s.start(t);
+    if (near > .55) { // sharp crack for close strikes
+      const c = ctx.createBufferSource(), cf = ctx.createBiquadFilter(), cg = ctx.createGain(); c.buffer = A.noise; cf.type = 'highpass'; cf.frequency.value = 1500;
+      cg.gain.setValueAtTime(.0001, t); cg.gain.exponentialRampToValueAtTime(near * .9, t + .004); cg.gain.exponentialRampToValueAtTime(.0001, t + .35); c.connect(cf); cf.connect(cg); cg.connect(p); c.start(t, 0, .4);
+    }
+    return delay;
+  }
+
+  // ---------- visuals ----------
+  const cv = $('cv'), g = cv.getContext('2d'); let W, H, DPR, city = [], streaks = [];
+  function size() {
+    DPR = Math.min(2, devicePixelRatio || 1); W = cv.width = innerWidth * DPR; H = cv.height = innerHeight * DPR;
+    city = []; let x = 0; while (x < W) { const w = (24 + Math.random() * 70) * DPR, h = H * (.1 + Math.random() * .28) * (Math.random() < .12 ? 1.6 : 1), wins = []; for (let yy = 8 * DPR; yy < h - 6 * DPR; yy += 9 * DPR) for (let xx = 5 * DPR; xx < w - 6 * DPR; xx += 8 * DPR) if (Math.random() < .14) wins.push([xx, yy, Math.random()]); city.push({ x, w, h, wins, ant: Math.random() < .25 }); x += w + Math.random() * 4 * DPR; }
+    const n = RM ? 120 : 420; streaks = Array.from({ length: n }, () => ({ x: Math.random() * W, y: Math.random() * H, z: .3 + Math.random() * .7 }));
+  }
+  addEventListener('resize', size); size();
+
+  function branch(x, y, ang, len, depth, segs) {
+    let cx = x, cy = y; const n = 6 + Math.floor(Math.random() * 6);
+    for (let i = 0; i < n; i++) {
+      const a = ang + (Math.random() - .5) * 1.1, l = len / n * (0.6 + Math.random() * .8), nx = cx + Math.cos(a) * l, ny = cy + Math.sin(a) * l;
+      segs.push([cx, cy, nx, ny, depth]); cx = nx; cy = ny;
+      if (depth < 4 && Math.random() < .28 - depth * .05) branch(cx, cy, ang + (Math.random() < .5 ? -1 : 1) * (.4 + Math.random() * .6), len * (.3 + Math.random() * .25), depth + 1, segs);
+    }
+    return segs;
+  }
+
+  function strike(nx, ny) {
+    const d = Math.round(10000 - ny * 9700), km = d / 1000;
+    const bx = nx * W, by = ny * H, top = 0;
+    const segs = branch(bx + (Math.random() - .5) * 80 * DPR, top, Math.PI / 2, Math.max(by - top, 40 * DPR) * 1.05, 0, []);
+    // drag the main channel's end onto the touch point
+    const main = segs.filter((s) => s[4] === 0), last = main[main.length - 1]; if (last) { last[2] = bx; last[3] = by; }
+    bolts.push({ segs, t: performance.now(), near: 1 - (d - 300) / 9700 });
+    flash = Math.min(1, flash + .45 + (1 - (d - 300) / 9700) * .5);
+    const delay = A ? thunder(nx, d) : d / C;
+    pending.push({ at: performance.now() + delay * 1000, km, delay });
+    $('bolt').textContent = `rayo a ${km.toFixed(1).replace('.', ',')} km · trueno en ${delay.toFixed(1).replace('.', ',')} s`;
+  }
+
+  function frame() {
+    requestAnimationFrame(frame);
+    const now = performance.now();
+    g.globalCompositeOperation = 'source-over';
+    const sky = g.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#07080f'); sky.addColorStop(1, '#141826'); g.fillStyle = sky; g.fillRect(0, 0, W, H);
+    if (flash > .01) { g.fillStyle = `rgba(200,215,255,${flash * (RM ? .25 : .6)})`; g.fillRect(0, 0, W, H); flash *= RM ? .85 : .88; if (!RM && Math.random() < .04) flash += .2; }
+    // bolts
+    g.globalCompositeOperation = 'lighter'; bolts = bolts.filter((b) => now - b.t < 700);
+    for (const b of bolts) {
+      const k = (now - b.t) / 700, flick = RM ? 1 - k : (1 - k) * (.6 + .4 * Math.sin(now * .09));
+      for (const s of b.segs) { const w = Math.max(.6, 3.2 - s[4] * .8) * DPR; g.strokeStyle = `rgba(207,224,255,${flick * (1 - s[4] * .18)})`; g.lineWidth = w; g.shadowBlur = 18 * DPR; g.shadowColor = '#9fb6ff'; g.beginPath(); g.moveTo(s[0], s[1]); g.lineTo(s[2], s[3]); g.stroke(); }
+      g.shadowBlur = 0;
+    }
+    g.globalCompositeOperation = 'source-over';
+    // rain streaks with wind slant
+    const slant = (windAmt * 1.4 + .15) * (lastDir || 1), fall = (12 + dens * 20) * DPR;
+    g.strokeStyle = `rgba(170,190,220,${.12 + dens * .25})`; g.lineWidth = DPR; g.beginPath();
+    const vis = Math.floor(streaks.length * (.15 + dens * .85));
+    for (let i = 0; i < vis; i++) { const s = streaks[i]; if (!RM) { s.y += fall * s.z; s.x += slant * fall * s.z * .5; } if (s.y > H) { s.y = -20; s.x = Math.random() * W; } if (s.x > W) s.x -= W; if (s.x < 0) s.x += W; const L = (8 + 14 * s.z) * DPR; g.moveTo(s.x, s.y); g.lineTo(s.x - slant * L * .5, s.y - L); }
+    g.stroke();
+    // skyline silhouette
+    const base = H - 70 * DPR;
+    g.fillStyle = flash > .1 ? `rgb(${10 + flash * 30},${12 + flash * 32},${20 + flash * 45})` : '#020306';
+    for (const b of city) { g.fillRect(b.x, base - b.h, b.w, b.h + 80 * DPR); if (b.ant) g.fillRect(b.x + b.w / 2 - DPR, base - b.h - 22 * DPR, 2 * DPR, 22 * DPR); }
+    g.fillRect(0, base, W, H - base);
+    for (const b of city) for (const w of b.wins) { const lit = w[2] > .35 || Math.sin(now * .0003 + w[2] * 40) > .9; if (!lit) continue; g.fillStyle = w[2] > .8 ? 'rgba(143,107,255,.55)' : 'rgba(255,200,120,.45)'; g.fillRect(b.x + w[0], base - b.h + w[1], 3 * DPR, 4 * DPR); }
+    for (const b of city) if (b.ant && Math.sin(now * .004 + b.x) > 0) { g.fillStyle = '#ff5a36'; g.fillRect(b.x + b.w / 2 - 2 * DPR, base - b.h - 24 * DPR, 4 * DPR, 4 * DPR); }
+    // splashes on ground when quantized drops hit
+    // countdown
+    pending = pending.filter((p) => { const left = (p.at - now) / 1000; if (left <= 0) { if (pending.length === 1) $('sub').textContent = `trueno: ${p.km.toFixed(1).replace('.', ',')} km de distancia`; if (!RM) flash += .05; return false; } $('sub').textContent = `el sonido viaja a 343 m/s · faltan ${left.toFixed(1).replace('.', ',')} s`; return true; });
+    // wind decay
+    speed *= .9; windAmt += (Math.min(1, speed) - windAmt) * .04;
+  }
+  let lastDir = 1; frame();
+  setInterval(() => { $('wind').textContent = Math.round(windAmt * 90); $('dps').textContent = Math.round(dropCount * 2); dropCount = 0; $('rq').textContent = Math.round(quant * 100); }, 500);
+
+  // ---------- input ----------
+  function move(e) {
+    const t = performance.now();
+    if (lastP) { const dt = Math.max(8, t - lastP.t), dx = e.clientX - lastP.x, dy = e.clientY - lastP.y, v = Math.hypot(dx, dy) / dt; speed = Math.max(speed, v * .5); if (Math.abs(dx) > 2) lastDir = Math.sign(dx); }
+    lastP = { x: e.clientX, y: e.clientY, t };
+  }
+  cv.addEventListener('pointermove', move);
+  cv.addEventListener('pointerdown', (e) => { lastP = { x: e.clientX, y: e.clientY, t: performance.now() }; if (!A) start(); strike(e.clientX / innerWidth, Math.min(1, e.clientY / innerHeight)); });
+  $('dens').addEventListener('input', (e) => { dens = +e.target.value; });
+  $('quant').addEventListener('input', (e) => { quant = +e.target.value; });
+  $('mute').addEventListener('click', () => { if (!A) return; muted = !muted; A.out.gain.setTargetAtTime(muted ? 0 : .85, A.ctx.currentTime, .05); $('mute').setAttribute('aria-pressed', muted); });
+  function start() { if (A) return; boot(); $('intro').hidden = true; }
+  $('go').addEventListener('click', start);
+})();
+</script>
