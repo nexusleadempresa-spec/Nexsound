@@ -1,0 +1,17 @@
+{
+ "PROMO": {
+  "bpm": 124.0,
+  "downbeat_s": 1.93721,
+  "compas_s": 1.935484
+ },
+ "EL_REY": {
+  "bpm": 108.9625,
+  "downbeat_s": 1.86114,
+  "compas_s": 2.202593
+ },
+ "EL_REY_ajustado": {
+  "bpm": 124.0,
+  "downbeat_s": 1.65881,
+  "compas_s": 1.935484
+ }
+}

@@ -1,0 +1,39 @@
+NEXSOUND – PACK "CONÉCTATE"
+===========================
+Todo en WAV 24 bits / 44,1 kHz (los originales son MP3 320 kbps a 44,1 kHz; no existe más calidad que extraer).
+
+01_Stems/  — cada tema separado en pistas completas. TODAS empiezan en la muestra 0 = inicio exacto de un compás,
+             así que si las arrastras al compás 1 de tu DAW al tempo indicado quedan cuadradas.
+   PROMO_124BPM_Do ............ 124,000 BPM, Do mayor
+   EL_REY_109BPM_Re ........... 108,9625 BPM, Re mayor (original)
+   EL_REY_ajustado_124BPM_Do .. El Rey estirado a 124 BPM y bajado a Do para combinar con PROMO
+   Pistas: bateria, bajo (incluye la cola grave del kick/808), musica (acordes, melodías, sintes),
+           voz (lo que se quitó), instrumental (bateria+bajo+musica).
+   bateria + bajo + musica + voz = original exacto (error < 0,000001).
+
+02_Loops_4compases/ — 4 compases de cada sección y de cada stem, cortados exactamente en la línea de compás.
+
+03_One_shots/ — kicks, claps/snares, hats y percusiones de cada tema. La muestra 0 es el ataque del golpe
+                (0,5 ms de entrada desde cero para que no haga clic), normalizados a -0,3 dBFS.
+
+04_Tema_Conectate_v2/ — el tema nuevo hecho SOLO con los sonidos originales (sin batería sintética):
+   compás   sección      música / bajo             batería
+     1      Intro        EL REY (tema)             PROMO (subida de hats)
+     9      Subida       EL REY (subida)           PROMO (subida)
+    17      Groove       PROMO                     PROMO
+    33      Break        EL REY (clímax)           PROMO (break)
+    41      Subida 2     PROMO                     PROMO
+    49      Drop         PROMO                     PROMO
+    65      Break 2      EL REY (clímax 2)         PROMO (break 2)
+    73      Pre-drop     PROMO                     PROMO
+    81      Drop final   PROMO                     PROMO
+    97      Outro        PROMO                     PROMO
+   Criterio: batería y graves de PROMO (más pegada, tempo nativo 124); armonía de EL REY en intro y breaks
+   (más rica). Nunca se mezclan las armonías de los dos a la vez para que no choquen.
+   Máster: -9,0 LUFS, pico real -1,0 dBTP (igual de fuerte que PROMO original).
+
+05_Codigo/ — scripts usados (separación, rejilla, cortes, arreglo), por si hay que repetir algo.
+
+rejilla.json — tempo y posición exacta del primer compás de cada tema.
+
+NOTA: la separación se hizo con procesado de señal (sin IA). Puede haber restos o sangrado entre stems.
