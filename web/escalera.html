@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Escalera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: full-bleed endless staircase tunnel; readout on top, controls strip at the bottom. Single dark world by choice. */
+:root {
+  --void: #07060b; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --line: rgba(236,232,244,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--void); color: var(--ink); font-family: var(--f-mono); overflow: hidden; }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+.intro { position: fixed; inset: 0; display: grid; place-items: center; padding-inline: 16px; background: radial-gradient(circle at 50% 55%, rgba(143,107,255,.18), transparent 60%), var(--void); z-index: 3; overflow-y: auto; }
+.intro div { max-width: 640px; display: grid; gap: 18px; justify-items: start; padding-block: 24px; }
+.intro h1 { font: 900 clamp(56px, 15vw, 160px)/.82 var(--f-disp); letter-spacing: -.01em; margin: 0; text-transform: uppercase; }
+.intro h1 span { color: var(--heat); }
+.intro p { margin: 0; color: var(--dim); font-size: 13px; line-height: 1.7; max-width: 52ch; }
+.intro ul { margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--dim); display: grid; gap: 4px; }
+.intro b { color: var(--ink); font-weight: 600; }
+button { font: 600 12px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 10px 12px; cursor: pointer; }
+button:hover { border-color: var(--uv); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+#go { font-size: 14px; padding: 16px 22px; border-color: var(--heat); color: var(--heat); }
+#go:hover { background: var(--heat); color: var(--void); }
+.hud { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: linear-gradient(transparent, rgba(7,6,11,.85) 40%); }
+.hud .sp { flex: 1; }
+.hud label { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.hud input[type=range] { width: 110px; accent-color: var(--uv); }
+.why { width: 100%; font-size: 11px; color: var(--dim); line-height: 1.5; margin: 0 0 4px; }
+#drop { border-color: var(--heat); color: var(--heat); }
+#drop:active { background: var(--heat); color: var(--void); }
+.read { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: 16px; right: 16px; z-index: 2; display: flex; justify-content: space-between; gap: 12px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); pointer-events: none; font-variant-numeric: tabular-nums; }
+.read b { color: var(--ink); font-weight: 600; }
+#scene { font: 900 clamp(28px, 6vw, 52px)/1 var(--f-disp); color: var(--ink); letter-spacing: .02em; }
+@media (max-width: 560px) { .hud button { padding: 9px 8px; font-size: 11px; letter-spacing: .06em; } .hud input[type=range] { width: 90px; } }
+</style>
+
+<canvas id="cv" aria-label="Escalera infinita sincronizada con el sonido"></canvas>
+<div class="read"><div><div id="scene">SUBE</div><div id="sub">tono de Shepard</div></div><div style="text-align:right"><div>vuelta <b id="lap">0</b></div><div>fase <b id="ph">0</b>%</div><div>tempo <b id="bpm">0</b> bpm</div></div></div>
+
+<section class="intro" id="intro">
+  <div>
+    <h1>Esca<br><span>lera</span></h1>
+    <p>Un sonido que sube para siempre y nunca llega arriba. Ocho tonos separados por octavas se deslizan a la vez; los de los extremos se desvanecen y los del centro suenan fuerte, así que el oído sigue la subida y no nota el relevo. Todo sintetizado en tu navegador.</p>
+    <ul>
+      <li><b>Tono de Shepard</b> · glissando infinito</li>
+      <li><b>Ritmo de Risset</b> · un bombo que parece acelerar sin fin</li>
+      <li><b>Riser eterno</b> · ruido que sube para preparar el drop</li>
+      <li><b>Drop</b> o <b>clic / toque</b> en el túnel · golpe, crash y vuelta a empezar</li>
+    </ul>
+    <button id="go">Empezar a subir</button>
+  </div>
+</section>
+
+<nav class="hud" aria-label="Controles">
+  <p class="why">La ilusión: cada octava entra en silencio por abajo y sale en silencio por arriba; solo oyes el movimiento.</p>
+  <button data-m="0" aria-pressed="true">Tono de Shepard</button>
+  <button data-m="1" aria-pressed="false">Ritmo de Risset</button>
+  <button data-m="2" aria-pressed="false">Ambos</button>
+  <button id="dir" aria-pressed="false">Sube ↑</button>
+  <button id="riser" aria-pressed="false">Riser eterno</button>
+  <label>Velocidad <input id="spd" type="range" min="0" max="100" value="45" aria-label="Velocidad"></label>
+  <span class="sp"></span>
+  <button id="drop">Drop</button>
+  <button id="mute">Silencio</button>
+</nav>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const N = 8, FMIN = 32.7, LAYERS = 4, BASE_BPM = 60;
+  let A = null, mode = 0, dir = 1, riser = false, muted = false;
+  let p = 0, lap = 0, cycle = 12, flash = 0, vp = 0;
+  const MODES = ['tono de Shepard', 'ritmo de Risset', 'tono y ritmo'];
+  const bell = (x) => Math.exp(-Math.pow((x - .5) / .2, 2) / 2) ; // x in 0..1 across spectrum
+  const cycleFromSlider = (v) => 40 * Math.pow(4 / 40, v / 100); // 40s .. 4s per octave
+
+  function boot() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const out = ctx.createGain(); out.gain.value = .8;
+    const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+    comp.connect(out); out.connect(ctx.destination);
+    const tone = ctx.createGain(); tone.gain.value = 0; tone.connect(comp);
+    const rv = ctx.createConvolver(); const len = ctx.sampleRate * 3, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5); }
+    rv.buffer = ir; const send = ctx.createGain(); send.gain.value = .25; send.connect(rv); rv.connect(comp); tone.connect(send);
+    const parts = [];
+    for (let i = 0; i < N; i++) {
+      const o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(); g.gain.value = 0;
+      o.type = 'sine'; o2.type = 'triangle'; const g2 = ctx.createGain(); g2.gain.value = .25;
+      o.connect(g); o2.connect(g2); g2.connect(g); g.connect(tone); o.start(); o2.start(); parts.push({ o, o2, g });
+    }
+    const nb = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    const rz = ctx.createGain(); rz.gain.value = 0; rz.connect(comp); rz.connect(send);
+    const ns = ctx.createBufferSource(); ns.buffer = nb; ns.loop = true; ns.start();
+    const bands = [];
+    for (let i = 0; i < 5; i++) { const f = ctx.createBiquadFilter(), g = ctx.createGain(); f.type = 'bandpass'; f.Q.value = 6; g.gain.value = 0; ns.connect(f); f.connect(g); g.connect(rz); bands.push({ f, g }); }
+    A = { ctx, out, tone, rz, parts, bands, nb, send, t: ctx.currentTime + .05, beat: new Array(LAYERS).fill(0) };
+  }
+  function kick(t, amp) {
+    const { ctx } = A, o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(42, t + .11);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(amp, t + .002); g.gain.exponentialRampToValueAtTime(.0001, t + .38);
+    o.connect(g); g.connect(A.out); o.start(t); o.stop(t + .4);
+  }
+  function tick(t, amp) {
+    const { ctx } = A, s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    s.buffer = A.nb; f.type = 'highpass'; f.frequency.value = 7000;
+    g.gain.setValueAtTime(amp, t); g.gain.exponentialRampToValueAtTime(.0001, t + .05);
+    s.connect(f); f.connect(g); g.connect(A.out); s.start(t, Math.random()); s.stop(t + .07);
+  }
+  function crash(t) {
+    const { ctx } = A, s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    s.buffer = A.nb; f.type = 'highpass'; f.frequency.value = 3500;
+    g.gain.setValueAtTime(.5, t); g.gain.exponentialRampToValueAtTime(.0001, t + 2.2);
+    s.connect(f); f.connect(g); g.connect(A.out); g.connect(A.send); s.start(t); s.stop(t + 2.3);
+  }
+
+  // Simulation advances on the audio clock in small steps; visuals read the same phase.
+  function sched() {
+    if (!A) return;
+    const { ctx } = A, DT = .02, shep = mode !== 1, ris = mode !== 0;
+    while (A.t < ctx.currentTime + .1) {
+      const t = A.t;
+      let np = p + dir * DT / cycle;
+      // Risset layers: layer k plays at BASE*2^(k+p); bell over (k+p)/LAYERS
+      if (ris) {
+        for (let k = 0; k < LAYERS; k++) {
+          const x = (k + p) / LAYERS, bpm = BASE_BPM * Math.pow(2, k + p), prev = A.beat[k];
+          A.beat[k] += bpm / 60 * DT;
+          if (Math.floor(A.beat[k]) > Math.floor(prev)) {
+            const amp = bell(x) * 1.1;
+            if (amp > .02) { if (k + p < 2.2) kick(t, amp * .9); else tick(t, amp * .25); }
+          }
+        }
+      }
+      if (np >= 1) { np -= 1; lap++; const b = A.beat; for (let k = LAYERS - 1; k > 0; k--) b[k] = b[k - 1]; b[0] = b[0] / 2; }
+      if (np < 0) { np += 1; lap--; const b = A.beat; for (let k = 0; k < LAYERS - 1; k++) b[k] = b[k + 1]; b[LAYERS - 1] = b[LAYERS - 1] * 2; }
+      p = np;
+      const te = t + DT;
+      A.parts.forEach((v, i) => {
+        const x = (i + p) / N, f = FMIN * Math.pow(2, i + p);
+        v.o.frequency.linearRampToValueAtTime(f, te); v.o2.frequency.linearRampToValueAtTime(f * 1.002, te);
+        v.g.gain.linearRampToValueAtTime(bell(x) * .14, te);
+      });
+      // riser bands rise faster (2 octaves per cycle) for urgency
+      A.bands.forEach((b, i) => {
+        const q = ((p * 2) % 1), x = (i + q) / 5, f = 200 * Math.pow(2, i + q);
+        b.f.frequency.linearRampToValueAtTime(f, te); b.g.gain.linearRampToValueAtTime(bell(x) * .6, te);
+      });
+      A.tone.gain.setTargetAtTime(shep ? 1 : 0, t, .3);
+      A.rz.gain.setTargetAtTime(riser ? .35 : 0, t, .4);
+      A.t = te;
+    }
+  }
+
+  // ---------- visuals ----------
+  const cv = $('cv'), g = cv.getContext('2d');
+  let W, H, DPR;
+  function size() { DPR = Math.min(2, devicePixelRatio || 1); W = cv.width = innerWidth * DPR; H = cv.height = innerHeight * DPR; }
+  addEventListener('resize', size); size();
+  function ring(s, rot, depth, col) {
+    // one square floor of stairs: four flights, each flight climbs STEPS steps
+    const STEPS = 7;
+    g.save(); g.rotate(rot);
+    for (let side = 0; side < 4; side++) {
+      g.save(); g.rotate(side * Math.PI / 2);
+      g.beginPath();
+      for (let k = 0; k <= STEPS; k++) {
+        const x0 = -s + (2 * s) * k / STEPS, x1 = -s + (2 * s) * (k + 1) / STEPS, y = s - s * .06 * k / STEPS;
+        if (k === 0) g.moveTo(x0, y); else g.lineTo(x0, y);
+        if (k < STEPS) { g.lineTo(x0, y - s * .022); g.lineTo(Math.min(x1, s), y - s * .022); }
+      }
+      g.strokeStyle = col; g.lineWidth = Math.max(1, s * .012); g.stroke();
+      g.globalAlpha *= .18; g.lineTo(s * .5, s * .5); g.lineTo(-s * .5, s * .5); g.closePath(); g.fillStyle = col; g.fill(); g.globalAlpha /= .18;
+      g.restore();
+    }
+    g.restore();
+  }
+  let lastT = performance.now();
+  function frame(now) {
+    const dt = Math.min(.05, (now - lastT) / 1000); lastT = now;
+    if (!A) { p = (p + dir * dt / cycle + 1) % 1; } else sched();
+    vp = p; flash = Math.max(0, flash - dt * 1.8);
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = '#07060b'; g.fillRect(0, 0, W, H);
+    g.translate(W / 2, H * .46);
+    const base = Math.min(W, H) * .06, TW = RM ? 0 : .35;
+    // ring k has size base*2^(k - vp); at vp=1 ring k equals ring k-1 at vp=0 so the zoom loops forever
+    for (let k = 7; k >= -1; k--) {
+      const s = base * Math.pow(2, k - vp);
+      if (s < 2 || s > Math.max(W, H) * 1.6) continue;
+      const depth = (k - vp + 1) / 8, a = Math.min(1, Math.max(0, Math.sin(Math.PI * Math.min(1, Math.max(0, depth)))));
+      const hue = 255 - depth * 255 + flash * 60;
+      g.globalAlpha = .25 + a * .75;
+      ring(s, TW * (k - vp), depth, `hsl(${hue}, 85%, ${55 + flash * 30}%)`);
+    }
+    g.globalAlpha = 1;
+    if (flash > 0) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = `rgba(255,90,54,${flash * .35})`; g.fillRect(0, 0, W, H); }
+    $('ph').textContent = Math.round(p * 100); $('lap').textContent = lap;
+    $('bpm').textContent = mode === 0 ? '—' : Math.round(BASE_BPM * Math.pow(2, 1 + p));
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---------- controls ----------
+  function setMode(m) { mode = m; document.querySelectorAll('[data-m]').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.m === m)); $('sub').textContent = MODES[m] + (riser ? ' + riser' : ''); }
+  function drop() {
+    flash = 1; if (!A) return;
+    const t = A.ctx.currentTime + .01; kick(t, 1.2); kick(t + .002, .6); crash(t);
+    A.tone.gain.cancelScheduledValues(t); A.tone.gain.setValueAtTime(0, t); A.rz.gain.cancelScheduledValues(t); A.rz.gain.setValueAtTime(0, t);
+    p = 0; lap = 0; A.beat.fill(0); A.t = t + .6;
+    if (riser) { riser = false; $('riser').setAttribute('aria-pressed', false); setMode(mode); }
+  }
+  document.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => setMode(+b.dataset.m)));
+  $('dir').addEventListener('click', () => { dir = -dir; $('dir').textContent = dir > 0 ? 'Sube ↑' : 'Baja ↓'; $('dir').setAttribute('aria-pressed', dir < 0); $('scene').textContent = dir > 0 ? 'SUBE' : 'BAJA'; });
+  $('riser').addEventListener('click', () => { riser = !riser; $('riser').setAttribute('aria-pressed', riser); setMode(mode); });
+  $('spd').addEventListener('input', (e) => { cycle = cycleFromSlider(+e.target.value); });
+  cycle = cycleFromSlider(+$('spd').value);
+  $('drop').addEventListener('click', drop);
+  cv.addEventListener('pointerdown', drop);
+  addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); drop(); } });
+  $('mute').addEventListener('click', () => { if (!A) return; muted = !muted; A.out.gain.setTargetAtTime(muted ? 0 : .8, A.ctx.currentTime, .05); $('mute').setAttribute('aria-pressed', muted); });
+  $('go').addEventListener('click', () => { if (!A) boot(); A.ctx.resume(); $('intro').hidden = true; });
+})();
+</script>

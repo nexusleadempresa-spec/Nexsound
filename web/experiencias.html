@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Experiencias</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: big type-only index, one row per experience, number = keyboard-free order only. Single dark world. */
+:root { --void: #07060b; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --line: rgba(236,232,244,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif; --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace; color-scheme: dark; }
+body { background: var(--void); color: var(--ink); font-family: var(--f-mono); }
+main { max-width: 980px; margin: 0 auto; padding: 48px 16px 64px; display: grid; gap: 32px; }
+h1 { font: 900 clamp(56px, 14vw, 140px)/.85 var(--f-disp); margin: 0; text-transform: uppercase; }
+h1 span { color: var(--heat); }
+.lede { color: var(--dim); font-size: 13px; line-height: 1.7; max-width: 60ch; margin: 0; }
+ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+li a { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 4px 24px; align-items: baseline; padding: 18px 0; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+li a b { font: 900 clamp(34px, 7vw, 64px)/1 var(--f-disp); text-transform: uppercase; transition: color .15s; }
+li a span { color: var(--dim); font-size: 13px; line-height: 1.6; }
+li a:hover b, li a:focus-visible b { color: var(--uv); }
+li a:focus-visible { outline: 2px solid var(--uv); outline-offset: 4px; }
+@media (max-width: 600px) { li a { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<main>
+  <h1>Experien<br><span>cias</span></h1>
+  <p class="lede">Once instrumentos que suenan en tu navegador, todos sintetizados en directo, sin samples. Mejor con auriculares.</p>
+  <ul>
+    <li><a href="motor.html"><b>Motor</b><span>Motor generativo con 5 escenas, audio 3D y botón de destrucción.</span></a></li>
+    <li><a href="ciudad.html"><b>Ciudad</b><span>Pasea por una ciudad de noche: cada edificio suena desde su sitio.</span></a></li>
+    <li><a href="cara.html"><b>Cara</b><span>Tu cara es el sintetizador: la cámara mueve tono, filtro y ritmo.</span></a></li>
+    <li><a href="gravedad.html"><b>Gravedad</b><span>Lanza planetas: cada órbita es un patrón rítmico.</span></a></li>
+    <li><a href="pintar.html"><b>Pintar</b><span>Dibuja y suena. El color es el instrumento; la altura, la nota.</span></a></li>
+    <li><a href="ecosistema.html"><b>Ecosistema</b><span>Criaturas que nacen, comen y mueren, y la música evoluciona con ellas.</span></a></li>
+    <li><a href="escalera.html"><b>Escalera</b><span>Un sonido que sube para siempre: tono de Shepard y ritmo de Risset.</span></a></li>
+    <li><a href="club.html"><b>Club</b><span>Lleva una pista de 120 personas: si te aburres, se van.</span></a></li>
+    <li><a href="ruleta.html"><b>Ruleta</b><span>Fusiona dos géneros al azar y apila loops de 8 compases.</span></a></li>
+    <li><a href="tormenta.html"><b>Tormenta</b><span>Rayos con el trueno a su distancia real; la lluvia se vuelve ritmo.</span></a></li>
+    <li><a href="duelo.html"><b>Duelo</b><span>Batalla de DJs a dos jugadores, o contra la máquina.</span></a></li>
+  </ul>
+</main>

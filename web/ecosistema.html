@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Ecosistema</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: full-bleed petri dish; population readout on top, species picker at the bottom. Single dark world by choice. */
+:root {
+  --void: #07060b; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --line: rgba(236,232,244,.14);
+  --plant: #5fe08a; --graz: #ffd24a; --hunt: #ff5a36; --drift: #6bd6ff;
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--void); color: var(--ink); font-family: var(--f-mono); overflow: hidden; }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+.intro { position: fixed; inset: 0; display: grid; place-items: center; padding-inline: 16px; background: radial-gradient(circle at 50% 55%, rgba(95,224,138,.14), transparent 60%), var(--void); z-index: 3; overflow-y: auto; }
+.intro div { max-width: 640px; display: grid; gap: 18px; justify-items: start; padding-block: 24px; }
+.intro h1 { font: 900 clamp(56px, 15vw, 160px)/.82 var(--f-disp); letter-spacing: -.01em; margin: 0; text-transform: uppercase; }
+.intro h1 span { color: var(--plant); }
+.intro p { margin: 0; color: var(--dim); font-size: 13px; line-height: 1.7; max-width: 52ch; }
+.intro ul { margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--dim); display: grid; gap: 4px; }
+.intro b { color: var(--ink); font-weight: 600; }
+button { font: 600 12px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 10px 12px; cursor: pointer; }
+button:hover { border-color: var(--uv); }
+button:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+#go { font-size: 14px; padding: 16px 22px; border-color: var(--plant); color: var(--plant); }
+#go:hover { background: var(--plant); color: var(--void); }
+.hud { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: linear-gradient(transparent, rgba(7,6,11,.85) 40%); }
+.hud .sp { flex: 1; }
+.hud [data-t] i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.read { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: 16px; right: 16px; z-index: 2; display: flex; justify-content: space-between; gap: 12px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); pointer-events: none; font-variant-numeric: tabular-nums; }
+.read b { color: var(--ink); font-weight: 600; }
+#gen { font: 900 clamp(28px, 6vw, 52px)/1 var(--f-disp); color: var(--ink); letter-spacing: .02em; }
+.spark { display: grid; gap: 3px; justify-items: end; }
+.spark div { display: flex; gap: 8px; align-items: center; }
+.spark canvas { position: static; width: 72px; height: 16px; cursor: default; }
+@media (max-width: 560px) { .hud button { padding: 9px 8px; font-size: 11px; letter-spacing: .06em; } }
+</style>
+
+<canvas id="cv" aria-label="Ecosistema de criaturas sonoras"></canvas>
+<div class="read">
+  <div><div id="gen">G 0</div><div id="sub">listo</div><div>voces <b id="vox">0</b></div></div>
+  <div class="spark" id="spark"></div>
+</div>
+
+<section class="intro" id="intro">
+  <div>
+    <h1>Eco<br><span>sistema</span></h1>
+    <p>Vida artificial que compone. Cuatro especies se mueven, comen, se reproducen con mutaciones y mueren; cada una toca un papel en la música. Cuanta más vida, más densa la pista. Las mutaciones cambian el tono y el timbre de sus genes.</p>
+    <ul>
+      <li><b>Plantas</b> · notas de pad que sostienen la armonía</li>
+      <li><b>Pastadores</b> · pulsos punteados en escala menor al comer</li>
+      <li><b>Cazadores</b> · bombo y bajo en cada captura</li>
+      <li><b>Derivas</b> · charles y ruido según su número</li>
+      <li><b>Clic / toque</b> · soltar comida o la criatura elegida abajo</li>
+    </ul>
+    <button id="go">Sembrar vida</button>
+  </div>
+</section>
+
+<nav class="hud" aria-label="Qué soltar">
+  <button data-t="food" aria-pressed="true">Comida</button>
+  <button data-t="0" aria-pressed="false"><i style="background:var(--plant)"></i>Planta</button>
+  <button data-t="1" aria-pressed="false"><i style="background:var(--graz)"></i>Pastador</button>
+  <button data-t="2" aria-pressed="false"><i style="background:var(--hunt)"></i>Cazador</button>
+  <button data-t="3" aria-pressed="false"><i style="background:var(--drift)"></i>Deriva</button>
+  <span class="sp"></span>
+  <button id="reset">Reiniciar</button>
+  <button id="mute">Silencio</button>
+</nav>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const SP = [
+    { name: 'Plantas', col: '#5fe08a', max: 90, r: 4 },
+    { name: 'Pastadores', col: '#ffd24a', max: 60, r: 5 },
+    { name: 'Cazadores', col: '#ff5a36', max: 10, r: 7 },
+    { name: 'Derivas', col: '#6bd6ff', max: 30, r: 3.5 },
+  ];
+  const CAP = 200, MAXV = 22, ROOT = 45, MINOR = [0, 2, 3, 5, 7, 8, 10];
+  const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const deg = (d) => ROOT + MINOR[((d % 7) + 7) % 7] + 12 * Math.floor(d / 7);
+  let A = null, muted = false, tool = 'food', gen = 0, W = 0, H = 0, DPR = 1;
+  let C = [], food = [], hist = [[], [], [], []], ripples = [];
+  const pend = { pluck: [], kick: 0 };
+
+  // ---------- world ----------
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  function genes(p) {
+    if (!p) return { pitch: Math.floor(rnd(0, 7)), tone: Math.random(), speed: rnd(.8, 1.2) };
+    const g = { ...p };
+    if (Math.random() < .3) g.pitch = clamp(g.pitch + (Math.random() < .5 ? -1 : 1), -3, 10);
+    g.tone = clamp(g.tone + rnd(-.15, .15), 0, 1);
+    g.speed = clamp(g.speed + rnd(-.1, .1), .5, 1.8);
+    return g;
+  }
+  function spawn(sp, x, y, parent) {
+    if (C.length >= CAP) return null;
+    if (C.filter((c) => c.sp === sp).length >= SP[sp].max) return null;
+    const g = parent ? parent.g : null;
+    const c = { sp, x, y, vx: rnd(-1, 1), vy: rnd(-1, 1), e: sp === 0 ? .5 : .6, age: 0, gen: parent ? parent.gen + 1 : 0, g: genes(g), born: 1, a: Math.random() * 6.28 };
+    C.push(c); if (c.gen > gen) gen = c.gen;
+    return c;
+  }
+  function seed() {
+    C = []; food = []; gen = 0; hist = [[], [], [], []];
+    const n = [26, 14, 3, 8];
+    n.forEach((k, sp) => { for (let i = 0; i < k; i++) spawn(sp, rnd(.05, .95) * W, rnd(.1, .85) * H); });
+  }
+  const near = (c, list, R) => { let best = null, bd = R * R; for (const o of list) { if (o === c || o.dead) continue; const dx = o.x - c.x, dy = o.y - c.y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = o; } } return best; };
+
+  function step(dt) {
+    const sc = DPR, by = [[], [], [], []];
+    for (const c of C) by[c.sp].push(c);
+    for (const c of C) {
+      if (c.dead) continue;
+      c.age += dt; c.born = Math.max(0, c.born - dt * 2);
+      const sp = c.sp, spd = c.g.speed * sc;
+      if (sp === 0) {
+        c.e += dt * .14 * (1 - by[0].length / 120);
+        if (c.e > 1 && Math.random() < dt * .5) { c.e = .5; const a = Math.random() * 6.28, d = rnd(20, 60) * sc; spawn(0, clamp(c.x + Math.cos(a) * d, 0, W), clamp(c.y + Math.sin(a) * d, 0, H), c); }
+        if (c.age > rnd(60, 90)) c.dead = true;
+        continue;
+      }
+      let tx = 0, ty = 0, tgt = null;
+      if (sp === 1) {
+        tgt = near(c, by[0], 160 * sc) || near(c, food, 160 * sc);
+        const h = near(c, by[2], 70 * sc); if (h) { tx -= (h.x - c.x); ty -= (h.y - c.y); }
+      } else if (sp === 2) {
+        if (c.e < .85) tgt = near(c, by[1], 240 * sc);
+      } else {
+        tgt = near(c, food, 200 * sc);
+        c.a += rnd(-.4, .4) * dt * 4; tx += Math.cos(c.a) * 30; ty += Math.sin(c.a) * 30;
+      }
+      if (tgt) { tx += tgt.x - c.x; ty += tgt.y - c.y; }
+      const l = Math.hypot(tx, ty) || 1, base = [0, 38, 52, 22][sp] * spd;
+      c.vx += (tx / l * base - c.vx) * dt * 2; c.vy += (ty / l * base - c.vy) * dt * 2;
+      if (!tgt && sp !== 3) { c.vx += rnd(-20, 20) * dt * sc; c.vy += rnd(-20, 20) * dt * sc; }
+      c.x += c.vx * dt; c.y += c.vy * dt;
+      if (c.x < 0 || c.x > W) { c.vx *= -1; c.x = clamp(c.x, 0, W); }
+      if (c.y < 0 || c.y > H) { c.vy *= -1; c.y = clamp(c.y, 0, H); }
+      c.e -= dt * [0, .045, .055, .02][sp] * (0.6 + .4 * c.g.speed);
+      if (tgt && Math.hypot(tgt.x - c.x, tgt.y - c.y) < (SP[sp].r + 5) * sc) {
+        if (tgt.food) { tgt.dead = true; c.e = Math.min(1.4, c.e + .35); if (sp === 1) pend.pluck.push(c); }
+        else if (sp === 1) { tgt.e -= .3; if (tgt.e <= 0) tgt.dead = true; c.e = Math.min(1.4, c.e + .25); pend.pluck.push(c); }
+        else if (sp === 2) { tgt.dead = true; c.e = Math.min(1.5, c.e + .4); pend.kick = Math.max(pend.kick, 1); pend.hunter = c; ripples.push({ x: c.x, y: c.y, t: 0, col: SP[2].col }); }
+      }
+      if (c.e > 1.1 && Math.random() < dt * .8) { c.e -= .55; spawn(sp, c.x + rnd(-8, 8), c.y + rnd(-8, 8), c); }
+      if (c.e <= 0 || c.age > [0, 70, 90, 60][sp] * rnd(.8, 1.2)) c.dead = true;
+    }
+    for (const c of C) if (c.dead && c.sp !== 0 && food.length < 80) food.push({ x: c.x, y: c.y, food: 1, t: 0 });
+    C = C.filter((c) => !c.dead); food = food.filter((f) => !f.dead && (f.t += dt) < 40);
+    // keep life from going fully extinct
+    if (!C.some((c) => c.sp === 0)) for (let i = 0; i < 4; i++) spawn(0, rnd(0, W), rnd(0, H));
+    if (Math.random() < dt * 1.2 && C.filter((c) => c.sp === 0).length < 40) spawn(0, rnd(0, W), rnd(.1, .85) * H);
+    if (!C.some((c) => c.sp === 1) && Math.random() < dt * .2) spawn(1, rnd(0, W), rnd(0, H));
+  }
+
+  // ---------- audio ----------
+  let voices = 0;
+  function boot() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const out = ctx.createGain(); out.gain.value = .8;
+    const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 4;
+    const bus = ctx.createGain(); bus.gain.value = .7;
+    const rv = ctx.createConvolver(); const len = ctx.sampleRate * 2.4, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
+    rv.buffer = ir; const send = ctx.createGain(); send.gain.value = .35;
+    bus.connect(comp); send.connect(rv); rv.connect(comp); comp.connect(out); out.connect(ctx.destination);
+    const nb = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate), nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    A = { ctx, out, bus, send, nb, next: ctx.currentTime + .1, s: 0 };
+  }
+  function voice(dur) { if (voices >= MAXV) return false; voices++; setTimeout(() => voices--, dur * 1000 + 60); return true; }
+  function env(g, t, a, peak, d) { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(.0001, t + a + d); }
+  function pad(t, m, tone) {
+    const dur = 3.2; if (!voice(dur)) return; const { ctx } = A;
+    const g = ctx.createGain(), f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 500 + tone * 1600; f.Q.value = .5;
+    [-6, 6].forEach((det) => { const o = ctx.createOscillator(); o.type = tone > .5 ? 'sawtooth' : 'triangle'; o.frequency.value = mtof(m); o.detune.value = det; o.connect(f); o.start(t); o.stop(t + dur + .1); });
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.05, t + 1.1); g.gain.linearRampToValueAtTime(0, t + dur);
+    f.connect(g); g.connect(A.bus); g.connect(A.send);
+  }
+  function pluck(t, m, tone) {
+    const dur = .5; if (!voice(dur)) return; const { ctx } = A;
+    const o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
+    o.type = tone < .33 ? 'triangle' : tone < .66 ? 'square' : 'sawtooth'; o.frequency.value = mtof(m);
+    f.type = 'lowpass'; f.Q.value = 6; f.frequency.setValueAtTime(800 + tone * 5000, t); f.frequency.exponentialRampToValueAtTime(300, t + .35);
+    env(g, t, .004, .13, .45); o.connect(f); f.connect(g); g.connect(A.bus); g.connect(A.send); o.start(t); o.stop(t + dur);
+  }
+  function kick(t, m, tone) {
+    if (!voice(.6)) return; const { ctx } = A;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(45, t + .12);
+    env(g, t, .002, .9, .4); o.connect(g); g.connect(A.bus); o.start(t); o.stop(t + .5);
+    const b = ctx.createOscillator(), bg = ctx.createGain(), bf = ctx.createBiquadFilter();
+    b.type = 'sawtooth'; b.frequency.value = mtof(m - 12); bf.type = 'lowpass'; bf.frequency.value = 200 + tone * 500;
+    env(bg, t + .02, .01, .22, .5); b.connect(bf); bf.connect(bg); bg.connect(A.bus); b.start(t); b.stop(t + .7);
+  }
+  function hat(t, tone, amp) {
+    if (!voice(.12)) return; const { ctx } = A;
+    const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    s.buffer = A.nb; f.type = 'highpass'; f.frequency.value = 5000 + tone * 5000;
+    env(g, t, .001, amp, .04 + tone * .08); s.connect(f); f.connect(g); g.connect(A.bus); s.start(t, Math.random() * .5); s.stop(t + .2);
+  }
+  function sched() {
+    if (!A) return;
+    const { ctx } = A, st = 60 / 112 / 4;
+    while (A.next < ctx.currentTime + .12) {
+      const t = A.next, s = A.s, pop = [0, 0, 0, 0];
+      for (const c of C) pop[c.sp]++;
+      const pick = (sp) => { const l = C.filter((c) => c.sp === sp); return l.length ? l[(Math.random() * l.length) | 0] : null; };
+      if (s % 16 === 0 && pop[0]) { const k = Math.min(3, 1 + (pop[0] / 25) | 0); for (let i = 0; i < k; i++) { const p = pick(0); pad(t, deg(p.g.pitch + i * 2) - 12, p.g.tone); } }
+      const pl = pend.pluck.splice(0, Math.min(2, pend.pluck.length)); pend.pluck.length = Math.min(pend.pluck.length, 4);
+      pl.forEach((c, i) => { pluck(t + i * st / 2, deg(c.g.pitch + 7), c.g.tone); ripples.push({ x: c.x, y: c.y, t: 0, col: SP[1].col }); });
+      if (!pl.length && pop[1] > 6 && s % 2 === 0 && Math.random() < pop[1] / 120) { const p = pick(1); pluck(t, deg(p.g.pitch + 7), p.g.tone); }
+      if (pend.kick && s % 2 === 0) { const h = pend.hunter; kick(t, deg(h ? h.g.pitch : 0), h ? h.g.tone : .5); pend.kick = 0; }
+      else if (pop[2] > 4 && s % 8 === 0) { const h = pick(2); kick(t, deg(h.g.pitch), h.g.tone * .5); }
+      if (pop[3] && Math.random() < Math.min(.9, pop[3] / 22) * (s % 2 ? .6 : 1)) { const d = pick(3); hat(t, d.g.tone, s % 4 === 2 ? .12 : .06); }
+      A.next += st; A.s = (s + 1) % 64;
+    }
+  }
+
+  // ---------- draw ----------
+  const cv = $('cv'), g = cv.getContext('2d');
+  function size() { DPR = Math.min(2, devicePixelRatio || 1); const nw = innerWidth * DPR, nh = innerHeight * DPR; if (W) { const kx = nw / W, ky = nh / H; for (const c of C) { c.x *= kx; c.y *= ky; } } W = cv.width = nw; H = cv.height = nh; }
+  addEventListener('resize', size); size(); seed();
+  const sparks = SP.map((s, i) => { const d = document.createElement('div'); d.innerHTML = `<span>${s.name} <b id="n${i}">0</b></span>`; const c = document.createElement('canvas'); c.width = 144; c.height = 32; d.appendChild(c); $('spark').appendChild(d); return c.getContext('2d'); });
+  let last = performance.now(), acc = 0;
+  function frame(now) {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    step(dt); sched();
+    g.fillStyle = '#07060b'; g.fillRect(0, 0, W, H);
+    for (const f of food) { g.fillStyle = 'rgba(236,232,244,.45)'; g.fillRect(f.x - DPR, f.y - DPR, 2 * DPR, 2 * DPR); }
+    for (const r of ripples) { r.t += dt; g.strokeStyle = r.col; g.globalAlpha = Math.max(0, 1 - r.t * 1.5); g.lineWidth = DPR; g.beginPath(); g.arc(r.x, r.y, (6 + r.t * (RM ? 20 : 60)) * DPR, 0, 6.29); g.stroke(); }
+    g.globalAlpha = 1; ripples = ripples.filter((r) => r.t < .7).slice(-40);
+    for (const c of C) {
+      const s = SP[c.sp], r = s.r * DPR * (1 - c.born * .6) * (c.sp === 0 ? .7 + Math.min(c.e, 1) * .5 : 1);
+      g.fillStyle = s.col; g.globalAlpha = .35 + Math.min(1, c.e) * .65;
+      g.beginPath();
+      if (c.sp === 2) { const a = Math.atan2(c.vy, c.vx); g.moveTo(c.x + Math.cos(a) * r * 1.6, c.y + Math.sin(a) * r * 1.6); g.lineTo(c.x + Math.cos(a + 2.4) * r, c.y + Math.sin(a + 2.4) * r); g.lineTo(c.x + Math.cos(a - 2.4) * r, c.y + Math.sin(a - 2.4) * r); }
+      else if (c.sp === 0) { g.rect(c.x - r, c.y - r, r * 2, r * 2); }
+      else g.arc(c.x, c.y, r, 0, 6.29);
+      g.fill();
+      if (c.sp === 3 && !RM) { g.globalAlpha = .25; g.fillRect(c.x - c.vx * .3, c.y - c.vy * .3, DPR, DPR); }
+    }
+    g.globalAlpha = 1;
+    acc += dt;
+    if (acc > .25) {
+      acc = 0; const pop = [0, 0, 0, 0]; for (const c of C) pop[c.sp]++;
+      pop.forEach((n, i) => { hist[i].push(n); if (hist[i].length > 72) hist[i].shift(); $('n' + i).textContent = n; const sg = sparks[i]; sg.clearRect(0, 0, 144, 32); sg.strokeStyle = SP[i].col; sg.lineWidth = 2; sg.beginPath(); hist[i].forEach((v, k) => { const y = 30 - v / SP[i].max * 28; k ? sg.lineTo(k * 2, y) : sg.moveTo(0, y); }); sg.stroke(); });
+      $('gen').textContent = 'G ' + gen; $('vox').textContent = voices;
+      const tot = C.length; $('sub').textContent = tot < 30 ? 'escaso' : tot < 90 ? 'en equilibrio' : tot < 150 ? 'floreciendo' : 'superpoblado';
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---------- input ----------
+  cv.addEventListener('pointerdown', (e) => {
+    const x = e.clientX * DPR, y = e.clientY * DPR;
+    if (tool === 'food') { for (let i = 0; i < 8; i++) if (food.length < 120) food.push({ x: x + rnd(-14, 14) * DPR, y: y + rnd(-14, 14) * DPR, food: 1, t: 0 }); ripples.push({ x, y, t: 0, col: '#ece8f4' }); if (A) hat(A.ctx.currentTime, .5, .08); }
+    else { const c = spawn(+tool, x, y); if (c) ripples.push({ x, y, t: 0, col: SP[c.sp].col }); }
+  });
+  document.querySelectorAll('[data-t]').forEach((b) => b.addEventListener('click', () => { tool = b.dataset.t; document.querySelectorAll('[data-t]').forEach((o) => o.setAttribute('aria-pressed', o === b)); }));
+  $('reset').addEventListener('click', seed);
+  $('mute').addEventListener('click', () => { if (!A) return; muted = !muted; A.out.gain.setTargetAtTime(muted ? 0 : .8, A.ctx.currentTime, .05); $('mute').setAttribute('aria-pressed', muted); });
+  $('go').addEventListener('click', () => { if (!A) boot(); A.ctx.resume(); $('intro').hidden = true; });
+})();
+</script>
