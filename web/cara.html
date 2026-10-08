@@ -1,0 +1,221 @@
+<title>Nexsound Cara</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: full-bleed canvas of luminance dots from the camera; meters at top, controls at bottom. Single dark world. */
+:root {
+  --void: #07060b; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --line: rgba(236,232,244,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { background: var(--void); color: var(--ink); font-family: var(--f-mono); overflow: hidden; }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+.intro { position: fixed; inset: 0; display: grid; place-items: center; padding-inline: 16px; background: radial-gradient(circle at 50% 55%, rgba(143,107,255,.18), transparent 60%), var(--void); z-index: 3; }
+.intro div { max-width: 640px; display: grid; gap: 18px; justify-items: start; }
+.intro h1 { font: 900 clamp(64px, 17vw, 168px)/.82 var(--f-disp); letter-spacing: -.01em; margin: 0; text-transform: uppercase; }
+.intro h1 span { color: var(--heat); }
+.intro p { margin: 0; color: var(--dim); font-size: 13px; line-height: 1.7; max-width: 52ch; }
+.intro ul { margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--dim); display: grid; gap: 4px; }
+.intro b { color: var(--ink); font-weight: 600; }
+button { font: 600 12px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 10px 12px; cursor: pointer; }
+button:hover { border-color: var(--uv); }
+button:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+#go { font-size: 14px; padding: 16px 22px; border-color: var(--heat); color: var(--heat); }
+#go:hover { background: var(--heat); color: var(--void); }
+.hud { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: linear-gradient(transparent, rgba(7,6,11,.85) 40%); }
+.hud .sp { flex: 1; }
+.read { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: 16px; right: 16px; z-index: 2; display: flex; justify-content: space-between; gap: 12px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); pointer-events: none; font-variant-numeric: tabular-nums; }
+.read b { color: var(--ink); font-weight: 600; }
+#scene { font: 900 clamp(28px, 6vw, 52px)/1 var(--f-disp); color: var(--ink); letter-spacing: .02em; }
+#hold { border-color: var(--heat); color: var(--heat); }
+#hold.on { background: var(--heat); color: var(--void); }
+@media (max-width: 560px) { .hud button { padding: 9px 8px; font-size: 11px; letter-spacing: .06em; } }
+.meters { position: fixed; top: calc(70px + env(safe-area-inset-top, 0px)); left: 16px; z-index: 2; display: grid; gap: 6px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); pointer-events: none; width: min(200px, calc(100vw - 32px)); }
+.meters .m { display: grid; grid-template-columns: 64px 1fr; gap: 8px; align-items: center; }
+.meters i { display: block; height: 6px; background: var(--line); position: relative; overflow: hidden; }
+.meters i::after { content: ""; position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--v, 0)); background: var(--uv); }
+.meters .m.hot i::after { background: var(--heat); }
+.notice { position: fixed; left: 16px; right: 16px; bottom: 76px; z-index: 2; font-size: 12px; color: var(--heat); text-align: center; pointer-events: none; }
+</style>
+<canvas id="cv" aria-label="Tu cara convertida en puntos que suenan"></canvas>
+<div class="read"><div><div id="scene">CARA</div><div id="sub">listo</div></div><div style="text-align:right"><div>nota <b id="note">—</b></div><div>acorde <b id="chord">—</b></div><div>corte <b id="cut">0</b> Hz</div></div></div>
+<div class="meters" id="meters" hidden>
+  <div class="m"><span>X · pan</span><i id="mx"></i></div>
+  <div class="m"><span>Y · tono</span><i id="my"></i></div>
+  <div class="m"><span>Mov.</span><i id="mm"></i></div>
+  <div class="m hot"><span>Boca</span><i id="mb"></i></div>
+  <div class="m hot"><span>Golpe</span><i id="mh"></i></div>
+</div>
+<div class="notice" id="notice" hidden>Sin cámara: controla con el ratón o el dedo</div>
+<section class="intro" id="intro">
+  <div>
+    <h1>Tu cara<br><span>suena</span></h1>
+    <p>La cámara se convierte en un sintetizador. Nada sale de tu navegador: la imagen se analiza en tu equipo, a 64×48 píxeles, y todo el sonido se sintetiza en directo.</p>
+    <ul>
+      <li><b>Horizontal</b> · panorama y acorde</li>
+      <li><b>Vertical</b> · tono de la melodía</li>
+      <li><b>Moverte</b> · abre el filtro y añade batería</li>
+      <li><b>Boca</b> · mueve la parte baja central para hacer cantar la voz</li>
+      <li><b>Gesto brusco</b> · golpe</li>
+    </ul>
+    <button id="go">Activar cámara y sonido</button>
+  </div>
+</section>
+<nav class="hud" aria-label="Controles">
+  <button id="mirror" aria-pressed="true">Espejo</button>
+  <button id="drums" aria-pressed="true">Batería</button>
+  <span class="sp"></span>
+  <button id="mute">Silencio</button>
+</nav>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const W = 64, H = 48, cv = $('cv'), g = cv.getContext('2d');
+  const sc = document.createElement('canvas'); sc.width = W; sc.height = H; const sg = sc.getContext('2d', { willReadFrequently: true });
+  const video = document.createElement('video'); video.muted = true; video.playsInline = true;
+  let A, cam = false, mirror = true, drums = true, muted = false;
+  let prev = new Float32Array(W * H), lum = new Float32Array(W * H), diff = new Float32Array(W * H);
+  const st = { x: .5, y: .5, mot: 0, mouth: 0, hit: 0 };
+  let px = .5, py = .5, pmove = 0, lastHit = 0, step = 0, nextT = 0;
+  const CHORDS = [[0,3,7,10],[5,8,12,15],[3,7,10,14],[7,10,14,17],[8,12,15,19]];
+  const NAMES = ['Im7','IVm7','III','Vm7','VI'];
+  const SCALE = [0,2,3,5,7,8,10];
+  const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  let hue = 260;
+
+  function resize() { const d = Math.min(devicePixelRatio || 1, 2); cv.width = innerWidth * d; cv.height = innerHeight * d; g.setTransform(d,0,0,d,0,0); }
+  addEventListener('resize', resize); resize();
+
+  function audio() {
+    const c = new (window.AudioContext || window.webkitAudioContext)();
+    const out = c.createGain(); out.gain.value = .8; out.connect(c.destination);
+    const comp = c.createDynamicsCompressor(); comp.connect(out);
+    const pan = c.createStereoPanner(); const filt = c.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 600; filt.Q.value = 6;
+    filt.connect(pan); pan.connect(comp);
+    // pad
+    const pads = []; for (let i = 0; i < 4; i++) { const o = c.createOscillator(); o.type = 'sawtooth'; o.detune.value = (i - 1.5) * 6; const gg = c.createGain(); gg.gain.value = .05; o.connect(gg); gg.connect(filt); o.start(); pads.push(o); }
+    // lead (voice)
+    const lead = c.createOscillator(); lead.type = 'triangle'; const lg = c.createGain(); lg.gain.value = 0;
+    const form = c.createBiquadFilter(); form.type = 'bandpass'; form.Q.value = 4; form.frequency.value = 800;
+    lead.connect(form); form.connect(lg); lg.connect(pan); lead.start();
+    const lead2 = c.createOscillator(); lead2.type = 'sine'; lead2.connect(lg); lead2.start();
+    const noise = c.createBuffer(1, c.sampleRate, c.sampleRate); const nd = noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    return { c, out, comp, pan, filt, pads, lead, lead2, lg, form, noise };
+  }
+  function kick(t, v = 1) { const { c, comp } = A, o = c.createOscillator(), gg = c.createGain(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(40, t + .15); gg.gain.setValueAtTime(.9 * v, t); gg.gain.exponentialRampToValueAtTime(.001, t + .4); o.connect(gg); gg.connect(comp); o.start(t); o.stop(t + .45); }
+  function nz(t, dur, f, v, type = 'highpass') { const { c, comp, noise } = A, s = c.createBufferSource(), fl = c.createBiquadFilter(), gg = c.createGain(); s.buffer = noise; fl.type = type; fl.frequency.value = f; gg.gain.setValueAtTime(v, t); gg.gain.exponentialRampToValueAtTime(.001, t + dur); s.connect(fl); fl.connect(gg); gg.connect(comp); s.start(t, Math.random() * .5); s.stop(t + dur + .02); }
+  function hit(t) { kick(t, 1.2); nz(t, .5, 1200, .6, 'bandpass'); const { c, comp } = A, o = c.createOscillator(), gg = c.createGain(); o.type = 'square'; o.frequency.setValueAtTime(mtof(60 + CHORDS[chordIx()][0]), t); gg.gain.setValueAtTime(.15, t); gg.gain.exponentialRampToValueAtTime(.001, t + .6); o.connect(gg); gg.connect(comp); o.start(t); o.stop(t + .7); }
+  const chordIx = () => Math.min(4, Math.floor(st.x * 5));
+
+  function schedule() {
+    const c = A.c, spb = 60 / 110 / 4;
+    while (nextT < c.currentTime + .1) {
+      const s = step % 16, d = st.mot;
+      if (drums && !muted) {
+        if (s % 4 === 0 && d > .08) kick(nextT, .8);
+        if (s % 2 === 1 && d > .2) nz(nextT, .05, 7000, .12);
+        if ((s === 4 || s === 12) && d > .35) nz(nextT, .18, 1800, .35, 'bandpass');
+        if (d > .6 && Math.random() < d - .4) nz(nextT, .04, 9000, .1);
+      }
+      nextT += spb; step++;
+    }
+  }
+
+  function apply() {
+    const c = A.c, t = c.currentTime;
+    A.pan.pan.setTargetAtTime((st.x - .5) * 1.8, t, .08);
+    const ch = CHORDS[chordIx()];
+    A.pads.forEach((o, i) => o.frequency.setTargetAtTime(mtof(45 + ch[i]), t, .15));
+    const cut = 300 + st.mot * 5000; A.filt.frequency.setTargetAtTime(cut, t, .05);
+    const deg = Math.round((1 - st.y) * 13), note = 60 + SCALE[deg % 7] + 12 * Math.floor(deg / 7);
+    A.lead.frequency.setTargetAtTime(mtof(note), t, .04); A.lead2.frequency.setTargetAtTime(mtof(note - 12), t, .04);
+    A.lg.gain.setTargetAtTime(muted ? 0 : .04 + st.mouth * .25, t, .05);
+    A.form.frequency.setTargetAtTime(500 + st.mouth * 2200, t, .05);
+    $('note').textContent = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][note % 12] + Math.floor(note / 12 - 1);
+    $('chord').textContent = NAMES[chordIx()]; $('cut').textContent = Math.round(cut);
+    if (st.hit > .5 && t - lastHit > .25 && !muted) { lastHit = t; hit(t + .01); }
+    hue = 260 - st.mot * 220 + (st.x - .5) * 60;
+  }
+
+  function track() {
+    if (!cam || video.readyState < 2) return;
+    sg.save(); if (mirror) { sg.translate(W, 0); sg.scale(-1, 1); } sg.drawImage(video, 0, 0, W, H); sg.restore();
+    const d = sg.getImageData(0, 0, W, H).data;
+    let sx = 0, sy = 0, sw = 0, mouth = 0, tot = 0;
+    for (let i = 0; i < W * H; i++) {
+      const l = (d[i*4] * .3 + d[i*4+1] * .59 + d[i*4+2] * .11) / 255;
+      const df = Math.abs(l - prev[i]); prev[i] = l; lum[i] = l; diff[i] = df;
+      const x = i % W, y = (i / W) | 0, w = df * df + l * .002;
+      sx += x * w; sy += y * w; sw += w; tot += df;
+      if (x > W * .35 && x < W * .65 && y > H * .6 && y < H * .85) mouth += df;
+    }
+    const m = tot / (W * H);
+    if (sw > 0) { st.x += (sx / sw / W - st.x) * .2; st.y += (sy / sw / H - st.y) * .2; }
+    st.mot += (Math.min(1, m * 14) - st.mot) * .25;
+    st.mouth += (Math.min(1, mouth / (W * H * .075) * 10) - st.mouth) * .3;
+    st.hit = Math.min(1, Math.max(0, (m * 14 - pmove) * 3)); pmove = pmove * .8 + m * 14 * .2;
+  }
+
+  function pointerFake() {
+    for (let i = 0; i < W * H; i++) {
+      const x = i % W / W, y = ((i / W) | 0) / H, dd = Math.hypot(x - st.x, y - st.y);
+      lum[i] = Math.max(0, .9 - dd * 2.2) * (.7 + .3 * Math.sin(performance.now() / 300 + dd * 30));
+      diff[i] = Math.max(0, st.mot - dd * 2) * .5;
+    }
+    st.mot *= .96; st.mouth *= .94; st.hit *= .8;
+  }
+
+  function draw() {
+    const w = innerWidth, h = innerHeight; g.fillStyle = '#07060b'; g.fillRect(0, 0, w, h);
+    const cs = Math.max(w / W, h / H), ox = (w - cs * W) / 2, oy = (h - cs * H) / 2;
+    for (let i = 0; i < W * H; i++) {
+      const l = lum[i], df = diff[i]; if (l < .06 && df < .02) continue;
+      const x = ox + (i % W + .5) * cs, y = oy + (((i / W) | 0) + .5) * cs;
+      const r = Math.min(cs * .55, cs * (.08 + l * .45) + df * cs * 2);
+      g.fillStyle = df > .08 ? `hsl(${(hue + 120) % 360} 100% 62%)` : `hsl(${hue} ${60 + l * 40}% ${25 + l * 50}%)`;
+      g.beginPath(); g.arc(x, y, r, 0, 6.283); g.fill();
+    }
+    g.strokeStyle = 'rgba(255,90,54,.8)'; g.lineWidth = 2; g.beginPath(); g.arc(st.x * w, st.y * h, 10 + st.mot * 30, 0, 6.283); g.stroke();
+    if (st.hit > .5 && !RM) { g.fillStyle = 'rgba(255,90,54,.15)'; g.fillRect(0, 0, w, h); }
+  }
+
+  function meters() { [['mx', st.x], ['my', 1 - st.y], ['mm', st.mot], ['mb', st.mouth], ['mh', st.hit]].forEach(([id, v]) => $(id).style.setProperty('--v', v.toFixed(3))); }
+
+  let last = 0;
+  function loop(now) {
+    requestAnimationFrame(loop);
+    if (RM && now - last < 80) return; last = now;
+    if (cam) track(); else pointerFake();
+    apply(); schedule(); draw(); meters();
+  }
+
+  function pointer(e) {
+    if (cam) return;
+    const nx = e.clientX / innerWidth, ny = e.clientY / innerHeight;
+    const sp = Math.hypot(nx - px, ny - py); px = nx; py = ny;
+    st.x = nx; st.y = ny; st.mot = Math.min(1, st.mot + sp * 4);
+    st.mouth = Math.min(1, st.mouth + sp * 2);
+  }
+  cv.addEventListener('pointermove', pointer);
+  cv.addEventListener('pointerdown', (e) => { pointer(e); if (!cam) st.hit = 1; });
+
+  $('go').onclick = async () => {
+    A = audio(); nextT = A.c.currentTime + .1; $('intro').hidden = true; $('meters').hidden = false;
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240, facingMode: 'user' }, audio: false });
+      video.srcObject = s; await video.play(); cam = true; $('sub').textContent = 'cámara activa';
+    } catch (err) { cam = false; $('notice').hidden = false; $('sub').textContent = 'modo puntero'; }
+    requestAnimationFrame(loop);
+  };
+  const tog = (id, fn) => $(id).onclick = () => { const v = fn(); $(id).setAttribute('aria-pressed', v); };
+  tog('mirror', () => mirror = !mirror);
+  tog('drums', () => drums = !drums);
+  tog('mute', () => { muted = !muted; if (A) A.out.gain.setTargetAtTime(muted ? 0 : .8, A.c.currentTime, .05); return muted; });
+  $('mute').setAttribute('aria-pressed', 'false');
+})();
+</script>
