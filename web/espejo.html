@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Espejo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --void: #07060b; --panel: #100e17; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --acid: #c8ff3d; --line: rgba(236,232,244,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+body { background: var(--void); color: var(--ink); font-family: var(--f-mono); font-size: 13px; line-height: 1.6; overflow-x: hidden; }
+main { max-width: 1100px; margin: 0 auto; padding: calc(44px + env(safe-area-inset-top,0px)) 16px calc(40px + env(safe-area-inset-bottom,0px)); }
+.back { position: absolute; top: calc(12px + env(safe-area-inset-top,0px)); left: 16px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); text-decoration: none; }
+.back:hover, .back:focus-visible { color: var(--ink); }
+h1 { font: 900 clamp(48px, 13vw, 120px)/.85 var(--f-disp); text-transform: uppercase; margin: 0 0 12px; letter-spacing: -.01em; }
+h1 span { color: var(--heat); }
+h2 { font: 800 clamp(22px, 5vw, 32px)/1 var(--f-disp); text-transform: uppercase; margin: 28px 0 10px; letter-spacing: .02em; }
+p.lead { color: var(--dim); max-width: 60ch; margin: 0 0 18px; }
+button { font: 600 12px/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 10px 12px; cursor: pointer; touch-action: manipulation; }
+button:hover { border-color: var(--uv); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+button.hot { border-color: var(--heat); color: var(--heat); }
+button.hot:hover { background: var(--heat); color: var(--void); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.muted { color: var(--dim); }
+label { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+input[type=range] { accent-color: var(--heat); width: 160px; max-width: 100%; }
+select, input[type=text], textarea { font: 400 13px var(--f-mono); color: var(--ink); background: var(--panel); border: 1px solid var(--line); padding: 9px 10px; max-width: 100%; }
+.card { background: var(--panel); border: 1px solid var(--line); padding: 12px; min-width: 0; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+<style>
+.cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+.col { display: grid; gap: 8px; }
+.col h3 { margin: 0; font: 900 28px/1 var(--f-disp); text-transform: uppercase; }
+.col.o h3 { color: var(--ink); } .col.m h3 { color: #3dd6ff; } .col.e h3 { color: var(--heat); }
+.col.on { box-shadow: inset 0 0 0 2px currentColor; }
+.col.o.on { color: var(--ink); } .col.m.on { color: #3dd6ff; } .col.e.on { color: var(--heat); }
+.col > *:not(h3) { color: var(--ink); }
+.col canvas { width: 100%; height: 120px; display: block; background: #0b0a11; }
+.col ul { margin: 0; padding: 0; list-style: none; font-size: 11px; color: var(--dim) !important; }
+.col ul b { color: var(--ink); font-weight: 600; }
+#seed { width: 9ch; }
+</style>
+<a class="back" href="experiencias.html">← Experiencias</a>
+<main>
+  <h1>Tema <span>espejo</span></h1>
+  <p class="lead">Una semilla genera un tema sintetizado. Su espejo es el mismo esqueleto al revés: mayor↔menor, rápido↔lento, brillante↔oscuro. Y su gemelo malvado lo hace todo mal a propósito: fuera de tempo, notas que chocan y acentos equivocados.</p>
+  <div class="row" style="margin-bottom:14px">
+    <label for="seed">Semilla</label><input type="text" id="seed" inputmode="numeric" value="1977">
+    <button id="reroll">Nueva semilla</button>
+    <button class="hot" id="playAll">▶ Reproducir en sync</button>
+    <button id="stop">Parar</button>
+  </div>
+  <p class="muted" style="margin:-4px 0 12px">En sync suenan los tres a la vez desde el mismo instante; toca una columna (o teclas 1, 2, 3) para escuchar solo esa, y 0 para mezclar las tres.</p>
+  <div class="cols">
+    <div class="card col o" data-i="0"><h3>Original</h3><canvas></canvas><ul></ul><button data-solo="0" aria-pressed="false">Solo original</button></div>
+    <div class="card col m" data-i="1"><h3>Espejo</h3><canvas></canvas><ul></ul><button data-solo="1" aria-pressed="false">Solo espejo</button></div>
+    <div class="card col e" data-i="2"><h3>Gemelo malvado</h3><canvas></canvas><ul></ul><button data-solo="2" aria-pressed="false">Solo gemelo</button></div>
+  </div>
+  <p class="status muted" id="status" aria-live="polite" style="margin-top:12px"></p>
+</main>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const NOTES = ['Do','Do#','Re','Re#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'];
+  const SC = { mayor: [0,2,4,5,7,9,11], menor: [0,2,3,5,7,8,10] };
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const mulberry = (a) => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+
+  function original(seed) {
+    const r = mulberry(seed), ri = (a, b) => a + Math.floor(r() * (b - a + 1));
+    const bpm = ri(80, 140), key = ri(0, 11), scale = r() < .5 ? 'mayor' : 'menor', bright = .3 + r() * .6;
+    // structure: A A B A, each section 1 bar of 16 steps
+    const motif = () => Array.from({length: 16}, (_, i) => (i % 2 === 0 || r() < .25) && r() < .7 ? ri(0, 9) : -1);
+    const A = motif(), B = motif();
+    const kick = Array.from({length: 16}, (_, i) => +(i % 4 === 0 || r() < .1));
+    const hat = Array.from({length: 16}, (_, i) => +(i % 2 === 1 || r() < .3));
+    const chords = [ri(0, 6), ri(0, 6)];
+    return { name: 'Original', bpm, key, scale, bright, sections: [A, A, B, A], kick, hat, chords,
+      accents: Array.from({length: 16}, (_, i) => i % 4 === 0 ? 1 : .55), jitter: 0, clash: [], detune: 0 };
+  }
+  function mirror(o) {
+    return { ...o, name: 'Espejo', scale: o.scale === 'mayor' ? 'menor' : 'mayor',
+      bpm: Math.round(o.bpm >= 110 ? o.bpm * .65 : o.bpm * 1.45), bright: 1.1 - o.bright,
+      key: (o.key + 9) % 12 // relative major/minor keeps the family
+    };
+  }
+  function evil(o, seed) {
+    const r = mulberry(seed * 7 + 13);
+    return { ...o, name: 'Gemelo malvado', bpm: o.bpm + 7, jitter: .35,
+      accents: Array.from({length: 16}, (_, i) => i % 4 === 0 ? .35 : i % 2 ? 1 : .6),
+      kick: o.kick.map((v, i) => i % 4 === 3 ? 1 : (i % 4 === 0 && r() < .5 ? 0 : v)),
+      clash: Array.from({length: 64}, () => r() < .4 ? (r() < .5 ? 1 : 6) : 0), detune: 35, seedR: seed };
+  }
+
+  async function render(t) {
+    const sr = 44100, step = 60 / t.bpm / 4, len = step * 64;
+    const ctx = new OfflineAudioContext(2, Math.ceil(sr * (len + .6)), sr);
+    const out = ctx.createDynamicsCompressor(); out.threshold.value = -12; out.connect(ctx.destination);
+    const r = mulberry(1234 + t.bpm);
+    const hz = (m) => 440 * Math.pow(2, (m - 69) / 12), sc = SC[t.scale], root = 48 + t.key;
+    const deg = (d) => root + sc[((d % 7) + 7) % 7] + 12 * Math.floor(d / 7);
+    const nb = ctx.createBuffer(1, sr / 2, sr), nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    const notes = [];
+    t.sections.forEach((sec, si) => {
+      const ch = t.chords[si === 2 ? 1 : 0];
+      for (let s = 0; s < 16; s++) {
+        const idx = si * 16 + s, acc = t.accents[s];
+        const off = t.jitter ? (r() - .3) * t.jitter * step : 0;
+        const tt = Math.max(0, idx * step + off);
+        if (t.kick[s]) { const o = ctx.createOscillator(), v = ctx.createGain(); o.frequency.setValueAtTime(140, tt); o.frequency.exponentialRampToValueAtTime(42, tt + .1);
+          v.gain.setValueAtTime(.8 * acc + .2, tt); v.gain.exponentialRampToValueAtTime(.001, tt + .3); o.connect(v).connect(out); o.start(tt); o.stop(tt + .32); }
+        if (t.hat[s]) { const n = ctx.createBufferSource(); n.buffer = nb; const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 4000 + 6000 * t.bright;
+          const v = ctx.createGain(); v.gain.setValueAtTime(.15 * acc, tt); v.gain.exponentialRampToValueAtTime(.001, tt + .04); n.connect(f).connect(v).connect(out); n.start(tt); n.stop(tt + .05); }
+        if (s % 8 === 0) { const b = ctx.createOscillator(); b.type = 'sawtooth'; b.frequency.value = hz(deg(ch) - 24 + (t.clash[idx] === 6 ? 6 : 0));
+          const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 150 + 700 * t.bright; const v = ctx.createGain();
+          v.gain.setValueAtTime(.25, tt); v.gain.exponentialRampToValueAtTime(.001, tt + step * 7); b.connect(f).connect(v).connect(out); b.start(tt); b.stop(tt + step * 7.5); }
+        const d = sec[s];
+        if (d >= 0) {
+          const m = deg(d + ch) + (t.clash[idx] || 0);
+          const o = ctx.createOscillator(); o.type = t.bright > .55 ? 'square' : 'triangle'; o.frequency.value = hz(m); o.detune.value = t.detune * (r() - .5) * 2;
+          const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 500 + 5000 * t.bright;
+          const v = ctx.createGain(), dur = step * 1.8; v.gain.setValueAtTime(.13 * acc, tt); v.gain.exponentialRampToValueAtTime(.001, tt + dur);
+          o.connect(f).connect(v).connect(out); o.start(tt); o.stop(tt + dur + .02);
+          notes.push([idx, m, !!t.clash[idx]]);
+        }
+      }
+    });
+    const buf = await ctx.startRendering();
+    return { buf, loopLen: len, notes };
+  }
+
+  const tracks = [null, null, null];
+  const cols = [...document.querySelectorAll('.col')];
+  function drawRoll(i, phase) {
+    const cv = cols[i].querySelector('canvas'), R = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+    if (cv.width !== Math.round(R.width * dpr)) { cv.width = Math.round(R.width * dpr); cv.height = Math.round(R.height * dpr); }
+    const c = cv.getContext('2d'), W = cv.width, H = cv.height, tr = tracks[i]; c.clearRect(0, 0, W, H);
+    if (!tr) return;
+    const col = ['#ece8f4', '#3dd6ff', '#ff5a36'][i];
+    c.fillStyle = 'rgba(236,232,244,.08)'; for (let b = 1; b < 4; b++) c.fillRect(b * W / 4, 0, 1, H);
+    const ms = tr.notes.map(n => n[1]), lo = Math.min(...ms) - 2, hi = Math.max(...ms) + 2;
+    tr.notes.forEach(([idx, m, cl]) => { c.fillStyle = cl ? '#ffd23d' : col; c.fillRect(idx / 64 * W, H - (m - lo) / (hi - lo) * H, Math.max(2, W / 64 - 1), Math.max(3, H / (hi - lo))); });
+    if (phase != null) { c.fillStyle = '#c8ff3d'; c.fillRect(phase * W, 0, 2 * dpr, H); }
+  }
+  function info(i) {
+    const t = tracks[i].t;
+    cols[i].querySelector('ul').innerHTML = '<li>Tempo <b>' + t.bpm + ' bpm</b></li><li>Tono <b>' + NOTES[t.key] + ' ' + t.scale + '</b></li><li>Brillo <b>' + Math.round(t.bright * 100) + '%</b></li><li>Estructura <b>A A B A</b></li>' +
+      (i === 2 ? '<li>Notas en choque <b>' + tracks[i].notes.filter(n => n[2]).length + '</b> · desfase <b>±' + Math.round(t.jitter * 100) + '%</b></li><li>Acentos <b>a contratiempo</b></li>' : '');
+  }
+
+  let ac = null, srcs = [], gains = [], solo = -1, t0 = 0, raf = 0, building = 0;
+  async function build() {
+    const my = ++building; stopAll();
+    const seed = (parseInt($('seed').value, 10) || 0) >>> 0;
+    $('status').textContent = 'Sintetizando los tres temas…';
+    const o = original(seed), ts = [o, mirror(o), evil(o, seed)];
+    const res = await Promise.all(ts.map(render));
+    if (my !== building) return;
+    res.forEach((r, i) => { tracks[i] = { ...r, t: ts[i] }; info(i); drawRoll(i); });
+    $('status').textContent = 'Listo. Semilla ' + seed + '.';
+  }
+  function stopAll() { srcs.forEach(s => { try { s.stop(); } catch (e) {} }); srcs = []; cancelAnimationFrame(raf); raf = 0; tracks.forEach((t, i) => t && drawRoll(i)); }
+  function applySolo() {
+    gains.forEach((g, i) => { const v = solo < 0 ? .45 : (i === solo ? 1 : 0); if (ac) g.gain.setTargetAtTime(v, ac.currentTime, .03); });
+    cols.forEach((c, i) => { c.classList.toggle('on', solo === i); c.querySelector('[data-solo]').setAttribute('aria-pressed', solo === i); });
+  }
+  async function playAll() {
+    if (!tracks[0]) return;
+    if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === 'suspended') await ac.resume();
+    stopAll();
+    t0 = ac.currentTime + .08; gains = [];
+    tracks.forEach((tr, i) => { const s = ac.createBufferSource(); s.buffer = tr.buf; s.loop = true; s.loopEnd = tr.loopLen;
+      const g = ac.createGain(); s.connect(g).connect(ac.destination); s.start(t0); srcs.push(s); gains.push(g); });
+    applySolo();
+    const tick = () => { const el = ac.currentTime - t0; tracks.forEach((tr, i) => drawRoll(i, el < 0 ? 0 : (el % tr.loopLen) / tr.loopLen)); raf = requestAnimationFrame(tick); };
+    if (!RM) tick(); else tracks.forEach((t, i) => drawRoll(i));
+  }
+  function setSolo(i) { solo = solo === i ? -1 : i; applySolo(); if (!srcs.length) playAll(); }
+  cols.forEach((c, i) => { c.querySelector('[data-solo]').onclick = () => setSolo(i); c.querySelector('canvas').onclick = () => setSolo(i); });
+  $('playAll').onclick = () => { solo = -1; playAll(); };
+  $('stop').onclick = stopAll;
+  $('reroll').onclick = () => { $('seed').value = Math.floor(Math.random() * 99999); build(); };
+  $('seed').addEventListener('change', build);
+  addEventListener('keydown', (e) => { if (e.target.tagName === 'INPUT') return; if ('123'.includes(e.key) && e.key) setSolo(+e.key - 1); else if (e.key === '0') { solo = -1; applySolo(); } });
+  addEventListener('resize', () => tracks.forEach((t, i) => t && drawRoll(i)));
+  build();
+})();
+</script>
