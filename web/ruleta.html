@@ -1,0 +1,291 @@
+<title>Nexsound Ruleta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: wheel on top, fusion recipe and step grid in the middle, layer stack and controls at the bottom. Single dark world by choice. */
+:root {
+  --void: #07060b; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --line: rgba(236,232,244,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: radial-gradient(circle at 50% 25%, rgba(143,107,255,.12), transparent 60%), var(--void); color: var(--ink); font-family: var(--f-mono); overflow: hidden; }
+.app { position: fixed; inset: 0; display: flex; flex-direction: column; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 0; gap: 8px; }
+#wheel { flex: 1 1 0; min-height: 150px; width: 100%; display: block; touch-action: none; cursor: pointer; }
+#grid { width: 100%; height: 110px; display: block; flex: none; }
+.intro { position: fixed; inset: 0; display: grid; place-items: center; padding-inline: 16px; background: radial-gradient(circle at 50% 55%, rgba(143,107,255,.18), transparent 60%), var(--void); z-index: 3; overflow-y: auto; }
+.intro div { max-width: 640px; display: grid; gap: 18px; justify-items: start; padding-block: 24px; }
+.intro h1 { font: 900 clamp(64px, 17vw, 168px)/.82 var(--f-disp); margin: 0; text-transform: uppercase; }
+.intro h1 span { color: var(--heat); }
+.intro p { margin: 0; color: var(--dim); font-size: 13px; line-height: 1.7; max-width: 52ch; }
+.intro ul { margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--dim); display: grid; gap: 4px; }
+.intro b { color: var(--ink); font-weight: 600; }
+button { font: 600 12px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 10px 12px; cursor: pointer; }
+button:hover { border-color: var(--uv); }
+button:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+button:disabled { opacity: .35; cursor: default; }
+#go, #spin { border-color: var(--heat); color: var(--heat); }
+#go { font-size: 14px; padding: 16px 22px; }
+#go:hover, #spin:hover { background: var(--heat); color: var(--void); }
+.read { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); font-variant-numeric: tabular-nums; flex: none; }
+.read b { color: var(--ink); font-weight: 600; }
+.read > div:last-child { white-space: nowrap; }
+#fusion { font: 900 clamp(26px, 6vw, 48px)/1 var(--f-disp); color: var(--ink); letter-spacing: .02em; text-transform: uppercase; }
+#fusion span { color: var(--heat); }
+.receta { font-size: 11px; line-height: 1.6; color: var(--dim); flex: none; min-height: 3.2em; }
+.receta b { color: var(--ink); font-weight: 600; }
+.layers { display: flex; flex-wrap: wrap; gap: 6px; flex: none; }
+.layer { display: flex; align-items: center; gap: 4px; border: 1px solid var(--line); padding: 3px 3px 3px 8px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; max-width: 100%; }
+.layer.cur { border-color: var(--heat); }
+.layer.off { opacity: .45; }
+.layer button { padding: 6px 7px; font-size: 10px; letter-spacing: .04em; }
+.hud { flex: none; margin-inline: -16px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: linear-gradient(transparent, rgba(7,6,11,.85) 40%); }
+.hud .sp { flex: 1; }
+@media (max-width: 560px) { .hud button { padding: 9px 8px; font-size: 11px; letter-spacing: .06em; } }
+</style>
+
+<div class="app">
+  <div class="read"><div><div id="fusion">—</div><div id="sub">gira la ruleta</div></div><div style="text-align:right"><div><b id="bpm">0</b> bpm</div><div>compás <b id="bar">1</b>/8</div><div>capas <b id="nl">0</b>/4</div></div></div>
+  <canvas id="wheel" aria-label="Ruleta de géneros: toca para girar"></canvas>
+  <div class="receta" id="receta" aria-live="polite">Receta: gira para fusionar dos géneros. El primero pone el tempo y el ritmo; el segundo, el groove, los instrumentos y la escala.</div>
+  <canvas id="grid" aria-label="Rejilla de pasos de la capa actual"></canvas>
+  <div class="layers" id="layers" aria-label="Capas"></div>
+  <nav class="hud" aria-label="Controles">
+    <button id="spin">Girar</button>
+    <button id="lockA" aria-pressed="false">Fijar ritmo</button>
+    <button id="lockB" aria-pressed="false">Fijar groove</button>
+    <button id="add">+ Capa</button>
+    <span class="sp"></span>
+    <button id="mute" aria-pressed="false">Silencio</button>
+  </nav>
+</div>
+
+<section class="intro" id="intro">
+  <div>
+    <h1>Ruleta<br><span>de géneros</span></h1>
+    <p>Doce géneros, dos tiradas, una fusión imposible. Cada giro genera un loop de 8 compases sintetizado en tu navegador: el primer género marca tempo y ritmo, el segundo pone groove, instrumentos y escala.</p>
+    <ul>
+      <li><b>Girar</b> o tocar la ruleta · nueva fusión en la capa actual</li>
+      <li><b>Fijar</b> · conserva un género y vuelve a tirar el otro</li>
+      <li><b>+ Capa</b> · apila hasta 4 loops; cada uno se silencia, se re-tira o se quita</li>
+    </ul>
+    <button id="go">Empezar</button>
+  </div>
+</section>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // 16-step patterns; numbers in bass = scale degree offsets
+  const G = [
+    { n: 'reguetón', bpm: [88, 96], meter: '4/4 dembow', k: 'x...x...x...x...', s: '...x..x....x..x.', h: '..x...x...x...x.', bass: 'sub808', scale: [0, 3, 5, 7, 10], sc: 'menor natural', sig: 'pluck', col: '#ff5a36' },
+    { n: 'drum and bass', bpm: [170, 176], meter: '4/4 breakbeat', k: 'x.........x.....', s: '....x.......x...', h: 'x.x.x.x.x.x.x.x.', bass: 'reese', scale: [0, 2, 3, 7, 10], sc: 'dórica', sig: 'pad', col: '#3ee08f' },
+    { n: 'techno', bpm: [128, 136], meter: '4/4 recto', k: 'x...x...x...x...', s: '........x.......', h: '..x...x...x...x.', bass: 'rolling', scale: [0, 1, 3, 7, 8], sc: 'frigia', sig: 'stab', col: '#8f6bff' },
+    { n: 'house', bpm: [120, 126], meter: '4/4 cuatro al suelo', k: 'x...x...x...x...', s: '....x.......x...', h: '..x...x...x...xx', bass: 'offbeat', scale: [0, 2, 4, 7, 9, 11], sc: 'mayor', sig: 'organ', col: '#ffd23e' },
+    { n: 'trap', bpm: [136, 150], meter: '4/4 medio tiempo', k: 'x......x..x.....', s: '........x.......', h: 'xxx.xxxxx.xxxxxx', bass: 'sub808', scale: [0, 1, 3, 5, 7, 8], sc: 'menor armónica', sig: 'bell', col: '#ff3ea5' },
+    { n: 'flamenco', bpm: [100, 120], meter: '12/8 bulería', k: 'x..x..x.x.x.....', s: '..x..x...x.x....', h: 'x.xx.xx.xx.x....', bass: 'walk', scale: [0, 1, 4, 5, 7, 8, 10], sc: 'frigia dominante', sig: 'guitar', col: '#e8463e', len: 12 },
+    { n: 'afrobeat', bpm: [100, 115], meter: '4/4 polirrítmico', k: 'x.....x...x.....', s: '....x..x....x...', h: 'x.xxx.xxx.xxx.xx', bass: 'funk', scale: [0, 3, 5, 7, 10], sc: 'pentatónica menor', sig: 'marimba', col: '#ff9a3e' },
+    { n: 'dembow', bpm: [115, 125], meter: '4/4 dembow rápido', k: 'x..xx..xx..xx..x', s: '...x..x....x..x.', h: 'x.x.x.x.x.x.x.x.', bass: 'sub808', scale: [0, 2, 3, 5, 7, 8, 10], sc: 'menor natural', sig: 'whistle', col: '#3ec8ff' },
+    { n: 'garage', bpm: [130, 136], meter: '4/4 2-step', k: 'x......x..x.....', s: '....x.......x...', h: '..x.x.x...x.x.xx', bass: 'wobble', scale: [0, 2, 3, 5, 7, 10], sc: 'dórica', sig: 'organ', col: '#b0ff3e', swing: .2 },
+    { n: 'phonk', bpm: [130, 145], meter: '4/4 cowbell', k: 'x.....x.x.......', s: '....x.......x...', h: 'x.xxx.x.x.xxx.x.', bass: 'distort', scale: [0, 1, 3, 5, 7, 8, 10], sc: 'frigia', sig: 'cowbell', col: '#c43eff' },
+    { n: 'ambient', bpm: [70, 90], meter: 'libre / 4/4 lento', k: 'x...............', s: '................', h: '........x.......', bass: 'drone', scale: [0, 2, 4, 7, 9], sc: 'pentatónica mayor', sig: 'pad', col: '#7fb6ff' },
+    { n: 'jersey club', bpm: [138, 145], meter: '4/4 kick de cama', k: 'x..x..x.x.x.x...', s: '....x.......x...', h: '..x...x...x...x.', bass: 'offbeat', scale: [0, 3, 5, 7, 10], sc: 'menor', sig: 'vox', col: '#ff6b6b', swing: .1 },
+  ];
+  const SIGS = { pluck: 'pluck sintetizado', pad: 'pad de cuerdas', stab: 'acorde stab', organ: 'órgano house', bell: 'campana / piano frío', guitar: 'rasgueo de guitarra', marimba: 'marimba', whistle: 'silbato', cowbell: 'cencerro 808', vox: 'chop vocal' };
+  const BASS = { sub808: 'sub 808 con glide', reese: 'reese desafinado', rolling: 'bajo rodante a semicorcheas', offbeat: 'bajo a contratiempo', walk: 'bajo caminante', funk: 'bajo funk sincopado', wobble: 'bajo wobble', distort: 'bajo saturado', drone: 'drón grave' };
+  const PROG = [0, 0, 3, 3, 4, 4, 2, 1];
+
+  const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  let A = null, layers = [], cur = -1, lockA = false, lockB = false, step = 0, nextT = 0, muted = false, timer = 0;
+  let rot = 0, spinning = false, pending = null, lastSlots = [null, null];
+
+  function boot() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const bus = ctx.createGain(), comp = ctx.createDynamicsCompressor(), out = ctx.createGain(), verb = ctx.createConvolver(), vg = ctx.createGain();
+    const len = ctx.sampleRate * 2, b = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
+    verb.buffer = b; vg.gain.value = .18; comp.threshold.value = -16; comp.ratio.value = 4; out.gain.value = .8;
+    bus.connect(comp); bus.connect(verb); verb.connect(vg); vg.connect(comp); comp.connect(out); out.connect(ctx.destination);
+    const noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const nd = noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    A = { ctx, bus, out, noise }; nextT = ctx.currentTime + .1; timer = setInterval(sched, 25);
+  }
+
+  // fusion: rhythm (tempo, drums, compás) from r, groove (bass, scale, sig sound, swing) from g
+  function fuse(r, g) {
+    const R = G[r], Q = G[g], bpm = Math.round(rnd(R.bpm[0], R.bpm[1]));
+    const root = 33 + Math.floor(Math.random() * 7);
+    // bass line: derive from groove style, placed on a grid shaped by rhythm kick
+    const bassPat = Array.from({ length: 16 }, (_, i) => {
+      const k = R.k[i] === 'x', off = i % 4 === 2;
+      switch (Q.bass) {
+        case 'offbeat': return off ? 1 : 0;
+        case 'rolling': return i % 4 !== 0 ? 1 : 0;
+        case 'walk': return i % 2 === 0 ? 1 : 0;
+        case 'funk': return (k || (i % 3 === 1 && Math.random() < .6)) ? 1 : 0;
+        case 'drone': return i === 0 ? 1 : 0;
+        case 'reese': return i % 8 === 0 || i === 10 ? 1 : 0;
+        default: return k ? 1 : 0;
+      }
+    });
+    const melody = Array.from({ length: 16 }, (_, i) => (Math.random() < (Q.sig === 'pad' ? .12 : .32) ? 1 + Math.floor(Math.random() * Q.scale.length) : 0));
+    melody[0] = melody[0] || 1;
+    return { r, g, bpm, root, k: R.k, s: R.s, h: R.h, len: R.len || 16, bassPat, melody, bass: Q.bass, scale: Q.scale, sig: Q.sig, swing: Q.swing || 0, mute: false };
+  }
+  function recipe(L) {
+    const R = G[L.r], Q = G[L.g];
+    return `<b>${R.n}</b> × <b>${Q.n}</b> · <b>${L.bpm} bpm</b> · compás <b>${R.meter}</b> · escala <b>${Q.sc}</b><br>elementos: kick/caja/charles de ${R.n}, ${BASS[L.bass]}, ${SIGS[L.sig]}${L.swing ? `, swing ${Math.round(L.swing * 100)}%` : ''} · 8 compases`;
+  }
+
+  // voices
+  function env(gn, t, a, peak, d) { gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(peak, t + a); gn.gain.exponentialRampToValueAtTime(.0001, t + a + d); }
+  function osc(t, type, f, v, d, cut, f2) { const c = A.ctx, o = c.createOscillator(), fl = c.createBiquadFilter(), gn = c.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d * .5); fl.type = 'lowpass'; fl.frequency.value = cut; env(gn, t, .004, v, d); o.connect(fl); fl.connect(gn); gn.connect(A.bus); o.start(t); o.stop(t + d + .05); return o; }
+  function nz(t, v, f, type, d) { const c = A.ctx, s = c.createBufferSource(), fl = c.createBiquadFilter(), gn = c.createGain(); s.buffer = A.noise; fl.type = type; fl.frequency.value = f; env(gn, t, .001, v, d); s.connect(fl); fl.connect(gn); gn.connect(A.bus); s.start(t, Math.random() * .5); s.stop(t + d + .05); }
+  function kick(t, v) { osc(t, 'sine', 160, v, .3, 2000, 45); }
+  function voice(L, t, sig, f, sp) {
+    switch (sig) {
+      case 'pluck': osc(t, 'square', f, .07, .18, 2500); break;
+      case 'pad': [0, 7].forEach((iv) => osc(t, 'sawtooth', f * Math.pow(2, iv / 12), .04, sp * 8, 1200)); break;
+      case 'stab': [0, 3, 7].forEach((iv) => osc(t, 'sawtooth', f * Math.pow(2, iv / 12), .05, .2, 3000)); break;
+      case 'organ': [1, 2, 3].forEach((h) => osc(t, 'sine', f * h, .05 / h, .25, 5000)); break;
+      case 'bell': osc(t, 'sine', f * 2, .08, .8, 8000); osc(t, 'sine', f * 5.4, .02, .3, 9000); break;
+      case 'guitar': [0, 4, 7, 12].forEach((iv, i) => osc(t + i * .012, 'sawtooth', f * Math.pow(2, iv / 12), .035, .35, 2200)); break;
+      case 'marimba': osc(t, 'sine', f * 2, .12, .15, 4000); osc(t, 'sine', f * 8, .02, .05, 9000); break;
+      case 'whistle': osc(t, 'sine', f * 4, .05, .12, 9000, f * 4.6); break;
+      case 'cowbell': osc(t, 'square', 540, .05, .2, 3000); osc(t, 'square', 800, .04, .2, 3000); break;
+      case 'vox': osc(t, 'sawtooth', f * 2, .06, .09, 900 + Math.random() * 1200); break;
+    }
+  }
+  function bassV(L, t, f, sp) {
+    switch (L.bass) {
+      case 'sub808': osc(t, 'sine', f * 1.5, .5, sp * 3, 400, f); break;
+      case 'reese': [-12, 12].forEach((d) => { const o = osc(t, 'sawtooth', f, .14, sp * 6, 500); o.detune.value = d; }); break;
+      case 'wobble': osc(t, 'sawtooth', f, .25, sp * 2, 350 + Math.random() * 700); break;
+      case 'distort': osc(t, 'square', f, .2, sp * 2, 900); osc(t, 'sine', f, .3, sp * 2, 300); break;
+      case 'drone': osc(t, 'sawtooth', f, .12, sp * 16, 250); break;
+      default: osc(t, 'sawtooth', f, .25, sp * 1.4, 600);
+    }
+  }
+
+  function sched() {
+    if (!layers.length || !layers[0]) { nextT = A.ctx.currentTime + .05; return; }
+    const master = layers[0], sp = 60 / master.bpm / 4;
+    while (nextT < A.ctx.currentTime + .12) {
+      const bar = Math.floor(step / 16) % 8, i = step % 16;
+      layers.forEach((L) => {
+        if (!L || L.mute) return;
+        const li = i % L.len, t = nextT + (i % 2 ? L.swing * sp : 0), deg = PROG[bar];
+        if (L.k[li] === 'x') kick(t, .8 / Math.sqrt(layers.length));
+        if (L.s[li] === 'x') { nz(t, .25, 1800, 'bandpass', .13); osc(t, 'triangle', 220, .08, .08, 2000); }
+        if (L.h[li] === 'x') nz(t, .08, 8000, 'highpass', .04);
+        const note = (d) => L.root + L.scale[((d % L.scale.length) + L.scale.length) % L.scale.length] + 12 * Math.floor(d / L.scale.length);
+        if (L.bassPat[li]) bassV(L, t, mtof(note(deg)), sp);
+        if (L.melody[li]) voice(L, t, L.sig, mtof(note(deg + L.melody[li]) + 24), sp);
+      });
+      const s = step, when = Math.max(0, (nextT - A.ctx.currentTime) * 1000);
+      setTimeout(() => { playStep = s; }, when);
+      nextT += sp; step++;
+    }
+  }
+  let playStep = 0;
+
+  // UI
+  function renderLayers() {
+    const box = $('layers'); box.innerHTML = '';
+    layers.forEach((L, i) => {
+      if (!L) return;
+      const el = document.createElement('div'); el.className = 'layer' + (i === cur ? ' cur' : '') + (L.mute ? ' off' : '');
+      el.innerHTML = `<span>${i + 1} ${G[L.r].n.slice(0, 5)}×${G[L.g].n.slice(0, 5)}</span>`;
+      const mk = (txt, lab, fn, pressed) => { const b = document.createElement('button'); b.textContent = txt; b.setAttribute('aria-label', lab); if (pressed !== undefined) b.setAttribute('aria-pressed', String(pressed)); b.addEventListener('click', (e) => { e.stopPropagation(); fn(); }); el.appendChild(b); };
+      mk('M', 'Silenciar capa ' + (i + 1), () => { L.mute = !L.mute; renderLayers(); }, L.mute);
+      mk('↻', 'Re-tirar capa ' + (i + 1), () => { cur = i; doSpin(); });
+      mk('×', 'Quitar capa ' + (i + 1), () => { layers.splice(i, 1); cur = Math.min(cur, layers.length - 1); if (cur < 0) cur = 0; renderLayers(); showCur(); });
+      el.addEventListener('click', () => { cur = i; renderLayers(); showCur(); });
+      box.appendChild(el);
+    });
+    $('nl').textContent = layers.length; $('add').disabled = layers.length >= 4 || !layers.length;
+  }
+  function showCur() {
+    const L = layers[cur];
+    if (!L) { $('fusion').textContent = '—'; $('receta').textContent = 'Gira la ruleta para crear una capa.'; $('bpm').textContent = 0; return; }
+    $('fusion').innerHTML = `${G[L.r].n} <span>×</span> ${G[L.g].n}`; $('sub').textContent = `capa ${cur + 1} · ritmo × groove`;
+    $('receta').innerHTML = recipe(L); $('bpm').textContent = layers[0].bpm;
+  }
+  $('add').addEventListener('click', () => { if (layers.length >= 4) return; cur = layers.length; layers.push(null); doSpin(); });
+
+  // wheel
+  const wv = $('wheel'), wg = wv.getContext('2d'), gv = $('grid'), gg = gv.getContext('2d');
+  let dpr = 1;
+  function size() { dpr = Math.min(2, devicePixelRatio || 1); [wv, gv].forEach((c) => { const r = c.getBoundingClientRect(); c.width = r.width * dpr; c.height = r.height * dpr; }); }
+  addEventListener('resize', size); size();
+  const SEG = Math.PI * 2 / G.length;
+  const atPointer = () => { const a = ((-Math.PI / 2 - rot) % (Math.PI * 2) + Math.PI * 4) % (Math.PI * 2); return Math.floor(a / SEG) % G.length; };
+
+  function spinTo(cb) {
+    const target = Math.floor(Math.random() * G.length), start = rot, base = -Math.PI / 2 - (target + .5) * SEG;
+    let end = base + Math.PI * 2 * Math.ceil((start - base) / (Math.PI * 2)) + Math.PI * 2 * (RM ? 1 : 4);
+    const dur = RM ? 300 : 1800, t0 = performance.now(); spinning = true;
+    const tick = (now) => {
+      const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3), prev = atPointer();
+      rot = start + (end - start) * e;
+      if (A && atPointer() !== prev && !muted) { const t = A.ctx.currentTime; osc(t, 'square', 1800, .03, .02, 6000); }
+      if (p < 1) requestAnimationFrame(tick); else { spinning = false; cb(atPointer()); }
+    };
+    requestAnimationFrame(tick);
+  }
+  function doSpin() {
+    if (spinning || !A) return;
+    if (cur < 0) { cur = 0; }
+    const old = layers[cur], slotA = lockA && old ? old.r : lockA && lastSlots[0] !== null ? lastSlots[0] : null, slotB = lockB && old ? old.g : lockB && lastSlots[1] !== null ? lastSlots[1] : null;
+    $('spin').disabled = true;
+    const finish = (r, g) => { layers[cur] = fuse(r, g); lastSlots = [r, g]; $('spin').disabled = false; renderLayers(); showCur(); };
+    const second = (r) => { if (slotB !== null) finish(r, slotB); else { $('sub').textContent = 'tirada 2 · groove'; spinTo((g) => { if (g === r) g = (g + 1 + Math.floor(Math.random() * 11)) % G.length; finish(r, g); }); } };
+    if (slotA !== null) second(slotA); else { $('sub').textContent = 'tirada 1 · ritmo'; spinTo(second); }
+  }
+  $('spin').addEventListener('click', doSpin);
+  wv.addEventListener('pointerdown', () => { if (!layers.length) cur = 0; doSpin(); });
+  const lock = (id, which) => $(id).addEventListener('click', () => { if (which) lockB = !lockB; else lockA = !lockA; $(id).setAttribute('aria-pressed', String(which ? lockB : lockA)); });
+  lock('lockA', 0); lock('lockB', 1);
+  $('mute').addEventListener('click', () => { muted = !muted; $('mute').setAttribute('aria-pressed', String(muted)); if (A) A.out.gain.setTargetAtTime(muted ? 0 : .8, A.ctx.currentTime, .05); });
+
+  function drawWheel(now) {
+    const W = wv.width, H = wv.height, cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 14 * dpr, L = layers[cur];
+    wg.clearRect(0, 0, W, H);
+    G.forEach((ge, i) => {
+      const a0 = rot + i * SEG, a1 = a0 + SEG, hit = L && (L.r === i || L.g === i);
+      wg.beginPath(); wg.moveTo(cx, cy); wg.arc(cx, cy, R, a0, a1); wg.closePath();
+      wg.fillStyle = hit ? ge.col : i % 2 ? '#14111d' : '#1c1828'; wg.fill(); wg.strokeStyle = 'rgba(236,232,244,.14)'; wg.lineWidth = dpr; wg.stroke();
+      wg.save(); wg.translate(cx, cy); wg.rotate(a0 + SEG / 2); wg.textAlign = 'right'; wg.textBaseline = 'middle';
+      wg.fillStyle = hit ? '#07060b' : ge.col; wg.font = `600 ${Math.max(9, R / 12 / dpr) * dpr}px JetBrains Mono, monospace`; wg.fillText(ge.n.toUpperCase(), R - 8 * dpr, 0); wg.restore();
+    });
+    const pulse = A && layers.length && !RM ? (playStep % 4 === 0 ? 1 : .6) : .6;
+    wg.beginPath(); wg.arc(cx, cy, R * .18 * (0.9 + pulse * .1), 0, 6.28); wg.fillStyle = '#07060b'; wg.fill(); wg.strokeStyle = '#ff5a36'; wg.lineWidth = 2 * dpr; wg.stroke();
+    wg.fillStyle = '#ff5a36'; wg.beginPath(); wg.moveTo(cx - 10 * dpr, cy - R - 12 * dpr); wg.lineTo(cx + 10 * dpr, cy - R - 12 * dpr); wg.lineTo(cx, cy - R + 8 * dpr); wg.fill();
+  }
+  function drawGrid() {
+    const W = gv.width, H = gv.height, L = layers[cur]; gg.clearRect(0, 0, W, H);
+    const rows = [['KICK', 'k'], ['CAJA', 's'], ['HATS', 'h'], ['BAJO', 'bassPat'], ['SIG', 'melody']], lw = 44 * dpr, cw = (W - lw) / 16, rh = H / rows.length;
+    gg.font = `600 ${9 * dpr}px JetBrains Mono, monospace`; gg.textBaseline = 'middle';
+    const ps = playStep % 16;
+    rows.forEach(([lab, key], r) => {
+      gg.fillStyle = '#8a83a0'; gg.fillText(lab, 0, r * rh + rh / 2);
+      for (let i = 0; i < 16; i++) {
+        const on = L && (typeof L[key] === 'string' ? (i < L.len && L[key][i % L.len] === 'x') : L[key][i]);
+        const active = L && layers.length && i === ps;
+        gg.fillStyle = on ? (active ? '#ece8f4' : G[r < 3 ? L.r : L.g].col) : (i % 4 === 0 ? 'rgba(236,232,244,.1)' : 'rgba(236,232,244,.05)');
+        gg.fillRect(lw + i * cw + 1, r * rh + 2, cw - 2, rh - 4);
+      }
+    });
+    if (L) { gg.fillStyle = 'rgba(255,90,54,.25)'; gg.fillRect(lw + ps * cw, 0, cw, H); }
+  }
+  function frame(now) { drawWheel(now); drawGrid(); $('bar').textContent = Math.floor(playStep / 16) % 8 + 1; requestAnimationFrame(frame); }
+  requestAnimationFrame(frame);
+
+  $('go').addEventListener('click', () => { if (A) return; boot(); $('intro').hidden = true; size(); renderLayers(); doSpin(); });
+})();
+</script>

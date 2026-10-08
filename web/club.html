@@ -1,0 +1,252 @@
+<title>Nexsound Club</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: top-down club on a full-bleed canvas; readout on top, control strip at the bottom. Single dark world by choice. */
+:root {
+  --void: #07060b; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --ok: #3ee08f; --line: rgba(236,232,244,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--void); color: var(--ink); font-family: var(--f-mono); overflow: hidden; }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.intro { position: fixed; inset: 0; display: grid; place-items: center; padding-inline: 16px; background: radial-gradient(circle at 50% 55%, rgba(255,90,54,.16), transparent 60%), var(--void); z-index: 3; overflow-y: auto; }
+.intro div { max-width: 640px; display: grid; gap: 18px; justify-items: start; padding-block: 24px; }
+.intro h1 { font: 900 clamp(64px, 17vw, 168px)/.82 var(--f-disp); margin: 0; text-transform: uppercase; }
+.intro h1 span { color: var(--heat); }
+.intro p { margin: 0; color: var(--dim); font-size: 13px; line-height: 1.7; max-width: 52ch; }
+.intro ul { margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--dim); display: grid; gap: 4px; }
+.intro b { color: var(--ink); font-weight: 600; }
+button, select { font: 600 12px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 10px 12px; cursor: pointer; }
+select { background: var(--void); letter-spacing: .04em; }
+button:hover { border-color: var(--uv); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+#go { font-size: 14px; padding: 16px 22px; border-color: var(--heat); color: var(--heat); }
+#go:hover { background: var(--heat); color: var(--void); }
+.hud { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: linear-gradient(transparent, rgba(7,6,11,.9) 30%); }
+.hud label { display: flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); min-width: 0; }
+.hud input[type=range] { width: 110px; accent-color: var(--heat); }
+#build { border-color: var(--uv); color: var(--uv); }
+#build.on { background: var(--uv); color: var(--void); }
+#drop { border-color: var(--heat); color: var(--heat); }
+#drop:hover { background: var(--heat); color: var(--void); }
+.read { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: 16px; right: 16px; z-index: 2; display: flex; justify-content: space-between; gap: 12px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); pointer-events: none; font-variant-numeric: tabular-nums; }
+.read b { color: var(--ink); font-weight: 600; }
+.read > div:last-child { white-space: nowrap; }
+#mood { font: 900 clamp(28px, 6vw, 52px)/1 var(--f-disp); color: var(--ink); letter-spacing: .02em; }
+.bar { width: 120px; height: 4px; background: var(--line); margin-top: 4px; }
+.bar i { display: block; height: 100%; width: 0; background: var(--heat); }
+@media (max-width: 560px) { .hud button, .hud select { padding: 9px 8px; font-size: 11px; letter-spacing: .06em; } .hud input[type=range] { width: 84px; } .bar { width: 90px; } }
+</style>
+
+<canvas id="cv" aria-label="Vista cenital del club: pista, barra, salida y cabina arrastrable"></canvas>
+<div class="read"><div><div id="mood">—</div><div>pista llena <b id="full">0</b>%</div></div><div style="text-align:right"><div><b id="bpm">124</b> bpm · <b id="trk">A</b></div><div>sala <b id="roomN">sótano</b></div><div>aburrimiento <b id="bor">0</b>%</div><div class="bar" style="margin-left:auto"><i id="borBar"></i></div></div></div>
+
+<section class="intro" id="intro">
+  <div>
+    <h1>Nexsound<br><span>Club</span></h1>
+    <p>Eres el DJ. Una pista con 120 personas que bailan a tu ritmo, o se van a la barra si las aburres. El tema se sintetiza en directo en tu navegador: ni un sample.</p>
+    <ul>
+      <li><b>Energía</b> · cuántas capas suenan; si la dejas baja, la gente se va</li>
+      <li><b>Filtro</b> · abre y cierra el tema</li>
+      <li><b>Build → Drop</b> · sube la tensión y suelta: manos arriba</li>
+      <li><b>A / B</b> · cambia de tema; sin cambios, sube el aburrimiento</li>
+      <li><b>Arrastra la cabina</b> · el lado más cercano suena más fuerte</li>
+      <li><b>Sala</b> · Sótano, Nave industrial, Playa o Estadio cambian la acústica</li>
+    </ul>
+    <button id="go">Abrir el club</button>
+  </div>
+</section>
+
+<nav class="hud" aria-label="Controles del DJ">
+  <label>Energía <input id="en" type="range" min="0" max="1" step="0.01" value="0.6"></label>
+  <label>Filtro <input id="fl" type="range" min="0" max="1" step="0.01" value="1"></label>
+  <button id="build">Build</button>
+  <button id="drop">Drop</button>
+  <button data-t="0" aria-pressed="true">A</button>
+  <button data-t="1" aria-pressed="false">B</button>
+  <select id="room" aria-label="Sala">
+    <option value="0">Sótano</option><option value="1">Nave industrial</option><option value="2">Playa</option><option value="3">Estadio</option>
+  </select>
+  <button id="mute">Silencio</button>
+</nav>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const cv = $('cv'), g = cv.getContext('2d');
+  const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  // two tracks: techno (A) and house (B)
+  const TRACKS = [
+    { name: 'A', bpm: 128, root: 36, kick: 'x...x...x...x...', clap: '....x.......x...', hat: '..x...x...x...x.', bass: [0, 0, 12, 0, 0, 12, 0, 3, 0, 0, 12, 0, 0, 7, 0, 10], bassOn: '.xx..xx..xx..x.x', stab: '...x.....x......', chord: [0, 3, 7, 10], wave: 'sawtooth' },
+    { name: 'B', bpm: 122, root: 41, kick: 'x...x...x...x...', clap: '....x.......x...', hat: '..x.xxx...x.x.xx', bass: [0, 0, 0, 12, 0, 0, 7, 0, 0, 0, 0, 12, 0, 5, 7, 0], bassOn: 'x..x..x...x..xx.', stab: 'x..x..x...x..x..', chord: [0, 4, 7, 11], wave: 'square' },
+  ];
+  const ROOMS = [
+    { n: 'sótano', len: .7, dec: 4, wet: .25, low: 6, high: -6, col: '#2a1630' },
+    { n: 'nave industrial', len: 3.2, dec: 2, wet: .45, low: 0, high: 2, col: '#1b2028' },
+    { n: 'playa', len: .25, dec: 6, wet: .06, low: -6, high: 3, col: '#2b2416' },
+    { n: 'estadio', len: 5.5, dec: 1.4, wet: .55, low: 3, high: -3, col: '#141b22' },
+  ];
+  let A = null, T = TRACKS[0], ti = 0, ri = 0, step = 0, nextT = 0, muted = false;
+  let energy = .6, filt = 1, building = 0, buildStart = 0, dropFlash = 0, boredom = 0, lastChange = 0, beatPulse = 0, lowTime = 0;
+  let W = 0, H = 0, dpr = 1, booth = { x: .5, y: .2 }, dragging = false;
+
+  function impulse(ctx, R) {
+    const len = Math.floor(ctx.sampleRate * R.len), b = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < len; i++) { const t = i / len; d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, R.dec) * (i < 40 && R.n === 'nave industrial' ? 2 : 1); } }
+    // early reflections
+    for (let k = 1; k < 6; k++) { const at = Math.floor(len * k * .05); if (at < len) { b.getChannelData(0)[at] += .5 / k; b.getChannelData(1)[at + 17 < len ? at + 17 : at] += .5 / k; } }
+    return b;
+  }
+
+  function boot() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const bus = ctx.createGain(), lp = ctx.createBiquadFilter(), lows = ctx.createBiquadFilter(), highs = ctx.createBiquadFilter(), pan = ctx.createStereoPanner(), verb = ctx.createConvolver(), wet = ctx.createGain(), comp = ctx.createDynamicsCompressor(), out = ctx.createGain();
+    lp.type = 'lowpass'; lp.Q.value = 4; lp.frequency.value = 18000;
+    lows.type = 'lowshelf'; lows.frequency.value = 180; highs.type = 'highshelf'; highs.frequency.value = 4000;
+    comp.threshold.value = -14; comp.ratio.value = 4; out.gain.value = .8;
+    bus.connect(lp); lp.connect(lows); lows.connect(highs); highs.connect(pan); pan.connect(comp);
+    highs.connect(verb); verb.connect(wet); wet.connect(comp); comp.connect(out); out.connect(ctx.destination);
+    const noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const nd = noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    A = { ctx, bus, lp, lows, highs, pan, verb, wet, out, noise };
+    setRoom(ri); applyFilter(); applyBooth();
+    nextT = ctx.currentTime + .1; setInterval(sched, 25);
+  }
+
+  function env(gn, t, a, peak, d) { gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(peak, t + a); gn.gain.exponentialRampToValueAtTime(.0001, t + a + d); }
+  function kick(t, v) { const c = A.ctx, o = c.createOscillator(), gn = c.createGain(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(45, t + .12); env(gn, t, .002, v, .35); o.connect(gn); gn.connect(A.bus); o.start(t); o.stop(t + .4); }
+  function noiseHit(t, v, f, type, d) { const c = A.ctx, s = c.createBufferSource(), fl = c.createBiquadFilter(), gn = c.createGain(); s.buffer = A.noise; fl.type = type; fl.frequency.value = f; env(gn, t, .001, v, d); s.connect(fl); fl.connect(gn); gn.connect(A.bus); s.start(t, Math.random() * .5); s.stop(t + d + .05); }
+  function tone(t, f, v, d, type, cut) { const c = A.ctx, o = c.createOscillator(), fl = c.createBiquadFilter(), gn = c.createGain(); o.type = type; o.frequency.value = f; fl.type = 'lowpass'; fl.frequency.setValueAtTime(cut, t); fl.frequency.exponentialRampToValueAtTime(cut * .3, t + d); fl.Q.value = 6; env(gn, t, .004, v, d); o.connect(fl); fl.connect(gn); gn.connect(A.bus); o.start(t); o.stop(t + d + .05); }
+
+  function sched() {
+    const c = A.ctx, sp = 60 / T.bpm / 4;
+    while (nextT < c.currentTime + .12) {
+      const s = step % 16, bar = Math.floor(step / 16), bProg = building ? clamp((c.currentTime - buildStart) / (sp * 64), 0, 1) : 0;
+      const e = building ? Math.max(energy, .5) : energy;
+      if (!building || bProg < .75) { if (T.kick[s] === 'x' && e > .05) kick(nextT, .9); }
+      if (T.hat[s] === 'x' && e > .2) noiseHit(nextT, .12 + e * .1, 8000, 'highpass', .05);
+      if (e > .7 && s % 2 === 1) noiseHit(nextT, .05, 10000, 'highpass', .02);
+      if (T.clap[s] === 'x' && e > .35) noiseHit(nextT, .35, 1500, 'bandpass', .14);
+      if (T.bassOn[s] === 'x' && e > .15 && !building) tone(nextT, mtof(T.root + T.bass[s]), .35, sp * 1.6, 'sawtooth', 300 + e * 900);
+      if (T.stab[s] === 'x' && e > .5 && (bar % 2 === 0 || e > .8)) T.chord.forEach((iv) => tone(nextT, mtof(T.root + 24 + iv), .07, sp * 2.5, T.wave, 2500));
+      if (building) {
+        const div = bProg < .5 ? 4 : bProg < .75 ? 2 : 1;
+        if (s % div === 0) noiseHit(nextT, .15 + bProg * .3, 1200 + bProg * 3000, 'bandpass', .08);
+        if (s === 0) tone(nextT, mtof(T.root + 36 + Math.floor(bProg * 12)), .06, sp * 16, 'sawtooth', 1500 + bProg * 6000);
+        if (bProg >= 1) doDrop();
+      }
+      if (s % 4 === 0) { const when = (nextT - c.currentTime) * 1000; setTimeout(() => { beatPulse = 1; }, Math.max(0, when)); }
+      nextT += sp; step++;
+    }
+  }
+
+  function changed(amount) { boredom = Math.max(0, boredom - amount); }
+  function setTrack(i) { ti = i; T = TRACKS[i]; document.querySelectorAll('[data-t]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.t === i))); $('bpm').textContent = T.bpm; $('trk').textContent = T.name; changed(.45); }
+  function setRoom(i) {
+    ri = i; const R = ROOMS[i]; $('roomN').textContent = R.n; changed(.15);
+    if (!A) return; A.verb.buffer = impulse(A.ctx, R); const t = A.ctx.currentTime;
+    A.wet.gain.setTargetAtTime(R.wet, t, .1); A.lows.gain.setTargetAtTime(R.low, t, .1); A.highs.gain.setTargetAtTime(R.high, t, .1);
+  }
+  function applyFilter() { if (!A) return; const f = 120 * Math.pow(150, filt); A.lp.frequency.setTargetAtTime(f, A.ctx.currentTime, .05); }
+  function applyBooth() { if (A) A.pan.pan.setTargetAtTime((booth.x - .5) * 1.6, A.ctx.currentTime, .1); }
+  function startBuild() { if (building || !A) return; building = 1; buildStart = A.ctx.currentTime; $('build').classList.add('on'); changed(.2); }
+  function doDrop() {
+    if (!A) return; building = 0; $('build').classList.remove('on');
+    energy = 1; $('en').value = 1; dropFlash = 1; changed(.8);
+    const t = A.ctx.currentTime + .02; kick(t, 1.2); noiseHit(t, .6, 3000, 'lowpass', 1.2);
+    dancers.forEach((d) => { d.hands = 4 + Math.random() * 3; if (d.state !== 'floor' && Math.random() < .6) d.state = 'floor', d.pick(); });
+  }
+
+  // dancers
+  const layout = () => ({ floor: { x: W * .12, y: H * .3, w: W * .76, h: H * .42 }, bar: { x: W * .04, y: H * .76, w: W * .42, h: H * .06 }, exit: { x: W * .82, y: H * .76, w: W * .14, h: H * .06 } });
+  function Dancer(i) {
+    this.state = Math.random() < .7 ? 'floor' : 'bar'; this.x = Math.random(); this.y = Math.random(); this.tx = this.x; this.ty = this.y;
+    this.ph = Math.random() * 6.28; this.hands = 0; this.patience = .4 + Math.random() * .6; this.hue = [16, 260, 330, 190, 45][i % 5];
+    this.pick = () => { this.tx = Math.random(); this.ty = Math.random(); };
+  }
+  const dancers = Array.from({ length: 120 }, (_, i) => new Dancer(i));
+  dancers.forEach((d) => { d.pick(); d.x = d.tx; d.y = d.ty; });
+
+  function size() { dpr = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0); }
+  addEventListener('resize', size); size();
+
+  function zoneXY(d, L) { const z = d.state === 'floor' ? L.floor : d.state === 'bar' ? L.bar : L.exit; return [z.x + d.tx * z.w, z.y + d.ty * z.h]; }
+
+  let last = performance.now(), hudT = 0;
+  function frame(now) {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    const L = layout();
+    if (A) {
+      // boredom rises without changes, faster at low energy
+      boredom = clamp(boredom + dt * (.012 + (1 - energy) * .01) - (building ? dt * .02 : 0), 0, 1);
+      if (energy < .3) lowTime += dt; else lowTime = Math.max(0, lowTime - dt * 2);
+      const pull = energy * .8 + (1 - boredom) * .5 - (lowTime > 6 ? .4 : 0);
+      dancers.forEach((d) => {
+        const r = Math.random();
+        if (d.state === 'floor' && (pull < d.patience * .9 || boredom > .85) && r < dt * .25) { d.state = boredom > .9 || lowTime > 14 ? 'exit' : 'bar'; d.pick(); }
+        else if (d.state === 'bar' && pull > d.patience + .1 && r < dt * .3) { d.state = 'floor'; d.pick(); }
+        else if (d.state === 'exit' && pull > d.patience + .3 && r < dt * .08) { d.state = 'bar'; d.pick(); }
+        if (r < dt * .1) d.pick();
+      });
+    }
+    dancers.forEach((d) => { const [x, y] = zoneXY(d, L); const k = 1 - Math.pow(.02, dt); d.x += (x - d.x) * k * (d.ix ? 1 : 0); d.y += (y - d.y) * k * (d.ix ? 1 : 0); if (!d.ix) { d.x = x; d.y = y; d.ix = 1; } d.hands = Math.max(0, d.hands - dt); });
+    const onFloor = dancers.filter((d) => d.state === 'floor').length, pct = Math.round(onFloor / dancers.length * 100);
+    if (now - hudT > 200) {
+      hudT = now; $('full').textContent = pct; $('bor').textContent = Math.round(boredom * 100); $('borBar').style.width = boredom * 100 + '%';
+      $('mood').textContent = dropFlash > .2 ? '¡LOCURA!' : pct > 80 && boredom < .5 ? 'EUFORIA' : pct > 55 ? 'BAILANDO' : pct > 30 ? 'TIBIO' : boredom > .8 ? 'ABURRIDOS' : 'VACÍO';
+    }
+    draw(L, dt, now);
+    beatPulse *= RM ? .5 : Math.pow(.02, dt); dropFlash = Math.max(0, dropFlash - dt * .4);
+    requestAnimationFrame(frame);
+  }
+
+  function rect(z, fill, label) { g.fillStyle = fill; g.fillRect(z.x, z.y, z.w, z.h); g.strokeStyle = 'rgba(236,232,244,.14)'; g.strokeRect(z.x + .5, z.y + .5, z.w - 1, z.h - 1); g.fillStyle = '#8a83a0'; g.font = '600 10px JetBrains Mono, monospace'; g.fillText(label, z.x + 6, z.y + 14); }
+  function draw(L, dt, now) {
+    const R = ROOMS[ri];
+    g.fillStyle = R.col; g.fillRect(0, 0, W, H);
+    rect(L.floor, `rgba(143,107,255,${.05 + beatPulse * .08 * energy + dropFlash * .2})`, 'PISTA');
+    // floor tiles light
+    if (!RM) { const n = 8; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { if (((i + j + step) % 5) === 0) { g.fillStyle = `rgba(255,90,54,${.05 * beatPulse * energy})`; g.fillRect(L.floor.x + i * L.floor.w / n, L.floor.y + j * L.floor.h / n, L.floor.w / n - 1, L.floor.h / n - 1); } } }
+    rect(L.bar, 'rgba(62,224,143,.08)', 'BARRA'); rect(L.exit, 'rgba(255,90,54,.08)', 'SALIDA');
+    // booth
+    const bx = booth.x * W, by = booth.y * H, bw = Math.min(110, W * .3);
+    g.fillStyle = 'rgba(236,232,244,.06)'; g.beginPath(); g.arc(bx, by, Math.max(W, H) * .5 * (.5 + energy * .5), 0, 6.28); g.fill();
+    g.fillStyle = '#ece8f4'; g.fillRect(bx - bw / 2, by - 14, bw, 28); g.fillStyle = '#07060b'; g.font = '600 11px JetBrains Mono, monospace'; g.textAlign = 'center'; g.fillText('CABINA DJ', bx, by + 4); g.textAlign = 'start';
+    // dancers
+    const bob = beatPulse * energy;
+    dancers.forEach((d) => {
+      const dist = Math.hypot(d.x - bx, d.y - by) / Math.max(W, H), loud = clamp(1.2 - dist * 1.6, .2, 1);
+      const r = 4 + (d.state === 'floor' ? bob * 3 * loud * (RM ? .3 : 1) : 0);
+      const jx = RM || d.state !== 'floor' ? 0 : Math.sin(now / 300 + d.ph) * 2 * energy;
+      g.fillStyle = `hsla(${d.hue},80%,${d.state === 'floor' ? 50 + loud * 20 : 40}%,${d.state === 'exit' ? .4 : .95})`;
+      g.beginPath(); g.arc(d.x + jx, d.y, r, 0, 6.28); g.fill();
+      if (d.hands > 0 && d.state === 'floor') { g.strokeStyle = g.fillStyle; g.lineWidth = 1.5; const up = 7 + (RM ? 0 : bob * 3); g.beginPath(); g.moveTo(d.x + jx - 3, d.y - 2); g.lineTo(d.x + jx - 5, d.y - up); g.moveTo(d.x + jx + 3, d.y - 2); g.lineTo(d.x + jx + 5, d.y - up); g.stroke(); }
+    });
+    if (dropFlash > 0 && !RM) { g.fillStyle = `rgba(255,90,54,${dropFlash * .15})`; g.fillRect(0, 0, W, H); }
+  }
+  requestAnimationFrame(frame);
+
+  // booth drag (mouse + touch via pointer events)
+  function pt(e) { return [e.clientX / W, e.clientY / H]; }
+  cv.addEventListener('pointerdown', (e) => { const [x, y] = pt(e); if (Math.abs(x - booth.x) * W < 70 && Math.abs(y - booth.y) * H < 30) { dragging = true; cv.setPointerCapture(e.pointerId); cv.style.cursor = 'grabbing'; } });
+  cv.addEventListener('pointermove', (e) => { if (!dragging) return; const [x, y] = pt(e); booth.x = clamp(x, .1, .9); booth.y = clamp(y, .1, .85); applyBooth(); });
+  ['pointerup', 'pointercancel'].forEach((ev) => cv.addEventListener(ev, () => { if (dragging) changed(.05); dragging = false; cv.style.cursor = 'grab'; }));
+
+  $('en').addEventListener('input', (e) => { const v = +e.target.value; if (Math.abs(v - energy) > .05) changed(.03); energy = v; });
+  $('fl').addEventListener('input', (e) => { filt = +e.target.value; applyFilter(); changed(.01); });
+  $('build').addEventListener('click', startBuild);
+  $('drop').addEventListener('click', doDrop);
+  document.querySelectorAll('[data-t]').forEach((b) => b.addEventListener('click', () => setTrack(+b.dataset.t)));
+  $('room').addEventListener('change', (e) => setRoom(+e.target.value));
+  $('mute').addEventListener('click', () => { muted = !muted; $('mute').setAttribute('aria-pressed', String(muted)); if (A) A.out.gain.setTargetAtTime(muted ? 0 : .8, A.ctx.currentTime, .05); });
+  $('mute').setAttribute('aria-pressed', 'false');
+  $('go').addEventListener('click', () => { if (A) return; boot(); $('intro').hidden = true; });
+})();
+</script>
