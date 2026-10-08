@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Túnel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --void: #07060b; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --line: rgba(236,232,244,.14); --panel: rgba(12,10,18,.94);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { background: var(--void); color: var(--ink); font-family: var(--f-mono); overflow: hidden; }
+canvas#cv { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+a { color: var(--dim); }
+.back { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: 16px; z-index: 5; font-size: 11px; letter-spacing: .1em; text-decoration: none; color: var(--dim); padding: 4px 0; }
+.back:hover, .back:focus-visible { color: var(--ink); }
+.intro { position: fixed; inset: 0; display: grid; place-items: center; padding: 48px 16px 16px; background: radial-gradient(circle at 50% 55%, rgba(143,107,255,.18), transparent 60%), var(--void); z-index: 4; overflow-y: auto; }
+.intro > div { max-width: 640px; width: 100%; display: grid; gap: 16px; justify-items: start; }
+.intro h1 { font: 900 clamp(52px, 14vw, 140px)/.84 var(--f-disp); letter-spacing: -.01em; margin: 0; text-transform: uppercase; }
+.intro h1 span { color: var(--heat); }
+.intro p { margin: 0; color: var(--dim); font-size: 13px; line-height: 1.7; max-width: 56ch; }
+.intro b { color: var(--ink); font-weight: 600; }
+.intro .row { display: flex; flex-wrap: wrap; gap: 8px; }
+.drop { border: 1px dashed var(--line); padding: 14px; font-size: 12px; color: var(--dim); width: 100%; }
+body.dragging .drop { border-color: var(--heat); color: var(--ink); }
+#status { font-size: 12px; color: var(--uv); min-height: 1.4em; }
+button, .btn { font: 600 12px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 10px 12px; cursor: pointer; display: inline-block; }
+button:hover, .btn:hover { border-color: var(--uv); }
+button:focus-visible, .btn:focus-within, input:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+.hot { border-color: var(--heat); color: var(--heat); font-size: 14px; padding: 14px 18px; }
+.hot:hover { background: var(--heat); color: var(--void); }
+.btn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.hud { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; background: linear-gradient(transparent, rgba(7,6,11,.9) 35%); }
+.hud input[type=range] { flex: 1 1 140px; min-width: 0; accent-color: var(--heat); height: 28px; }
+.time { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.read { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); left: 16px; right: 120px; z-index: 2; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); pointer-events: none; font-variant-numeric: tabular-nums; }
+.read b { color: var(--ink); font-weight: 600; }
+.read .big { font: 900 clamp(26px, 6vw, 48px)/1 var(--f-disp); color: var(--ink); letter-spacing: .02em; text-transform: uppercase; }
+@media (max-width: 560px) { .hud button { padding: 9px 8px; font-size: 11px; letter-spacing: .06em; } }
+canvas#cv { cursor: grab; }
+</style>
+<canvas id="cv" aria-label="Túnel generado por la pista"></canvas>
+<a class="back" href="experiencias.html">← Experiencias</a>
+<div class="read" id="read" hidden><div class="big" id="world">Mundo</div><div id="nm"></div><div>graves <b id="vl">0</b> · brillo <b id="vc">0</b></div></div>
+<section class="intro" id="intro"><div>
+  <h1>Túnel<br><span>sonoro</span></h1>
+  <p>Vuela por un túnel que construye tu tema. Los <b>graves</b> abren y cierran las paredes, los <b>hi-hats</b> lanzan chispas, los <b>medios</b> pintan el color y el <b>brillo</b> del sonido mueve el horizonte. Cada pista genera su propio mundo, siempre el mismo para la misma pista.</p>
+  <p>Arrastra o mueve el dedo para mirar alrededor. Espacio: play/pausa. Flechas: ±5 s.</p>
+    <div class="row">
+      <button class="hot" id="demo">Usar demo</button>
+      <label class="btn">Elegir audio<input type="file" id="file" accept="audio/*"></label>
+    </div>
+    <div class="drop">o arrastra aquí un archivo de audio (mp3, wav, ogg…). No sale de tu navegador.</div>
+    <div id="status" role="status"></div>
+</div></section>
+<nav class="hud" id="hud" hidden aria-label="Reproducción">
+  <button id="play" aria-pressed="false">Play</button>
+  <input type="range" id="seek" min="0" max="1000" value="0" aria-label="Posición en la pista">
+  <span class="time" id="time">0:00 / 0:00</span>
+  <button id="new">Otra pista</button>
+</nav>
+<script>
+const $ = s => document.querySelector(s);
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let AC = null;
+function ac() { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); return AC; }
+const fmt = t => { t = Math.max(0, t || 0); return Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0'); };
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function hashBuffer(buf) { const d = buf.getChannelData(0); let h = 2166136261 ^ d.length; const step = Math.max(1, Math.floor(d.length / 4096)); for (let i = 0; i < d.length; i += step) { h ^= (d[i] * 32768) | 0; h = Math.imul(h, 16777619); } return h >>> 0; }
+
+async function demoTrack() {
+  const sr = 44100, D = 30, oc = new OfflineAudioContext(2, sr * D, sr);
+  const b = 60 / 124, sec = t => t < 7.7 ? 0 : t < 15.5 ? 1 : t < 21.3 ? 2 : 3; // intro, subida, break, drop
+  const master = oc.createGain(); master.connect(oc.destination);
+  master.gain.setValueAtTime(.7, 0); master.gain.setValueAtTime(.7, D - 1.2); master.gain.linearRampToValueAtTime(0, D - .05);
+  const nb = oc.createBuffer(1, sr, sr), nd = nb.getChannelData(0); for (let i = 0; i < sr; i++) nd[i] = Math.random() * 2 - 1;
+  const hp = oc.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 7000; hp.connect(master);
+  const bp = oc.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = .8; bp.connect(master);
+  const noise = (t, len, v, dest) => { const s = oc.createBufferSource(), g = oc.createGain(); s.buffer = nb; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + len); s.connect(g).connect(dest); s.start(t, Math.random() * .5); s.stop(t + len + .02); };
+  for (let t = 0; t < D - .5; t += b) { const s = sec(t); if (s === 2) continue;
+    const o = oc.createOscillator(), g = oc.createGain(); o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(42, t + .12);
+    g.gain.setValueAtTime(s === 3 ? 1 : .75, t); g.gain.exponentialRampToValueAtTime(.001, t + .45); o.connect(g).connect(master); o.start(t); o.stop(t + .5); }
+  for (let t = b / 4; t < D - .5; t += b / 4) { const s = sec(t), ph = Math.round(t / b * 4) % 4;
+    if (s === 2) continue; if (s === 0 && ph !== 2) continue; if (s === 1 && ph % 2 === 1) continue;
+    noise(t, ph === 2 ? .09 : .04, ph === 2 ? .35 : .18, hp); }
+  for (let t = 15.5; t < 21.3; t += b) { if (t > 19.4) for (let k = 0; k < 4; k++) noise(t + k * b / 4, .08, .15 + (t - 19.4) * .2, bp); }
+  for (let t = 3 * b; t < D - .5; t += 2 * b) { const s = sec(t); if (s === 2 || s === 3 && t > 21.3 && t < 21.4) continue; noise(t, .18, s === 3 ? .5 : .3, bp); }
+  const notes = [55, 55, 65.4, 49];
+  for (let t = b / 2, k = 0; t < D - .5; t += b, k++) { const s = sec(t); if (s === 0 || s === 2) continue;
+    const o = oc.createOscillator(), f = oc.createBiquadFilter(), g = oc.createGain(); o.type = 'sawtooth'; o.frequency.value = notes[(k >> 2) % 4];
+    f.type = 'lowpass'; f.frequency.setValueAtTime(s === 3 ? 900 : 400, t); f.frequency.exponentialRampToValueAtTime(120, t + .2);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.35, t + .01); g.gain.exponentialRampToValueAtTime(.001, t + b * .45);
+    o.connect(f).connect(g).connect(master); o.start(t); o.stop(t + b * .5); }
+  for (let t = 21.3; t < D - 1; t += 4 * b) { const o = oc.createOscillator(), g = oc.createGain(); o.frequency.value = (Math.round((t - 21.3) / (4 * b)) % 2) ? 31 : 36;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.5, t + .05); g.gain.setValueAtTime(.5, t + 3 * b); g.gain.linearRampToValueAtTime(0, t + 4 * b - .02);
+    o.connect(g).connect(master); o.start(t); o.stop(t + 4 * b); }
+  const pf = oc.createBiquadFilter(); pf.type = 'lowpass'; pf.frequency.setValueAtTime(600, 15.5); pf.frequency.linearRampToValueAtTime(3500, 21.3); pf.connect(master);
+  [220, 261.6, 329.6, 440, 164.8].forEach((fr, i) => { const o = oc.createOscillator(), g = oc.createGain(); o.type = 'triangle'; o.frequency.value = fr; o.detune.value = (i - 2) * 6;
+    g.gain.setValueAtTime(0, 15.5); g.gain.linearRampToValueAtTime(.07, 17); g.gain.setValueAtTime(.07, 21.2); g.gain.linearRampToValueAtTime(.035, 21.6); g.gain.setValueAtTime(.035, D - 1);
+    o.connect(g).connect(pf); o.start(15.5); o.stop(D); });
+  return oc.startRendering();
+}
+
+function analyze(buf) {
+  const sr = buf.sampleRate, n = buf.length, fps = 50, hop = Math.floor(sr / fps), N = Math.ceil(n / hop);
+  const c0 = buf.getChannelData(0), c1 = buf.numberOfChannels > 1 ? buf.getChannelData(1) : c0;
+  const A = f => 1 - Math.exp(-2 * Math.PI * f / sr);
+  const a120 = A(120), a50 = A(50), a300 = A(300), a2k = A(2000), a5k = A(5000);
+  let l1 = 0, l2 = 0, s1 = 0, s2 = 0, m3 = 0, m2 = 0, h5 = 0;
+  const F = k => new Float32Array(N);
+  const rms = F(), low = F(), sub = F(), mid = F(), high = F(), cen = F(), nov = F(), hat = F();
+  for (let f = 0; f < N; f++) {
+    let er = 0, el = 0, es = 0, em = 0, eh = 0; const i0 = f * hop, i1 = Math.min(n, i0 + hop);
+    for (let i = i0; i < i1; i++) { const x = (c0[i] + c1[i]) * .5;
+      l1 += a120 * (x - l1); l2 += a120 * (l1 - l2); s1 += a50 * (x - s1); s2 += a50 * (s1 - s2);
+      m3 += a300 * (x - m3); m2 += a2k * (x - m2); h5 += a5k * (x - h5);
+      const m = m2 - m3, h = x - h5; er += x * x; el += l2 * l2; es += s2 * s2; em += m * m; eh += h * h; }
+    const L = Math.max(1, i1 - i0); rms[f] = Math.sqrt(er / L); low[f] = Math.sqrt(el / L); sub[f] = Math.sqrt(es / L); mid[f] = Math.sqrt(em / L); high[f] = Math.sqrt(eh / L);
+    cen[f] = (low[f] * 0 + mid[f] * .5 + high[f] * 1) / (low[f] + mid[f] + high[f] + 1e-6);
+  }
+  const norm = a => { const s = Array.from(a).sort((x, y) => x - y), p = s[Math.floor(s.length * .98)] || 1; for (let i = 0; i < a.length; i++) a[i] = Math.min(1.5, a[i] / (p || 1)); };
+  [rms, low, sub, mid, high].forEach(norm);
+  const lg = v => Math.log(1e-3 + v);
+  for (let f = 1; f < N; f++) { nov[f] = Math.max(0, lg(low[f]) - lg(low[f - 1])) + .5 * Math.max(0, lg(mid[f]) - lg(mid[f - 1])) + .5 * Math.max(0, lg(high[f]) - lg(high[f - 1]));
+    hat[f] = Math.max(0, high[f] - high[f - 1]); }
+  norm(nov); norm(hat); { const s = Array.from(cen).sort(), lo = s[Math.floor(s.length * .05)], hi = s[Math.floor(s.length * .95)] || 1; for (let i = 0; i < N; i++) cen[i] = clamp((cen[i] - lo) / (hi - lo + 1e-6), 0, 1); }
+  return { fps, N, dur: buf.duration, rms, low, sub, mid, high, cen, nov, hat, at(arr, t) { return arr[clamp(Math.floor(t * fps), 0, N - 1)]; } };
+}
+
+class Player {
+  constructor() { this.buf = null; this.src = null; this.t0 = 0; this.off = 0; this.playing = false; this.onend = null; this.dest = null; }
+  play(off) { const c = ac(); this.stop(); off = clamp(off ?? this.off, 0, this.buf.duration - .01);
+    const s = c.createBufferSource(); s.buffer = this.buf; s.connect(this.dest || c.destination); s.start(0, off);
+    this.src = s; this.t0 = c.currentTime - off; this.off = off; this.playing = true;
+    s.onended = () => { if (this.src === s) { this.src = null; this.playing = false; this.off = this.buf.duration; this.onend && this.onend(); } };
+  }
+  stop() { if (this.src) { const s = this.src; this.src = null; try { s.stop(); } catch (e) {} } }
+  pause() { if (!this.playing) return; this.off = this.time(); this.playing = false; this.stop(); }
+  time() { return this.playing ? Math.min(this.buf.duration, AC.currentTime - this.t0) : this.off; }
+  seek(t) { t = clamp(t, 0, this.buf.duration); if (this.playing) this.play(t); else this.off = t; }
+  toggle() { if (this.playing) this.pause(); else this.play(this.off >= this.buf.duration - .05 ? 0 : this.off); }
+}
+
+function setupLoader(onBuffer) {
+  const st = $('#status'); let busy = false;
+  async function take(getBuf, name) {
+    if (busy) return; busy = true; st.textContent = 'Preparando ' + name + '…';
+    try { const buf = await getBuf(); st.textContent = 'Analizando…'; await new Promise(r => setTimeout(r, 30)); await onBuffer(buf, name); st.textContent = ''; }
+    catch (e) { st.textContent = 'No se pudo leer ese audio. Prueba con otro archivo o con la demo.'; console.warn(e); }
+    busy = false;
+  }
+  $('#demo').addEventListener('click', () => { ac(); take(demoTrack, 'la demo'); });
+  const file = f => { if (!f) return; ac(); take(async () => ac().decodeAudioData(await f.arrayBuffer()), f.name); };
+  $('#file').addEventListener('change', e => file(e.target.files[0]));
+  addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('dragging'); });
+  addEventListener('dragleave', e => { if (!e.relatedTarget) document.body.classList.remove('dragging'); });
+  addEventListener('drop', e => { e.preventDefault(); document.body.classList.remove('dragging'); file(e.dataTransfer.files[0]); });
+}
+
+function setupTransport(player, onSeek) {
+  const pb = $('#play'), sk = $('#seek'), tm = $('#time');
+  pb.addEventListener('click', () => player.toggle());
+  sk.addEventListener('input', () => { player.seek(sk.value / 1000 * player.buf.duration); onSeek && onSeek(); });
+  addEventListener('keydown', e => { if (!player.buf || $('#intro') && !$('#intro').hidden || e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
+    if (e.code === 'Space' && e.target.tagName !== 'BUTTON') { e.preventDefault(); player.toggle(); }
+    if (e.key === 'ArrowRight' && e.target !== sk) { player.seek(player.time() + 5); onSeek && onSeek(); }
+    if (e.key === 'ArrowLeft' && e.target !== sk) { player.seek(player.time() - 5); onSeek && onSeek(); } });
+  return () => { if (!player.buf) return; const t = player.time(); if (document.activeElement !== sk || player.playing) sk.value = Math.round(t / player.buf.duration * 1000);
+    tm.textContent = fmt(t) + ' / ' + fmt(player.buf.duration); pb.textContent = player.playing ? 'Pausa' : 'Play'; pb.setAttribute('aria-pressed', player.playing); };
+}
+function fitCanvas(cv) { const d = Math.min(2, devicePixelRatio || 1), W = innerWidth, H = innerHeight; cv.width = W * d; cv.height = H * d; const g = cv.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); return { W, H, g }; }
+const cv = $('#cv'); let V = fitCanvas(cv); addEventListener('resize', () => V = fitCanvas(cv));
+const player = new Player(); let AN = null, W0 = null, sparks = [], look = { x: 0, y: 0 }, lookT = { x: 0, y: 0 };
+const upd = setupTransport(player, () => sparks = []);
+setupLoader(async (buf, nm) => { player.pause(); player.buf = buf; player.off = 0; AN = analyze(buf);
+  const seed = hashBuffer(buf), r = mulberry(seed);
+  W0 = { seed, sides: 5 + Math.floor(r() * 6), twist: (r() - .5) * .18, spin: (r() - .5) * .6, hue: r() * 360, hueSpan: 60 + r() * 160, curveA: .2 + r() * .6, curveB: .1 + r() * .5, stripe: 3 + Math.floor(r() * 6), round: r() < .3 };
+  if (W0.round) W0.sides = 24;
+  $('#world').textContent = 'Mundo #' + seed.toString(16).toUpperCase().padStart(8, '0').slice(0, 6); $('#nm').textContent = nm;
+  $('#intro').hidden = true; $('#hud').hidden = false; $('#read').hidden = false; sparks = []; player.play(0); });
+$('#new').addEventListener('click', () => { player.pause(); $('#intro').hidden = false; $('#hud').hidden = true; $('#read').hidden = true; });
+const pt = e => { lookT.x = (e.clientX / V.W - .5) * 2; lookT.y = (e.clientY / V.H - .5) * 2; };
+cv.addEventListener('pointermove', pt); cv.addEventListener('pointerdown', pt); cv.addEventListener('pointerleave', () => { lookT.x = lookT.y = 0; });
+
+const K = 70, DT = .06, SP = 1;
+const sm = (arr, t) => { if (t < 0 || t > AN.dur) return 0; const f = t * AN.fps; let s = 0, c = 0; for (let i = -3; i <= 3; i++) { const k = Math.floor(f) + i; if (k >= 0 && k < AN.N) { s += arr[k]; c++; } } return c ? s / c : 0; };
+let last = performance.now(), lastHat = 0;
+function frame(now) { const dt = Math.min(.05, (now - last) / 1000); last = now; upd(); const g = V.g, W = V.W, H = V.H;
+  if (!AN) { g.fillStyle = '#07060b'; g.fillRect(0, 0, W, H); requestAnimationFrame(frame); return; }
+  const t = player.time(), w = W0; look.x += (lookT.x - look.x) * .06; look.y += (lookT.y - look.y) * .06;
+  const cen = sm(AN.cen, t), F = Math.min(W, H) * .9;
+  const vx = W / 2 - look.x * W * .2, vy = H * (.5 - (cen - .5) * .45) - look.y * H * .15;
+  g.fillStyle = `hsl(${w.hue},40%,${3 + sm(AN.rms, t) * 5}%)`; g.fillRect(0, 0, W, H);
+  const base = t / DT, frac = base - Math.floor(base), rings = [];
+  for (let k = K; k >= 0; k--) { const tt = (Math.floor(base) + k) * DT, z = (k - frac) * SP + .6;
+    const lo = sm(AN.low, tt), md = sm(AN.mid, tt), rm = sm(AN.rms, tt);
+    const R = 1.4 + lo * 1.6 + (RM ? 0 : Math.sin(tt * 7) * .05), ox = Math.sin(tt * w.curveA) * 1.6 - Math.sin(t * w.curveA) * 1.6, oy = Math.cos(tt * w.curveB) * 1 - Math.cos(t * w.curveB) * 1;
+    const rot = tt * w.spin + k * w.twist, pts = [];
+    for (let i = 0; i < w.sides; i++) { const a = rot + i / w.sides * 6.283; pts.push([vx + (ox + Math.cos(a) * R) * F / z, vy + (oy + Math.sin(a) * R) * F / z]); }
+    rings.push({ k, z, pts, hue: (w.hue + md * w.hueSpan) % 360, lit: 20 + rm * 45, st: (Math.floor(base) + k) % w.stripe === 0, lo }); }
+  for (let j = 1; j < rings.length; j++) { const a = rings[j - 1], b = rings[j], fog = clamp(1 - b.z / (K * SP), 0, 1);
+    for (let i = 0; i < w.sides; i++) { const i2 = (i + 1) % w.sides;
+      g.fillStyle = `hsla(${b.hue + i * 4},80%,${b.lit * (i % 2 ? .7 : 1) * fog}%,1)`;
+      g.beginPath(); g.moveTo(a.pts[i][0], a.pts[i][1]); g.lineTo(a.pts[i2][0], a.pts[i2][1]); g.lineTo(b.pts[i2][0], b.pts[i2][1]); g.lineTo(b.pts[i][0], b.pts[i][1]); g.closePath(); g.fill(); }
+    if (b.st) { g.strokeStyle = `hsla(${b.hue + 180},100%,75%,${fog * (.3 + b.lo * .7)})`; g.lineWidth = 1 + 3 * fog; g.beginPath(); b.pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.stroke(); } }
+  const h = player.playing ? AN.at(AN.hat, t) : 0;
+  if (h > .45 && now - lastHat > 60) { lastHat = now; const n = RM ? 2 : 6 + h * 14 | 0, rr = mulberry(Math.floor(t * 50) ^ w.seed);
+    for (let i = 0; i < n; i++) { const a = rr() * 6.283, R = 1.2 + rr() * 1.2; sparks.push({ x: Math.cos(a) * R, y: Math.sin(a) * R, z: K * SP * .5 + rr() * 10, hue: (w.hue + 180 + rr() * 60) % 360 }); } }
+  sparks = sparks.filter(s => s.z > .3 && sparks.length < 900);
+  for (const s of sparks) { s.z -= dt * (player.playing ? 26 : 0); const x = vx + s.x * F / s.z, y = vy + s.y * F / s.z, r = Math.max(.6, 6 / s.z * Math.min(W, H) / 400);
+    g.fillStyle = `hsla(${s.hue},100%,75%,${clamp(1.2 - s.z / 40, 0, 1)})`; g.fillRect(x - r, y - r, r * 2, r * 2); }
+  $('#vl').textContent = Math.round(sm(AN.low, t) * 100); $('#vc').textContent = Math.round(cen * 100);
+  requestAnimationFrame(frame); }
+requestAnimationFrame(frame);
+</script>
