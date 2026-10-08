@@ -1,4 +1,4 @@
-<title>Nexsound Transiciones</title>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style><title>Nexsound Sellos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"><style>/* Nexsound · estilo común. Layout: mesa de trabajo — cabecera de herramienta, columna de entrada y banco de resultados. */
 :root {
   --bg: #EEF1EC; --surface: #F8FAF6; --sunk: #E3E8E2; --ink: #18211C; --muted: #5E6C64; --line: #CDD5CF;
@@ -109,46 +109,49 @@ table.data tr:last-child td { border-bottom: 0; }
 footer.nx { font-size: 12px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 14px; }
 footer.nx a { color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-</style>
+</style></head><body>
 <style>
-.mixmap { width: 100%; height: 130px; display: block; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+.tabs button { font: 600 14px/1 var(--f-body); padding: 11px 14px; border: 0; background: none; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.hero { display: grid; gap: 16px; padding-block: 10px; }
+.hero h1 { font-size: clamp(40px, 8vw, 84px); }
+.feat { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.feat div { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 16px; display: grid; gap: 6px; align-content: start; }
+.feat b { font: 700 17px/1.2 var(--f-display); }
+.feat span { color: var(--muted); font-size: 14px; }
+.feat .soon { border-style: dashed; }
+.steps-h { display: flex; gap: 8px; flex-wrap: wrap; }
+.steps-h span { font: 600 12px/1 var(--f-mono); padding: 6px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.steps-h span.on { border-color: var(--accent); color: var(--accent); }
 .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 @media (max-width: 560px) { .two { grid-template-columns: minmax(0, 1fr); } }
+.badge { display: inline-flex; gap: 6px; align-items: center; font: 600 12px/1 var(--f-mono); color: var(--accent); border: 1px solid var(--accent); padding: 5px 8px; border-radius: 99px; }
+.badge svg { width: 13px; height: 13px; }
+.labelhead { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; gap: 16px; align-items: center; }
+@media (max-width: 560px) { .labelhead { grid-template-columns: 64px minmax(0, 1fr); } .labelhead > :last-child { grid-column: 1 / -1; } }
+.logo { width: 84px; height: 84px; border-radius: 12px; object-fit: cover; background: var(--sunk); display: block; }
+.status { font: 600 11px/1 var(--f-mono); padding: 4px 7px; border-radius: 3px; border: 1px solid currentColor; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.st-ok { color: var(--good); } .st-wait { color: var(--warn); } .st-no { color: var(--danger); } .st-info { color: var(--accent); }
+.qc { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; font-size: 14px; }
+.qc li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; }
+.stars button { background: none; border: 0; cursor: pointer; font-size: 18px; color: var(--line); padding: 0 1px; }
+.stars button.on { color: var(--signal); }
+.pub { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--surface); }
+.pub .cover { height: 160px; background: linear-gradient(135deg, var(--accent), var(--signal)); display: grid; place-items: end start; padding: 16px; color: #fff; }
+.pub .cover h2 { color: #fff; font-size: 28px; letter-spacing: 0; text-transform: none; }
+.pub .body { padding: 16px; display: grid; gap: 14px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.card { border: 1px solid var(--line); border-radius: var(--r); padding: 12px; display: grid; gap: 4px; background: var(--surface); }
+.card b { font-size: 15px; } .card span { font-size: 13px; color: var(--muted); }
+.mono { font-family: var(--f-mono); font-size: 12px; word-break: break-all; }
+.empty { color: var(--muted); font-size: 14px; padding: 12px 0; }
 </style>
 <div class="wrap">
   <div class="top"><a class="brand" href="index.html"><b>Nexsound</b> · Herramientas</a><a class="btn small" href="index.html">Todas las herramientas</a></div>
-  <header class="tool">
-    <h1>Transiciones</h1>
-    <p class="lede">Une dos temas como lo haría un DJ: iguala el tempo del segundo al primero sin cambiarle el tono, los cuadra compás con compás, hace el cambio de graves a mitad de mezcla y te dice si las tonalidades casan. Escucha la transición y llévate el mashup o el tramo de mezcla.</p>
-  </header>
-  <div class="grid">
-    <div class="col">
-      <section class="panel">
-        <h2>Temas</h2>
-        <label class="drop" id="drop-a" for="in-a"><strong>Tema A (sale)</strong><small>MP3, WAV…</small></label><input type="file" id="in-a" accept="audio/*" hidden><div class="file" id="name-a"></div>
-        <label class="drop" id="drop-b" for="in-b"><strong>Tema B (entra)</strong><small>MP3, WAV…</small></label><input type="file" id="in-b" accept="audio/*" hidden><div class="file" id="name-b"></div>
-        <div class="progress" id="prog" hidden><i></i></div>
-      </section>
-      <section class="panel">
-        <h2>Mezcla</h2>
-        <label class="field"><span>Largo de la mezcla</span><div class="seg" id="len" role="group" aria-label="Compases de mezcla"><button data-v="8" aria-pressed="false">8 compases</button><button data-v="16" aria-pressed="true">16</button><button data-v="32" aria-pressed="false">32</button></div></label>
-        <label class="field"><span>A termina en el compás <output id="o-out"></output></span><input type="range" id="out" min="8" max="100" value="64" step="4"></label>
-        <label class="field"><span>B entra desde su compás <output id="o-in"></output></span><input type="range" id="inb" min="0" max="64" value="0" step="4"></label>
-        <label class="field"><span>Estilo</span><select id="style"><option value="bass">Cambio de graves (clásico)</option><option value="fade">Fundido largo</option><option value="cut">Corte en el compás</option><option value="echo">Salida con eco</option></select></label>
-        <label class="field"><span>Transponer B <output id="o-tr"></output></span><input type="range" id="tr" min="-3" max="3" value="0"></label>
-        <button class="btn primary" id="go" disabled>Hacer la transición</button>
-      </section>
-    </div>
-    <div class="col">
-      <section class="panel">
-        <div class="facts"><div class="fact"><span>Tema A</span><b id="fa">—</b><small id="fa2"></small></div><div class="fact"><span>Tema B</span><b id="fb">—</b><small id="fb2"></small></div><div class="fact"><span>Tonalidad</span><b id="fk">—</b><small id="fk2"></small></div><div class="fact"><span>Ajuste de tempo</span><b id="ft">—</b><small>a B, sin cambiar el tono</small></div></div>
-        <canvas class="mixmap" id="map" aria-label="Mapa de la mezcla: volumen de A y B y cambio de graves"></canvas>
-        <div class="row"><button class="play" id="play" aria-label="Escuchar la transición" disabled></button><span class="small muted">Suena desde 8 compases antes de que entre B</span></div>
-        <div class="row"><button class="btn primary" id="dl-mix" disabled>Tramo de mezcla (WAV)</button><button class="btn" id="dl-full" disabled>Mashup completo A → B (WAV)</button></div>
-      </section>
-      <footer class="nx"><span>Nexsound · todo se procesa en tu navegador</span><a href="despiece.html">Despiece</a> <a href="master.html">Master</a> <a href="samplelab.html">Sample Lab</a> <a href="bpm.html">BPM y Tono</a> <a href="afinador.html">Afinador de voz</a> <a href="ritmos.html">Ritmos</a> <a href="comparador.html">Comparador</a> <a href="clips.html">Clips</a> <a href="visualizador.html">Visualizador</a> <a href="splits.html">Reparto</a> <a href="radar.html">Radar</a> <a href="setcam.html">Set Cam</a> <a href="obs.html">Directo OBS</a> <a href="tracklist.html">Tracklist</a> <a href="transiciones.html">Transiciones</a> <a href="ordenset.html">Orden de set</a> <a href="sistemas.html">Prueba de sistemas</a> <a href="portadas.html">Portadas</a> <a href="lanzamiento.html">Lanzamiento</a> <a href="epk.html">EPK</a> <a href="rider.html">Rider y contrato</a> <a href="cache.html">Caché y gira</a> <a href="samples.html">Samples</a> <a href="practica.html">Práctica</a> <a href="sellos.html">Sellos</a></footer>
-    </div>
-  </div>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Secciones"></nav>
+  <main id="view"></main>
+  <footer class="nx"><span>Nexsound · todo se procesa en tu navegador</span><a href="despiece.html">Despiece</a> <a href="master.html">Master</a> <a href="samplelab.html">Sample Lab</a> <a href="bpm.html">BPM y Tono</a> <a href="afinador.html">Afinador de voz</a> <a href="ritmos.html">Ritmos</a> <a href="comparador.html">Comparador</a> <a href="clips.html">Clips</a> <a href="visualizador.html">Visualizador</a> <a href="splits.html">Reparto</a> <a href="radar.html">Radar</a> <a href="setcam.html">Set Cam</a> <a href="obs.html">Directo OBS</a> <a href="tracklist.html">Tracklist</a> <a href="transiciones.html">Transiciones</a> <a href="ordenset.html">Orden de set</a> <a href="sistemas.html">Prueba de sistemas</a> <a href="portadas.html">Portadas</a> <a href="lanzamiento.html">Lanzamiento</a> <a href="epk.html">EPK</a> <a href="rider.html">Rider y contrato</a> <a href="cache.html">Caché y gira</a> <a href="samples.html">Samples</a> <a href="practica.html">Práctica</a> <a href="sellos.html">Sellos</a></footer>
 </div>
 <script type="text/plain" id="engine-src">/* Nexsound Despiece — motor de análisis, separación y regeneración de sonido.
    JavaScript puro (sin dependencias). Funciona en un Web Worker y en Node para pruebas. */
@@ -2441,91 +2444,224 @@ self.onmessage = async (e) => { try {
 </script>
 <script>
 (() => {
-  const { $ } = NX; const S = { A: null, B: null }, AN = { A: null, B: null }; let mixLen = 16, result = null;
-  async function load(k, f) { $('prog').hidden = false; try { const a = await NX.decodeFile(f[0]); a.name = f[0].name; S[k] = a; $('name-' + k.toLowerCase()).textContent = f[0].name; AN[k] = await NX.engineWorker('analyzeLite', [new Float32Array(a.L), new Float32Array(a.R), a.sr], (s, p) => ($('prog').firstChild.style.width = Math.round((p || 0) * 100) + '%')); facts(); } catch (e) { NX.toast(e.message); } finally { $('prog').hidden = true; } }
-  NX.dropzone($('drop-a'), $('in-a'), (f) => load('A', f)); NX.dropzone($('drop-b'), $('in-b'), (f) => load('B', f));
-  const f1 = (v) => v.toFixed(1).replace('.', ',');
-  function facts() {
-    const a = AN.A, b = AN.B;
-    if (a) { $('fa').textContent = f1(a.grid.bpm) + ' BPM'; $('fa2').textContent = a.key.name + ' · ' + NX.camelot(a.key.root, a.key.mode); $('out').max = a.grid.nBars; if (+$('out').value > a.grid.nBars) $('out').value = a.grid.nBars; }
-    if (b) { $('fb').textContent = f1(b.grid.bpm) + ' BPM'; $('fb2').textContent = b.key.name + ' · ' + NX.camelot(b.key.root, b.key.mode); $('inb').max = Math.max(0, b.grid.nBars - 32); }
-    if (a && b) {
-      const ratio = a.grid.bpm / b.grid.bpm, ok = Math.abs(ratio - 1) < 0.12; $('ft').textContent = (ratio > 1 ? '+' : '') + f1((ratio - 1) * 100) + ' %';
-      const tr = +$('tr').value, root = (b.key.root + tr + 12) % 12, cb = NX.camelot(root, b.key.mode), ca = NX.camelot(a.key.root, a.key.mode), comp = NX.camelotCompatible(ca, cb);
-      $('fk').innerHTML = comp ? '<span class="pill good">casan</span>' : '<span class="pill warn">chocan</span>'; $('fk2').textContent = comp ? `${ca} → ${cb}` : `${ca} → ${cb}: prueba a transponer B o un corte`;
-      if (!ok) NX.toast('Los tempos están muy lejos (más de un 12 %): sonará forzado.'); $('go').disabled = false;
-      // salida por defecto: el inicio del último tramo fuerte de A, en múltiplo de 8
-      const db = a.barDb, N = db.length; let outB = N - 8; for (let i = N - 16; i > N / 2; i -= 8) { const m1 = db.slice(i - 8, i).reduce((s, v) => s + v, 0) / 8, m2 = db.slice(i, i + 8).reduce((s, v) => s + v, 0) / 8; if (m1 - m2 > 3) { outB = i; break; } } $('out').value = Math.max(mixLen, Math.round(outB / 4) * 4);
-    }
-    outs(); drawMap();
+  const { $, esc } = NX; const KEY = 'nexsound-sellos-v1';
+  const CHECK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0l2 2.2 3-.2.3 3L16 7l-1.6 2.3.6 3-3 .7L10.5 16 8 14.6 5.5 16 4 13l-3-.7.6-3L0 7l2.7-2 .3-3 3 .2z" fill="currentColor"/><path d="M5 8.3l2 2 4-4.3" stroke="#fff" stroke-width="1.6" fill="none"/></svg>';
+  // ---------- estado (prototipo: se guarda en este navegador)
+  const EXAMPLE = () => ({ example: true, label: { id: 'nexsound-records', name: 'Nexsound Records', style: 'Afro house · tech house · electrónica latina', country: 'España', founder: { name: 'Nexsound', doc: 'X1234567L', kind: 'persona' }, founded: new Date().toISOString(), logo: null, bio: 'Sello de electrónica latina para pistas que no paran.', split: 50, hash: '' },
+    artists: [{ id: 1, name: 'Nexsound', email: 'hola@nexsound.es', role: 'Fundador', contract: 'artista', split: 50, status: 'firmado', signedAt: new Date().toISOString(), signName: 'Nexsound' }, { id: 2, name: 'Artista invitado (ejemplo)', email: 'artista@ejemplo.com', role: 'Artista', contract: 'licencia', split: 60, status: 'pendiente' }],
+    demos: [{ id: 1, artist: 'Productora Ejemplo', email: 'demo@ejemplo.com', title: 'Noche Larga', style: 'Afro house', note: 'Me encanta el sonido del sello.', score: 4, status: 'nueva', at: new Date().toISOString() }],
+    releases: [{ id: 1, title: 'Conéctate', artists: 'Nexsound', date: new Date(Date.now() + 28 * 864e5).toISOString().slice(0, 10), type: 'Single', isrc: '', upc: '', status: 'en preparación', qc: null, hash: '' }],
+    products: [{ id: 1, title: 'Conéctate · WAV 24 bits', price: 1.99, kind: 'Tema' }, { id: 2, title: 'Pack de samples Nexsound Vol. 1', price: 14.99, kind: 'Samples' }, { id: 3, title: 'Club de fans (mensual)', price: 4.99, kind: 'Suscripción' }],
+    team: [{ name: 'Nexsound', role: 'Fundador' }], income: [], contests: [] });
+  let S; try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) {} if (!S) S = EXAMPLE();
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { NX.toast('No se pudo guardar en este navegador.'); } };
+  const today = () => new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+  const fdate = (iso) => (iso ? new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+  const money = (v) => (+v || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+  async function sha256(data) { const buf = typeof data === 'string' ? new TextEncoder().encode(data) : data; const h = await crypto.subtle.digest('SHA-256', buf); return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, '0')).join(''); }
+  // códigos: el ISRC y el UPC oficiales los asigna la agencia o la distribuidora; aquí se generan con su formato para el prototipo
+  function isrc() { const y = String(new Date().getFullYear()).slice(2), n = String((S.releases.length * 7 + Date.now() % 1000) % 100000).padStart(5, '0'); return `ES-NX0-${y}-${n}`; }
+  function upc() { const d = Array.from({ length: 11 }, (_, i) => (i === 0 ? 8 : Math.floor(Math.random() * 10))); const s = d.reduce((a, v, i) => a + v * (i % 2 ? 1 : 3), 0); return d.join('') + ((10 - (s % 10)) % 10); }
+  // ---------- navegación
+  const TABS = [['inicio', 'Inicio'], ['crear', 'Crear sello'], ['panel', 'Panel'], ['artistas', 'Artistas'], ['demos', 'Demos'], ['lanzamientos', 'Lanzamientos'], ['tienda', 'Tienda'], ['royalties', 'Royalties'], ['remix', 'Concursos'], ['publica', 'Página pública'], ['ideas', 'Más ideas']];
+  let tab = (location.hash || '#inicio').slice(1); if (!TABS.some((t) => t[0] === tab)) tab = 'inicio';
+  function nav() { $('tabs').innerHTML = TABS.map(([k, n]) => `<button role="tab" aria-selected="${k === tab}" data-t="${k}">${n}</button>`).join(''); }
+  $('tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; go(b.dataset.t); });
+  function go(t) { tab = t; try { history.replaceState(null, '', '#' + t); } catch (e) {} nav(); render(); window.scrollTo({ top: 0 }); }
+  const V = {};
+  function render() { $('view').innerHTML = V[tab](); (V[tab + '_'] || (() => {}))(); }
+  const exampleNote = () => (S.example ? '<p class="small muted"><span class="tag">Ejemplo</span> Estás viendo un sello de ejemplo. Crea el tuyo en «Crear sello».</p>' : '');
+  // ---------- INICIO
+  V.inicio = () => `<section class="hero"><span class="brand"><b>Nexsound</b> · Sellos</span><h1>Tu sello, oficial, en 10 minutos.</h1>
+    <p class="lede">Crea tu sello discográfico, quedas registrado como su fundador, ficha artistas con contrato firmado, recibe demos, lanza música con control de calidad, véndela en tu tienda y reparte los ingresos con liquidaciones claras. Todo desde nexsound.es.</p>
+    <div class="row"><button class="btn primary" data-go="crear">Crear mi sello</button><button class="btn" data-go="panel">Ver un sello de ejemplo</button></div></section>
+    <section class="col"><h2>Todo lo que tiene un sello profesional</h2><div class="feat">
+      ${[['Fundación certificada', 'Certificado con fecha, fundador y huella digital (SHA-256) que demuestra quién creó el sello y cuándo.'], ['Fichajes con contrato', 'Licencia por tema, EP o contrato de artista, con reparto pactado y firma electrónica.'], ['Buzón de demos', 'Formulario público para recibir temas; el equipo los escucha, puntúa y responde.'], ['Control de calidad', 'Cada máster se revisa solo: volumen LUFS, pico real, formato y portada 3000 × 3000.'], ['Códigos y huella', 'ISRC por tema, UPC por lanzamiento y huella del máster como prueba de existencia.'], ['Tienda propia', 'Vende temas, packs de samples y suscripciones de fans.'], ['Royalties claros', 'Importa los informes de tu distribuidora y reparte automáticamente; liquidación en PDF por artista.'], ['Concursos de remix', 'Publica los stems, pon fecha límite y elige el mejor remix para lanzarlo en el sello.'], ['Página pública', 'Catálogo, artistas y tienda en nexsound.es/sello/tu-sello.']].map(([a, b]) => `<div><b>${a}</b><span>${b}</span></div>`).join('')}
+    </div></section>
+    <section class="panel"><h2>Cómo funciona</h2><ol class="small" style="margin:0;padding-left:20px;display:grid;gap:6px"><li>Creas el sello y verificas tu identidad: quedas como fundador oficial.</li><li>Invitas a tus artistas; cada uno firma su contrato con el reparto pactado.</li><li>Subes cada lanzamiento: la web revisa la calidad y genera los códigos.</li><li>Se distribuye a las tiendas y se vende en tu tienda de Nexsound.</li><li>Cada mes, el dinero se reparte solo y cada artista recibe su liquidación.</li></ol>
+    <p class="note">Prototipo: los pagos, la verificación de identidad y la distribución a tiendas se conectarán con proveedores oficiales (Stripe, firma electrónica y una distribuidora con conexión oficial a las tiendas). Los datos de esta demostración se guardan solo en tu navegador.</p></section>`;
+  V.inicio_ = () => document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => go(b.dataset.go)));
+  // ---------- CREAR SELLO (asistente)
+  let step = 0, draft = { name: '', style: '', country: 'España', bio: '', fname: '', doc: '', kind: 'persona', logo: null, split: 50, terms: false };
+  V.crear = () => {
+    const st = ['Sello', 'Fundador', 'Imagen', 'Condiciones'].map((s, i) => `<span class="${i === step ? 'on' : ''}">${i + 1} · ${s}</span>`).join('');
+    const body = [
+      `<label class="field"><span>Nombre del sello</span><input type="text" id="d-name" value="${esc(draft.name)}" placeholder="Ej.: Luna Negra Records"></label><div id="namecheck" class="small"></div>
+       <label class="field"><span>Estilo</span><input type="text" id="d-style" value="${esc(draft.style)}" placeholder="Ej.: reggaetón, house, techno"></label>
+       <div class="two"><label class="field"><span>País</span><input type="text" id="d-country" value="${esc(draft.country)}"></label><label class="field"><span>Reparto por defecto para el artista</span><select id="d-split">${[50, 60, 70, 80].map((v) => `<option value="${v}" ${draft.split === v ? 'selected' : ''}>${v} % artista · ${100 - v} % sello</option>`).join('')}</select></label></div>
+       <label class="field"><span>Descripción corta</span><textarea id="d-bio" rows="3">${esc(draft.bio)}</textarea></label>`,
+      `<div class="two"><label class="field"><span>Nombre completo del fundador</span><input type="text" id="d-fname" value="${esc(draft.fname)}"></label><label class="field"><span>Titular</span><select id="d-kind"><option value="persona" ${draft.kind === 'persona' ? 'selected' : ''}>Persona (autónomo)</option><option value="empresa" ${draft.kind === 'empresa' ? 'selected' : ''}>Empresa</option></select></label></div>
+       <label class="field"><span>${draft.kind === 'empresa' ? 'CIF' : 'DNI o NIE'}</span><input type="text" id="d-doc" value="${esc(draft.doc)}" placeholder="${draft.kind === 'empresa' ? 'B12345678' : '12345678Z'}"></label><div id="doccheck" class="small"></div>
+       <p class="note">En la versión real, la identidad se confirma con foto del documento y un selfie a través de un proveedor de verificación. Aquí solo se comprueba que el formato del documento es válido.</p>`,
+      `<label class="drop" id="d-drop" for="d-logo"><strong>Sube el logo</strong><small>PNG o JPG cuadrado. Si no, se genera uno con tus iniciales.</small></label><input type="file" id="d-logo" accept="image/*" hidden>
+       <div class="row"><img class="logo" id="d-prev" alt="Logo del sello"><button class="btn small" id="d-gen">Generar con iniciales</button></div>`,
+      `<div class="panel" style="background:var(--sunk)"><b>${esc(draft.name || 'Tu sello')}</b><span class="small muted">${esc(draft.style)} · ${esc(draft.country)} · fundado por ${esc(draft.fname)} (${esc(draft.doc)})</span></div>
+       <label class="row small"><input type="checkbox" id="d-terms" ${draft.terms ? 'checked' : ''}> Declaro que soy el fundador de este sello, que los datos son reales y que tengo derecho a usar este nombre.</label>
+       <p class="note">Al crear el sello se emite un certificado de fundación con la fecha y una huella digital (SHA-256) de todos estos datos. Proteger el nombre como marca se hace aparte, en la OEPM (España) o la EUIPO (Europa).</p>`][step];
+    return `<section class="col"><header class="tool"><h1>Crear sello</h1><p class="lede">Cuatro pasos y tu sello queda creado con tu nombre como fundador.</p></header>
+      <div class="panel"><div class="steps-h">${st}</div>${body}<div class="err" id="d-err" hidden></div>
+      <div class="row">${step ? '<button class="btn" id="d-back">Atrás</button>' : ''}<button class="btn primary" id="d-next">${step === 3 ? 'Crear mi sello' : 'Siguiente'}</button></div></div></section>`;
+  };
+  function validDoc(v, kind) { v = v.toUpperCase().replace(/[\s-]/g, ''); const L = 'TRWAGMYFPDXBNJZSQVHLCKE'; if (kind === 'empresa') return /^[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J]$/.test(v); let m = v.match(/^(\d{8})([A-Z])$/); if (m) return L[+m[1] % 23] === m[2]; m = v.match(/^([XYZ])(\d{7})([A-Z])$/); if (m) return L[+(('XYZ'.indexOf(m[1])) + m[2]) % 23] === m[3]; return false; }
+  function monogram(name) { const c = document.createElement('canvas'); c.width = c.height = 512; const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 512, 512); g.addColorStop(0, NX.css('--accent') || '#0F7A62'); g.addColorStop(1, '#101513'); x.fillStyle = g; x.fillRect(0, 0, 512, 512); const ini = (name || 'NX').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join(''); x.fillStyle = '#fff'; x.font = '800 220px Archivo, Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(ini, 256, 270); return c.toDataURL('image/png'); }
+  V.crear_ = () => {
+    const err = (m) => { $('d-err').textContent = m; $('d-err').hidden = !m; };
+    const read = () => { [['d-name', 'name'], ['d-style', 'style'], ['d-country', 'country'], ['d-bio', 'bio'], ['d-fname', 'fname'], ['d-doc', 'doc']].forEach(([id, k]) => { if ($(id)) draft[k] = $(id).value.trim(); }); if ($('d-kind')) draft.kind = $('d-kind').value; if ($('d-split')) draft.split = +$('d-split').value; if ($('d-terms')) draft.terms = $('d-terms').checked; };
+    if ($('d-name')) { const chk = () => { const v = $('d-name').value.trim(), slug = NX.cleanName(v).toLowerCase(); $('namecheck').innerHTML = !v ? '' : v.length < 3 ? '<span class="st-no">Mínimo 3 letras.</span>' : `<span class="st-ok">Disponible en Nexsound:</span> <span class="mono">nexsound.es/sello/${esc(slug)}</span>`; }; $('d-name').addEventListener('input', chk); chk(); }
+    if ($('d-doc')) { const chk = () => { const ok = validDoc($('d-doc').value, $('d-kind').value); $('doccheck').innerHTML = $('d-doc').value ? (ok ? '<span class="st-ok">Formato válido.</span>' : '<span class="st-no">El documento no es válido: revisa la letra de control.</span>') : ''; }; $('d-doc').addEventListener('input', chk); $('d-kind').addEventListener('change', () => { read(); render(); }); chk(); }
+    if ($('d-prev')) { if (!draft.logo) draft.logo = monogram(draft.name); $('d-prev').src = draft.logo; $('d-gen').addEventListener('click', () => { draft.logo = monogram(draft.name); $('d-prev').src = draft.logo; }); NX.dropzone($('d-drop'), $('d-logo'), (f) => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = c.height = 512; const s = Math.max(512 / im.width, 512 / im.height); c.getContext('2d').drawImage(im, (512 - im.width * s) / 2, (512 - im.height * s) / 2, im.width * s, im.height * s); draft.logo = c.toDataURL('image/png'); $('d-prev').src = draft.logo; }; im.src = URL.createObjectURL(f[0]); }); }
+    $('d-back') && $('d-back').addEventListener('click', () => { read(); step--; render(); });
+    $('d-next').addEventListener('click', async () => {
+      read();
+      if (step === 0 && draft.name.length < 3) return err('Pon un nombre de al menos 3 letras.');
+      if (step === 1 && (!draft.fname || !validDoc(draft.doc, draft.kind))) return err('Escribe tu nombre completo y un documento válido.');
+      if (step === 3) {
+        if (!draft.terms) return err('Tienes que aceptar la declaración para crear el sello.');
+        const founded = new Date().toISOString(), id = NX.cleanName(draft.name).toLowerCase();
+        const label = { id, name: draft.name, style: draft.style, country: draft.country, bio: draft.bio, founder: { name: draft.fname, doc: draft.doc.toUpperCase(), kind: draft.kind }, founded, logo: draft.logo, split: draft.split };
+        label.hash = await sha256(JSON.stringify({ id, name: label.name, founder: label.founder, founded }));
+        S = { example: false, label, artists: [{ id: 1, name: draft.fname, email: '', role: 'Fundador', contract: 'artista', split: draft.split, status: 'firmado', signedAt: founded, signName: draft.fname }], demos: [], releases: [], products: [], team: [{ name: draft.fname, role: 'Fundador' }], income: [], contests: [] };
+        save(); step = 0; NX.toast('Sello creado: ' + label.name); go('panel'); return;
+      }
+      err(''); step++; render();
+    });
+  };
+  // ---------- PANEL
+  V.panel = () => {
+    const L = S.label, rel = S.releases, art = S.artists, inc = S.income.reduce((s, r) => s + r.amount, 0);
+    return `${exampleNote()}<section class="panel"><div class="labelhead"><img class="logo" src="${L.logo || monogram(L.name)}" alt="Logo de ${esc(L.name)}"><div><h1 style="font-size:clamp(28px,5vw,44px)">${esc(L.name)}</h1><div class="row small muted"><span class="badge">${CHECK} Sello verificado</span><span>Fundado por <b style="color:var(--ink)">${esc(L.founder.name)}</b> el ${fdate(L.founded)}</span></div></div><div class="row"><button class="btn" id="cert">Certificado de fundación</button></div></div>
+      <p class="muted" style="margin:0">${esc(L.bio || '')}</p><div class="small muted">Huella del sello: <span class="mono">${esc(L.hash || 'se genera al crear el sello')}</span></div></section>
+      <div class="facts"><div class="fact"><span>Artistas</span><b>${art.length}</b><small>${art.filter((a) => a.status === 'firmado').length} con contrato firmado</small></div><div class="fact"><span>Lanzamientos</span><b>${rel.length}</b><small>${rel.filter((r) => r.status === 'publicado').length} publicados</small></div><div class="fact"><span>Demos</span><b>${S.demos.length}</b><small>${S.demos.filter((d) => d.status === 'nueva').length} sin escuchar</small></div><div class="fact"><span>Ingresos</span><b>${money(inc)}</b><small>importados</small></div></div>
+      <section class="panel"><h2>Siguientes pasos</h2><ul class="advice">${[
+        [art.some((a) => a.status !== 'firmado'), 'warn', 'Hay contratos pendientes de firma.', 'artistas'], [S.demos.some((d) => d.status === 'nueva'), 'info', 'Tienes demos sin escuchar.', 'demos'], [rel.some((r) => !r.qc), 'warn', 'Hay lanzamientos sin máster revisado.', 'lanzamientos'], [!S.products.length, 'info', 'Tu tienda está vacía: añade tu primer producto.', 'tienda'], [true, 'good', 'Comparte tu buzón de demos para recibir música.', 'publica']].filter((x) => x[0]).map(([, l, t, g]) => `<li><span class="pill ${l}">${l === 'good' ? 'idea' : l === 'warn' ? 'pendiente' : 'nuevo'}</span><span>${t} <a href="#${g}" data-go="${g}">Ir</a></span></li>`).join('')}</ul></section>
+      <section class="panel"><h2>Equipo</h2><div class="cards">${S.team.map((m) => `<div class="card"><b>${esc(m.name)}</b><span>${esc(m.role)}</span></div>`).join('')}</div>
+      <div class="two"><label class="field"><span>Nombre</span><input type="text" id="tm-name"></label><label class="field"><span>Rol</span><select id="tm-role"><option>A&R (elige la música)</option><option>Gestión de lanzamientos</option><option>Diseño</option><option>Contabilidad</option><option>Prensa y redes</option></select></label></div><button class="btn small" id="tm-add">Añadir al equipo</button></section>
+      <section class="panel"><h2>Datos</h2><div class="row"><button class="btn small" id="exp">Exportar todo (JSON)</button><label class="btn small" for="imp">Importar</label><input type="file" id="imp" accept=".json" hidden><button class="btn small" id="reset">Volver al ejemplo</button></div></section>`;
+  };
+  V.panel_ = () => {
+    document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); go(b.dataset.go); }));
+    $('cert').addEventListener('click', () => { const L = S.label; NX.save(`certificado_${L.id}.pdf`, NX.textPdf(['# CERTIFICADO DE FUNDACIÓN DE SELLO', '', `Sello: ${L.name}`, `Identificador: nexsound.es/sello/${L.id}`, `Estilo: ${L.style || '—'}`, `País: ${L.country || '—'}`, '', `Fundador: ${L.founder.name}`, `Documento: ${L.founder.doc} (${L.founder.kind})`, `Fecha de fundación: ${new Date(L.founded).toLocaleString('es-ES')}`, '', 'Huella digital (SHA-256) de los datos de fundación:', L.hash || '—', '', 'Esta huella permite comprobar que los datos no se han alterado desde la fecha indicada.', 'El registro del nombre como marca se tramita aparte en la OEPM o la EUIPO.', '', `Emitido por Nexsound el ${today()}.`], 'Certificado ' + L.name)); });
+    $('tm-add').addEventListener('click', () => { const n = $('tm-name').value.trim(); if (!n) return; S.team.push({ name: n, role: $('tm-role').value }); save(); render(); });
+    $('exp').addEventListener('click', () => NX.save(`sello_${S.label.id}.json`, JSON.stringify(S, null, 1)));
+    $('imp').addEventListener('change', async (e) => { try { const d = JSON.parse(await e.target.files[0].text()); if (!d.label) throw 0; S = d; save(); render(); NX.toast('Sello importado'); } catch (err) { NX.toast('Ese archivo no es un sello de Nexsound.'); } });
+    $('reset').addEventListener('click', () => { if ($('reset').dataset.c) { S = EXAMPLE(); save(); render(); } else { $('reset').dataset.c = 1; $('reset').textContent = 'Pulsa otra vez para borrar tu sello'; } });
+  };
+  // ---------- ARTISTAS
+  const CONTRACTS = { licencia: 'Licencia por tema (2 años)', ep: 'Contrato de EP o álbum', artista: 'Contrato de artista (2 años)' };
+  V.artistas = () => `${exampleNote()}<section class="panel"><h2>Artistas del sello</h2><div class="tablewrap"><table class="data"><thead><tr><th>Artista</th><th>Contrato</th><th class="num">Reparto artista</th><th>Estado</th><th></th></tr></thead><tbody>${S.artists.map((a) => `<tr><td><b>${esc(a.name)}</b><br><span class="small muted">${esc(a.email || '')} · ${esc(a.role)}</span></td><td>${CONTRACTS[a.contract]}</td><td class="num">${a.split} %</td><td><span class="status ${a.status === 'firmado' ? 'st-ok' : 'st-wait'}">${a.status}</span>${a.signedAt ? `<br><span class="small muted">${fdate(a.signedAt)}</span>` : ''}</td><td><div class="row"><button class="dl" data-c="${a.id}">Contrato PDF</button>${a.status !== 'firmado' ? `<button class="dl" data-s="${a.id}">Firmar</button>` : ''}</div></td></tr>`).join('')}</tbody></table></div></section>
+    <section class="panel"><h2>Fichar a un artista</h2><div class="two"><label class="field"><span>Nombre artístico</span><input type="text" id="a-name"></label><label class="field"><span>Email</span><input type="text" id="a-email" placeholder="se le envía la invitación"></label><label class="field"><span>Tipo de contrato</span><select id="a-type">${Object.entries(CONTRACTS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></label><label class="field"><span>Reparto para el artista <output id="o-split">${S.label.split} %</output></span><input type="range" id="a-split" min="30" max="90" step="5" value="${S.label.split}"></label></div>
+    <button class="btn primary" id="a-add">Enviar invitación y contrato</button><p class="note">El artista recibe el contrato, crea su cuenta, verifica su identidad y firma. La firma registra nombre, fecha y la huella del documento.</p></section>
+    <div id="signbox"></div>`;
+  function contractLines(a) {
+    const L = S.label;
+    return ['# ' + CONTRACTS[a.contract].toUpperCase(), '', `Entre ${L.name} (el SELLO), representado por ${L.founder.name}, y ${a.name} (el ARTISTA).`, '', '1. OBJETO. El ARTISTA cede al SELLO los derechos de explotación de las grabaciones (máster) incluidas en este acuerdo para su distribución, venta y promoción en todo el mundo, en formato digital y físico.', `2. DURACIÓN. ${a.contract === 'licencia' ? 'Dos años desde la publicación de cada tema; después los derechos vuelven al ARTISTA.' : a.contract === 'ep' ? 'Hasta la publicación del EP o álbum y los dos años siguientes.' : 'Dos años desde la firma, para todas las grabaciones que el ARTISTA entregue en ese periodo.'}`, `3. REPARTO. Los ingresos netos (tras comisiones de tiendas y distribuidora) se reparten ${a.split} % para el ARTISTA y ${100 - a.split} % para el SELLO.`, '4. LIQUIDACIONES. El SELLO enviará una liquidación mensual con el detalle por tema, tienda y país, y pagará en los 30 días siguientes.', '5. AUTORÍA. Los derechos de autor (composición y letra) siguen siendo del ARTISTA y se gestionan a través de su entidad de gestión.', '6. CRÉDITOS. El ARTISTA figurará siempre como autor e intérprete; el SELLO como titular del ℗.', '7. RESCISIÓN. Cualquier parte puede rescindir si la otra incumple y no lo corrige en 30 días tras aviso por escrito.', '', a.signedAt ? `Firmado electrónicamente por ${a.signName} el ${new Date(a.signedAt).toLocaleString('es-ES')}.` : 'Pendiente de firma.', a.docHash ? `Huella del documento: ${a.docHash}` : '', '', 'Plantilla orientativa: revisar con un abogado antes de usarla con artistas reales.'];
   }
-  const outs = () => { $('o-out').textContent = $('out').value; $('o-in').textContent = $('inb').value; $('o-tr').textContent = (+$('tr').value > 0 ? '+' : '') + $('tr').value + ' st'; };
-  ['out', 'inb'].forEach((id) => $(id).addEventListener('input', () => { outs(); drawMap(); })); $('tr').addEventListener('input', () => { outs(); if (AN.A && AN.B) facts(); });
-  $('len').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; mixLen = +b.dataset.v; [...$('len').children].forEach((x) => x.setAttribute('aria-pressed', x === b)); drawMap(); });
-
-  // WSOLA: cambia la duración sin cambiar el tono; transposición por remuestreo después
-  function process(a, b, opt, progress) {
-    const sr = a.sr, s = opt.tempo / Math.pow(2, opt.semis / 12); // velocidad de WSOLA: tras remuestrear al tono nuevo queda al tempo de A
-    const Wn = 2048, Ho = 512, Hi = Ho * s, tol = 384, n = b.L.length, outN = Math.floor(n / s) + Wn;
-    const w = new Float32Array(Wn); for (let i = 0; i < Wn; i++) w[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / Wn);
-    const L = new Float32Array(outN), R = new Float32Array(outN), ws = new Float32Array(outN); let prevPos = 0;
-    for (let o = 0, k = 0; o + Wn < outN; o += Ho, k++) {
-      const nominal = Math.round(k * Hi); let best = nominal;
-      if (k > 0) { let bv = -Infinity; const ref = prevPos + Ho; for (let d = -tol; d <= tol; d += 4) { const p = nominal + d; if (p < 0 || p + Wn >= n) continue; let c = 0; for (let i = 0; i < Wn; i += 16) c += (b.L[ref + i] + b.R[ref + i]) * (b.L[p + i] + b.R[p + i]); if (c > bv) { bv = c; best = p; } } }
-      if (best + Wn >= n) break; prevPos = best;
-      for (let i = 0; i < Wn; i++) { L[o + i] += b.L[best + i] * w[i]; R[o + i] += b.R[best + i] * w[i]; ws[o + i] += w[i]; }
-      if (k % 400 === 0) progress(0.5 * o / outN);
-    }
-    for (let i = 0; i < outN; i++) if (ws[i] > 1e-3) { L[i] /= ws[i]; R[i] /= ws[i]; }
-    let BL = L, BR = R;
-    if (opt.semis) { const r = Math.pow(2, opt.semis / 12), m = Math.floor(outN / r); BL = new Float32Array(m); BR = new Float32Array(m); for (let i = 0; i < m; i++) { const p = i * r, i0 = Math.floor(p), f = p - i0; BL[i] = L[i0] * (1 - f) + (L[i0 + 1] || 0) * f; BR[i] = R[i0] * (1 - f) + (R[i0 + 1] || 0) * f; } }
-    progress(0.6);
-    // montaje: B empieza (mezcla) compases antes del final de A
-    const aOut = Math.round((opt.aFirst + opt.outBar * opt.aBar) * sr), mixN = Math.round(opt.mixBars * opt.aBar * sr), aStart = aOut - mixN;
-    const bStart0 = Math.round(((opt.bFirst + opt.inBar * opt.bBar) / opt.tempo) * sr);
-    const total = aStart + (BL.length - bStart0), ML = new Float32Array(total), MR = new Float32Array(total);
-    const lp = (x) => NX.filt(NX.filt(x, NX.biquad('lowpass', 180, sr, 0.7)), NX.biquad('lowpass', 180, sr, 0.7));
-    const aSegL = a.L.subarray(aStart, aOut), aSegR = a.R.subarray(aStart, aOut), bSegL = BL.subarray(bStart0, bStart0 + mixN), bSegR = BR.subarray(bStart0, bStart0 + mixN);
-    const aLowL = lp(aSegL), aLowR = lp(aSegR), bLowL = lp(bSegL), bLowR = lp(bSegR);
-    for (let i = 0; i < aStart; i++) { ML[i] = a.L[i]; MR[i] = a.R[i]; }
-    for (let i = 0; i < mixN && aStart + i < total; i++) {
-      const p = i / mixN; let ga = 1, gb = 1, aLowKeep = 1, bLowKeep = 1;
-      if (opt.style === 'bass') { ga = p < 0.75 ? 1 : 1 - (p - 0.75) / 0.25; gb = p < 0.25 ? p / 0.25 : 1; const sw = NX.clamp((p - 0.5) / 0.03 + 0.5, 0, 1); aLowKeep = 1 - sw; bLowKeep = sw; }
-      else if (opt.style === 'fade') { ga = Math.cos(p * Math.PI / 2); gb = Math.sin(p * Math.PI / 2); }
-      else if (opt.style === 'cut') { ga = p < 1 - 1 / opt.mixBars ? 1 : 0; gb = p < 1 - 1 / opt.mixBars ? 0 : 1; }
-      else if (opt.style === 'echo') { ga = p < 0.5 ? 1 : 0; gb = p < 0.5 ? 0 : 1; }
-      const al = aSegL[i] - aLowL[i] * (1 - aLowKeep), ar = aSegR[i] - aLowR[i] * (1 - aLowKeep), bl = (bSegL[i] || 0) - (bLowL[i] || 0) * (1 - bLowKeep), br = (bSegR[i] || 0) - (bLowR[i] || 0) * (1 - bLowKeep);
-      ML[aStart + i] = al * ga + bl * gb; MR[aStart + i] = ar * ga + br * gb;
-    }
-    if (opt.style === 'echo') { const d = Math.round(opt.aBar / 4 * 3 * sr), half = aStart + Math.floor(mixN / 2); for (let r = 1; r <= 6; r++) for (let i = 0; i < opt.aBar * sr; i++) { const src = half - Math.round(opt.aBar * sr) + i, dst = half + r * d + i - Math.round(opt.aBar * sr); if (dst < total && src >= 0) { const g = Math.pow(0.55, r) * (1 - i / (opt.aBar * sr)); ML[dst] += a.L[src] * g * (r % 2 ? 1 : 0.5); MR[dst] += a.R[src] * g * (r % 2 ? 0.5 : 1); } } }
-    for (let i = aStart + mixN; i < total; i++) { const j = bStart0 + (i - aStart); ML[i] = BL[j] || 0; MR[i] = BR[j] || 0; }
-    progress(0.9); const lim = NX.limit(ML, MR, sr, -1, 80, 5);
-    return { L: lim.L, R: lim.R, sr, aStart, mixN };
+  V.artistas_ = () => {
+    $('a-split').addEventListener('input', () => ($('o-split').textContent = $('a-split').value + ' %'));
+    $('a-add').addEventListener('click', () => { const n = $('a-name').value.trim(); if (!n) return NX.toast('Pon el nombre del artista.'); S.artists.push({ id: Date.now(), name: n, email: $('a-email').value.trim(), role: 'Artista', contract: $('a-type').value, split: +$('a-split').value, status: 'pendiente' }); save(); render(); NX.toast('Invitación preparada para ' + n); });
+    document.querySelectorAll('[data-c]').forEach((b) => b.addEventListener('click', () => { const a = S.artists.find((x) => x.id == b.dataset.c); NX.save(`contrato_${NX.cleanName(a.name)}.pdf`, NX.textPdf(contractLines(a).flatMap((l) => (l.length > 95 && !l.startsWith('#') ? (l.match(/.{1,92}(\s|$)/g) || [l]) : [l])), 'Contrato ' + a.name)); }));
+    document.querySelectorAll('[data-s]').forEach((b) => b.addEventListener('click', () => { const a = S.artists.find((x) => x.id == b.dataset.s); $('signbox').innerHTML = `<section class="panel"><h2>Firma de ${esc(a.name)}</h2><pre class="small" style="white-space:pre-wrap;max-height:240px;overflow:auto;background:var(--sunk);padding:12px;border-radius:var(--r);margin:0">${esc(contractLines(a).join('\n'))}</pre><label class="field"><span>Escribe tu nombre completo para firmar</span><input type="text" id="sg-name"></label><label class="row small"><input type="checkbox" id="sg-ok"> He leído y acepto el contrato.</label><button class="btn primary" id="sg-go">Firmar</button></section>`; $('signbox').scrollIntoView({ behavior: 'smooth' }); $('sg-go').addEventListener('click', async () => { const nm = $('sg-name').value.trim(); if (!nm || !$('sg-ok').checked) return NX.toast('Escribe el nombre y acepta el contrato.'); a.signName = nm; a.signedAt = new Date().toISOString(); a.status = 'firmado'; a.docHash = await sha256(contractLines(a).join('\n')); save(); render(); NX.toast('Contrato firmado'); }); }));
+  };
+  // ---------- DEMOS
+  const demoAudio = {};
+  V.demos = () => `${exampleNote()}<section class="panel"><div class="row" style="justify-content:space-between"><h2>Buzón de demos</h2><span class="small muted">Los artistas envían desde la página pública</span></div>
+    ${S.demos.length ? `<div class="tablewrap"><table class="data"><thead><tr><th></th><th>Demo</th><th>Estilo</th><th>Puntuación</th><th>Estado</th><th></th></tr></thead><tbody>${S.demos.map((d) => `<tr><td>${demoAudio[d.id] ? `<button class="play" data-play="${d.id}" aria-label="Escuchar">${NX.ICON_PLAY}</button>` : ''}</td><td><b>${esc(d.title)}</b><br><span class="small muted">${esc(d.artist)} · ${fdate(d.at)}</span>${d.info ? `<br><span class="small muted">${esc(d.info)}</span>` : ''}</td><td>${esc(d.style || '')}</td><td><span class="stars">${[1, 2, 3, 4, 5].map((n) => `<button class="${n <= (d.score || 0) ? 'on' : ''}" data-star="${d.id}" data-n="${n}" aria-label="${n} estrellas">★</button>`).join('')}</span></td><td><span class="status ${d.status === 'aceptada' ? 'st-ok' : d.status === 'rechazada' ? 'st-no' : 'st-info'}">${d.status}</span></td><td><div class="row"><button class="dl" data-acc="${d.id}">Aceptar</button><button class="dl" data-rej="${d.id}">Rechazar</button></div></td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Aún no hay demos. Comparte el enlace de tu página pública.</p>'}</section>
+    <section class="panel"><h2>Probar el buzón (envía una demo)</h2>${demoForm()}</section>`;
+  function demoForm() { return `<div class="two"><label class="field"><span>Nombre artístico</span><input type="text" id="dm-artist"></label><label class="field"><span>Email</span><input type="text" id="dm-email"></label><label class="field"><span>Título</span><input type="text" id="dm-title"></label><label class="field"><span>Estilo</span><input type="text" id="dm-style"></label></div><label class="field"><span>Mensaje</span><textarea id="dm-note" rows="2"></textarea></label><label class="drop" id="dm-drop" for="dm-file"><strong>Adjunta el tema</strong><small>MP3 o WAV</small></label><input type="file" id="dm-file" accept="audio/*" hidden><div class="file" id="dm-fname"></div><button class="btn primary" id="dm-send">Enviar demo</button>`; }
+  function bindDemoForm() {
+    let file = null; NX.dropzone($('dm-drop'), $('dm-file'), (f) => { file = f[0]; $('dm-fname').textContent = file.name; });
+    $('dm-send').addEventListener('click', async () => { const t = $('dm-title').value.trim(), ar = $('dm-artist').value.trim(); if (!t || !ar) return NX.toast('Pon tu nombre y el título.'); const d = { id: Date.now(), artist: ar, email: $('dm-email').value.trim(), title: t, style: $('dm-style').value.trim(), note: $('dm-note').value.trim(), score: 0, status: 'nueva', at: new Date().toISOString() };
+      if (file) { try { const a = await NX.decodeFile(file); demoAudio[d.id] = a; const lo = NX.loudness(a.L, a.R, a.sr), an = NX.E.analyzeLite(a.L.subarray(0, a.sr * 90), a.R.subarray(0, a.sr * 90), a.sr); d.info = `${Math.round(an.grid.bpm)} BPM · ${an.key.name} · ${lo.I.toFixed(1).replace('.', ',')} LUFS · ${NX.fmtTime(a.L.length / a.sr)}`; } catch (e) { d.info = 'Audio no legible'; } }
+      S.demos.unshift(d); save(); render(); NX.toast('Demo recibida. ¡Gracias!'); });
   }
-  $('go').addEventListener('click', async () => {
-    const a = AN.A, b = AN.B; $('go').disabled = true; $('prog').hidden = false;
-    try {
-      const opt = { tempo: a.grid.bpm / b.grid.bpm, semis: +$('tr').value, mixBars: mixLen, outBar: +$('out').value, inBar: +$('inb').value, aBar: a.grid.bar, bBar: b.grid.bar, aFirst: a.grid.firstBar, bFirst: b.grid.firstBar, style: $('style').value };
-      result = await NX.task(process, [{ L: new Float32Array(S.A.L), R: new Float32Array(S.A.R), sr: S.A.sr }, { L: new Float32Array(S.B.L), R: new Float32Array(S.B.R), sr: S.B.sr }, opt], (p) => ($('prog').firstChild.style.width = Math.round(p * 100) + '%'));
-      ['play', 'dl-mix', 'dl-full'].forEach((id) => ($(id).disabled = false)); drawMap(); play();
-    } catch (e) { NX.toast(e.message); } finally { $('go').disabled = false; $('prog').hidden = true; }
-  });
-  function drawMap() {
-    const { x, w, h } = NX.setupCanvas($('map')); x.clearRect(0, 0, w, h); if (!AN.A) return;
-    const pad = 20, X = (p) => pad + p * (w - 2 * pad), st = $('style').value;
-    x.fillStyle = NX.css('--muted'); x.font = '11px ' + NX.css('--f-mono'); x.fillText('A', 4, 30); x.fillText('B', 4, 80);
-    const curve = (fn, y0, col) => { x.strokeStyle = col; x.lineWidth = 3; x.beginPath(); for (let i = 0; i <= 100; i++) { const p = i / 100, v = fn(p); i ? x.lineTo(X(p), y0 - v * 36) : x.moveTo(X(p), y0 - v * 36); } x.stroke(); };
-    curve((p) => (st === 'bass' ? (p < 0.75 ? 1 : 1 - (p - 0.75) / 0.25) : st === 'fade' ? Math.cos(p * Math.PI / 2) : p < (st === 'echo' ? 0.5 : 0.94) ? 1 : 0), 46, NX.css('--accent'));
-    curve((p) => (st === 'bass' ? (p < 0.25 ? p / 0.25 : 1) : st === 'fade' ? Math.sin(p * Math.PI / 2) : p < (st === 'echo' ? 0.5 : 0.94) ? 0 : 1), 96, NX.css('--signal'));
-    if (st === 'bass') { x.setLineDash([4, 3]); x.strokeStyle = NX.css('--ink'); x.beginPath(); x.moveTo(X(0.5), 6); x.lineTo(X(0.5), 100); x.stroke(); x.setLineDash([]); x.fillStyle = NX.css('--ink'); x.fillText('cambio de graves', X(0.5) + 4, 14); }
-    x.fillStyle = NX.css('--muted'); x.fillText(`${mixLen} compases · A sale en el ${$('out').value} · B entra desde su ${$('inb').value}`, pad, h - 6);
+  V.demos_ = () => {
+    bindDemoForm();
+    document.querySelectorAll('[data-star]').forEach((b) => b.addEventListener('click', () => { const d = S.demos.find((x) => x.id == b.dataset.star); d.score = +b.dataset.n; if (d.status === 'nueva') d.status = 'escuchada'; save(); render(); }));
+    document.querySelectorAll('[data-acc]').forEach((b) => b.addEventListener('click', () => { const d = S.demos.find((x) => x.id == b.dataset.acc); d.status = 'aceptada'; if (!S.artists.some((a) => a.name === d.artist)) S.artists.push({ id: Date.now(), name: d.artist, email: d.email, role: 'Artista', contract: 'licencia', split: S.label.split, status: 'pendiente' }); S.releases.push({ id: Date.now() + 1, title: d.title, artists: d.artist, date: '', type: 'Single', status: 'en preparación', qc: null }); save(); render(); NX.toast('Demo aceptada: se ha preparado el contrato y el lanzamiento.'); }));
+    document.querySelectorAll('[data-rej]').forEach((b) => b.addEventListener('click', () => { S.demos.find((x) => x.id == b.dataset.rej).status = 'rechazada'; save(); render(); }));
+    document.querySelectorAll('[data-play]').forEach((b) => b.addEventListener('click', () => { const a = demoAudio[b.dataset.play]; if (NX.player.current() === b.dataset.play) return NX.player.stop(); NX.player.play(a.L, a.R, a.sr, { id: b.dataset.play, onStop: () => { b.classList.remove('on'); b.innerHTML = NX.ICON_PLAY; } }); b.classList.add('on'); b.innerHTML = NX.ICON_STOP; }));
+  };
+  // ---------- LANZAMIENTOS con control de calidad real
+  V.lanzamientos = () => `${exampleNote()}<section class="panel"><h2>Lanzamientos</h2>${S.releases.length ? `<div class="tablewrap"><table class="data"><thead><tr><th>Lanzamiento</th><th>Fecha</th><th>Códigos</th><th>Calidad</th><th>Estado</th><th></th></tr></thead><tbody>${S.releases.map((r) => `<tr><td><b>${esc(r.title)}</b><br><span class="small muted">${esc(r.artists)} · ${r.type}</span></td><td>${r.date ? fdate(r.date + 'T12:00') : '—'}</td><td class="mono">${r.isrc ? `ISRC ${r.isrc}<br>UPC ${r.upc}` : '—'}</td><td>${r.qc ? `<span class="status ${r.qc.ok ? 'st-ok' : 'st-wait'}">${r.qc.ok ? 'aprobado' : 'revisar'}</span>` : '<span class="status st-info">sin máster</span>'}</td><td><span class="status ${r.status === 'publicado' ? 'st-ok' : 'st-info'}">${r.status}</span></td><td><div class="row"><button class="dl" data-qc="${r.id}">Subir máster</button>${r.qc && r.qc.ok && r.status !== 'publicado' ? `<button class="dl" data-pub="${r.id}">Enviar a tiendas</button>` : ''}${r.hash ? `<button class="dl" data-pass="${r.id}">Pasaporte</button>` : ''}</div></td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Aún no hay lanzamientos.</p>'}</section>
+    <section class="panel"><h2>Nuevo lanzamiento</h2><div class="two"><label class="field"><span>Título</span><input type="text" id="r-title"></label><label class="field"><span>Artistas</span><input type="text" id="r-art"></label><label class="field"><span>Fecha de salida</span><input type="date" id="r-date"></label><label class="field"><span>Formato</span><select id="r-type"><option>Single</option><option>EP</option><option>Álbum</option><option>Remix</option></select></label></div><button class="btn primary" id="r-add">Crear lanzamiento</button></section>
+    <div id="qcbox"></div>`;
+  V.lanzamientos_ = () => {
+    $('r-add').addEventListener('click', () => { const t = $('r-title').value.trim(); if (!t) return NX.toast('Pon el título.'); S.releases.push({ id: Date.now(), title: t, artists: $('r-art').value.trim() || S.label.name, date: $('r-date').value, type: $('r-type').value, status: 'en preparación', qc: null }); save(); render(); });
+    document.querySelectorAll('[data-qc]').forEach((b) => b.addEventListener('click', () => qcUI(S.releases.find((r) => r.id == b.dataset.qc))));
+    document.querySelectorAll('[data-pub]').forEach((b) => b.addEventListener('click', () => { const r = S.releases.find((x) => x.id == b.dataset.pub); r.status = 'publicado'; (r.history = r.history || []).push({ at: new Date().toISOString(), what: 'Enviado a tiendas' }); save(); render(); NX.toast('Lanzamiento marcado como enviado a tiendas (en la versión real, a través de la distribuidora).'); }));
+    document.querySelectorAll('[data-pass]').forEach((b) => b.addEventListener('click', () => { const r = S.releases.find((x) => x.id == b.dataset.pass); NX.save(`pasaporte_${NX.cleanName(r.title)}.pdf`, NX.textPdf(['# PASAPORTE DEL TEMA', '', `Título: ${r.title}`, `Artistas: ${r.artists}`, `Sello: ${S.label.name} (nexsound.es/sello/${S.label.id})`, `ISRC: ${r.isrc}   UPC: ${r.upc}`, '', '# Huella del máster (SHA-256)', r.hash, '', '# Control de calidad', ...(r.qc ? r.qc.items.map((i) => `${i.ok ? '[OK]' : '[!!]'} ${i.t}`) : []), '', '# Historia', ...(r.history || []).map((h) => `${new Date(h.at).toLocaleString('es-ES')} — ${h.what}`), '', 'Cualquiera puede comprobar que un archivo es este máster calculando su SHA-256 y comparándolo con esta huella.'], 'Pasaporte ' + r.title)); }));
+  };
+  function qcUI(r) {
+    $('qcbox').innerHTML = `<section class="panel"><h2>Máster y portada de «${esc(r.title)}»</h2><div class="two"><div><label class="drop" id="q-drop" for="q-file"><strong>Máster</strong><small>WAV o FLAC, 44,1 kHz o más</small></label><input type="file" id="q-file" accept="audio/*" hidden></div><div><label class="drop" id="q-cdrop" for="q-cover"><strong>Portada</strong><small>JPG o PNG, 3000 × 3000</small></label><input type="file" id="q-cover" accept="image/*" hidden></div></div><div class="progress" id="q-prog" hidden><i style="width:60%"></i></div><ul class="qc" id="q-list"></ul></section>`;
+    $('qcbox').scrollIntoView({ behavior: 'smooth' });
+    let audio = null, cover = null, file = null;
+    const run = async () => {
+      const items = [];
+      if (file && audio) { const lo = NX.loudness(audio.L, audio.R, audio.sr), ext = file.name.split('.').pop().toLowerCase(), dur = audio.L.length / audio.sr;
+        items.push({ ok: ['wav', 'flac', 'aif', 'aiff'].includes(ext), t: `Formato ${ext.toUpperCase()} ${['wav', 'flac', 'aif', 'aiff'].includes(ext) ? '(sin pérdida)' : ': las tiendas piden WAV o FLAC sin pérdida'}` });
+        items.push({ ok: lo.truePeak <= -0.9, t: `Pico real ${lo.truePeak.toFixed(1).replace('.', ',')} dBTP ${lo.truePeak <= -0.9 ? '' : '(déjalo en −1 dBTP para evitar distorsión al codificar)'}` });
+        items.push({ ok: lo.I >= -16 && lo.I <= -6, t: `Volumen ${lo.I.toFixed(1).replace('.', ',')} LUFS ${lo.I < -16 ? '(muy bajo)' : lo.I > -6 ? '(demasiado alto, sonará aplastado)' : ''}` });
+        items.push({ ok: dur > 30, t: `Duración ${NX.fmtTime(dur)}` });
+        let clip = 0; for (let i = 0; i < audio.L.length; i += 3) if (Math.abs(audio.L[i]) >= 0.999 || Math.abs(audio.R[i]) >= 0.999) clip++; items.push({ ok: clip < 20, t: clip < 20 ? 'Sin saturación digital' : `${clip} muestras saturadas` });
+        const head = audio.L.subarray(0, audio.sr * 0.05); let mx = 0; for (const v of head) mx = Math.max(mx, Math.abs(v)); items.push({ ok: mx < 0.5, t: mx < 0.5 ? 'Empieza limpio (sin cortes al inicio)' : 'El audio empieza de golpe: revisa que no esté cortado' });
+        r.hash = await sha256(await file.arrayBuffer()); items.push({ ok: true, t: 'Huella del máster registrada: ' + r.hash.slice(0, 16) + '…' }); }
+      else items.push({ ok: false, t: 'Falta el máster' });
+      if (cover) items.push({ ok: cover.w >= 3000 && cover.w === cover.h, t: `Portada ${cover.w} × ${cover.h} ${cover.w >= 3000 && cover.w === cover.h ? '' : '(tiene que ser cuadrada y de 3000 × 3000)'}` }); else items.push({ ok: false, t: 'Falta la portada (hazla en Portadas)' });
+      const ok = items.every((i) => i.ok); r.qc = { ok, items, at: new Date().toISOString() };
+      if (ok && !r.isrc) { r.isrc = isrc(); r.upc = upc(); }
+      (r.history = r.history || []).push({ at: new Date().toISOString(), what: ok ? 'Control de calidad aprobado' : 'Control de calidad con avisos' });
+      save(); $('q-list').innerHTML = items.map((i) => `<li><span class="status ${i.ok ? 'st-ok' : 'st-no'}">${i.ok ? 'ok' : 'revisar'}</span><span>${esc(i.t)}</span></li>`).join('') + (ok ? '<li><span class="status st-ok">listo</span><span>Aprobado. Códigos ISRC y UPC asignados (de prueba: los oficiales los asigna la distribuidora).</span></li>' : '');
+      setTimeout(() => { const keep = $('qcbox').innerHTML; render(); $('qcbox').innerHTML = keep; }, 50);
+    };
+    NX.dropzone($('q-drop'), $('q-file'), async (f) => { file = f[0]; $('q-prog').hidden = false; try { audio = await NX.decodeFile(file); } catch (e) { NX.toast(e.message); } $('q-prog').hidden = true; run(); });
+    NX.dropzone($('q-cdrop'), $('q-cover'), (f) => { const im = new Image(); im.onload = () => { cover = { w: im.naturalWidth, h: im.naturalHeight }; run(); }; im.src = URL.createObjectURL(f[0]); });
   }
-  $('style').addEventListener('change', drawMap);
-  function play() { if (!result) return; const a = Math.max(0, result.aStart - Math.round(8 * AN.A.grid.bar * result.sr)), b = Math.min(result.L.length, result.aStart + result.mixN + Math.round(8 * AN.A.grid.bar * result.sr)), btn = $('play'); NX.player.play(result.L.subarray(a, b), result.R.subarray(a, b), result.sr, { id: 'tr', onStop: () => { btn.classList.remove('on'); btn.innerHTML = NX.ICON_PLAY; } }); btn.classList.add('on'); btn.innerHTML = NX.ICON_STOP; }
-  $('play').innerHTML = NX.ICON_PLAY; $('play').addEventListener('click', () => (NX.player.playing() ? NX.player.stop() : play()));
-  const base = () => NX.cleanName(S.A.name) + '_a_' + NX.cleanName(S.B.name);
-  $('dl-mix').addEventListener('click', () => { const pre = Math.round(8 * AN.A.grid.bar * result.sr), a = Math.max(0, result.aStart - pre), b = Math.min(result.L.length, result.aStart + result.mixN + pre); NX.save(base() + '_transicion.wav', NX.wav(result.L.slice(a, b), result.R.slice(a, b), result.sr)); });
-  $('dl-full').addEventListener('click', () => NX.save(base() + '_mashup.wav', NX.wav(result.L, result.R, result.sr)));
-  drawMap(); addEventListener('resize', drawMap);
+  // ---------- TIENDA
+  V.tienda = () => `${exampleNote()}<section class="panel"><h2>Tienda del sello</h2>${S.products.length ? `<div class="cards">${S.products.map((p) => `<div class="card"><span class="status st-info" style="justify-self:start">${esc(p.kind)}</span><b>${esc(p.title)}</b><span>${money(p.price)}${p.kind === 'Suscripción' ? ' al mes' : ''}</span><button class="dl" data-delp="${p.id}">Quitar</button></div>`).join('')}</div>` : '<p class="empty">Añade tu primer producto.</p>'}
+    <div class="two"><label class="field"><span>Producto</span><input type="text" id="p-title"></label><label class="field"><span>Precio (€)</span><input type="number" id="p-price" step="0.01" value="1.99"></label><label class="field"><span>Tipo</span><select id="p-kind"><option>Tema</option><option>EP / álbum</option><option>Pack de samples</option><option>Stems</option><option>Vinilo</option><option>Suscripción</option><option>Licencia para vídeo</option></select></label></div><button class="btn primary" id="p-add">Añadir a la tienda</button>
+    <p class="note">En la versión real se cobra con Stripe Connect: cada sello cobra en su cuenta y Nexsound se queda una pequeña comisión automática.</p></section>`;
+  V.tienda_ = () => { $('p-add').addEventListener('click', () => { const t = $('p-title').value.trim(); if (!t) return; S.products.push({ id: Date.now(), title: t, price: +$('p-price').value || 0, kind: $('p-kind').value }); save(); render(); }); document.querySelectorAll('[data-delp]').forEach((b) => b.addEventListener('click', () => { S.products = S.products.filter((p) => p.id != b.dataset.delp); save(); render(); })); };
+  // ---------- ROYALTIES
+  V.royalties = () => {
+    const per = {}; S.income.forEach((r) => (per[r.title] = (per[r.title] || 0) + r.amount));
+    const owed = S.artists.map((a) => { let tot = 0; S.income.forEach((r) => { const rel = S.releases.find((x) => x.title === r.title); if (rel && rel.artists.split(/,|&| y | feat\.? /i).map((s) => s.trim().toLowerCase()).includes(a.name.toLowerCase())) tot += r.amount * a.split / 100; }); return { a, tot }; });
+    return `${exampleNote()}<section class="panel"><h2>Importar ingresos</h2><p class="small muted">Sube el informe CSV de tu distribuidora (columnas con título, tienda, país e importe) o simula un mes para ver cómo funciona.</p><div class="row"><label class="btn" for="csvin">Importar CSV</label><input type="file" id="csvin" accept=".csv,text/csv" hidden><button class="btn" id="sim">Simular un mes</button><button class="btn small" id="clr">Borrar ingresos</button></div></section>
+      <section class="panel"><h2>Por tema</h2>${Object.keys(per).length ? `<div class="tablewrap"><table class="data"><thead><tr><th>Tema</th><th class="num">Ingresos</th></tr></thead><tbody>${Object.entries(per).map(([t, v]) => `<tr><td>${esc(t)}</td><td class="num">${money(v)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Sin ingresos todavía.</p>'}</section>
+      <section class="panel"><h2>Lo que corresponde a cada artista</h2><div class="tablewrap"><table class="data"><thead><tr><th>Artista</th><th class="num">Reparto</th><th class="num">Le corresponde</th><th></th></tr></thead><tbody>${owed.map(({ a, tot }) => `<tr><td>${esc(a.name)}</td><td class="num">${a.split} %</td><td class="num"><b>${money(tot)}</b></td><td><button class="dl" data-liq="${a.id}">Liquidación PDF</button></td></tr>`).join('')}</tbody></table></div><p class="note">El reparto se aplica a los temas en los que figura cada artista. El resto queda para el sello.</p></section>`;
+  };
+  V.royalties_ = () => {
+    $('sim').addEventListener('click', () => { const stores = [['Spotify', 0.0035], ['Apple Music', 0.007], ['YouTube', 0.0012], ['Amazon Music', 0.004], ['Deezer', 0.0035]], countries = ['España', 'México', 'Colombia', 'Argentina', 'EE. UU.']; const month = new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }); for (const r of S.releases) for (const [st, rate] of stores) { const plays = Math.round(Math.random() * 40000); S.income.push({ title: r.title, store: st, country: countries[Math.floor(Math.random() * countries.length)], plays, amount: plays * rate, month }); } save(); render(); NX.toast('Mes simulado (datos inventados para la demostración).'); });
+    $('clr').addEventListener('click', () => { S.income = []; save(); render(); });
+    $('csvin').addEventListener('change', async (e) => { const txt = await e.target.files[0].text(), lines = txt.trim().split(/\r?\n/), sep = lines[0].includes(';') ? ';' : ',', head = lines[0].toLowerCase().split(sep).map((h) => h.replace(/"/g, '').trim()); const col = (re) => head.findIndex((h) => re.test(h)); const ti = col(/t[ií]tulo|title|track|release/), ai = col(/importe|amount|revenue|earning|net|total/), si = col(/tienda|store|dsp|platform/), ci = col(/pa[ií]s|country|territory/); if (ti < 0 || ai < 0) return NX.toast('No encuentro las columnas de título e importe en ese CSV.'); let n = 0; for (const l of lines.slice(1)) { const c = l.split(sep).map((x) => x.replace(/"/g, '').trim()); const amt = parseFloat((c[ai] || '').replace(',', '.')); if (!isFinite(amt)) continue; S.income.push({ title: c[ti], store: si >= 0 ? c[si] : '', country: ci >= 0 ? c[ci] : '', amount: amt }); n++; } save(); render(); NX.toast(`${n} líneas importadas`); });
+    document.querySelectorAll('[data-liq]').forEach((b) => b.addEventListener('click', () => { const a = S.artists.find((x) => x.id == b.dataset.liq), rows = S.income.filter((r) => { const rel = S.releases.find((x) => x.title === r.title); return rel && rel.artists.toLowerCase().includes(a.name.toLowerCase()); }); const tot = rows.reduce((s, r) => s + r.amount * a.split / 100, 0);
+      NX.save(`liquidacion_${NX.cleanName(a.name)}.pdf`, NX.textPdf(['# LIQUIDACIÓN DE ROYALTIES', '', `Sello: ${S.label.name}`, `Artista: ${a.name}`, `Fecha: ${today()}`, `Reparto pactado: ${a.split} %`, '', '# Detalle', ...rows.map((r) => `${r.title.padEnd(26).slice(0, 26)} ${String(r.store || '').padEnd(14).slice(0, 14)} ${String(r.country || '').padEnd(10).slice(0, 10)} ${money(r.amount).padStart(12)}  ->  ${money(r.amount * a.split / 100)}`), '', `TOTAL A PAGAR: ${money(tot)}`, '', 'Pago en los 30 días siguientes a esta liquidación.'], 'Liquidación ' + a.name)); }));
+  };
+  // ---------- CONCURSOS DE REMIX
+  V.remix = () => `${exampleNote()}<section class="panel"><h2>Concursos de remix</h2><p class="small muted">Publica los stems de un tema, pon fecha límite y deja que los productores compitan. El ganador sale en el sello.</p>
+    ${S.contests.length ? S.contests.map((c, i) => `<div class="panel" style="background:var(--sunk)"><div class="row" style="justify-content:space-between"><b>${esc(c.title)}</b><span class="status ${new Date(c.end) > new Date() ? 'st-ok' : 'st-no'}">${new Date(c.end) > new Date() ? 'abierto' : 'cerrado'}</span></div><span class="small muted">Cierra el ${fdate(c.end + 'T12:00')} · premio: ${esc(c.prize)}</span>${c.entries.length ? `<ol class="small" style="margin:0;padding-left:18px">${c.entries.sort((x, y) => y.votes - x.votes).map((e) => `<li>${esc(e.who)} — «${esc(e.name)}» · ${e.votes} votos <button class="dl" data-vote="${i}|${esc(e.name)}">Votar</button></li>`).join('')}</ol>` : '<p class="empty">Aún no hay remixes.</p>'}<div class="two"><input type="text" placeholder="Tu nombre" id="ce-who-${i}" aria-label="Tu nombre"><input type="text" placeholder="Nombre del remix" id="ce-name-${i}" aria-label="Nombre del remix"></div><button class="btn small" data-enter="${i}">Enviar remix</button></div>`).join('') : '<p class="empty">No hay concursos abiertos.</p>'}
+    <div class="two"><label class="field"><span>Tema</span><select id="c-rel">${S.releases.map((r) => `<option>${esc(r.title)}</option>`).join('')}</select></label><label class="field"><span>Fecha límite</span><input type="date" id="c-end"></label><label class="field"><span>Premio</span><input type="text" id="c-prize" value="Lanzamiento oficial en el sello + 50 % del remix"></label></div><button class="btn primary" id="c-add" ${S.releases.length ? '' : 'disabled'}>Abrir concurso</button>
+    <p class="note">Los stems se sacan con Despiece o Sample Lab y se adjuntan al concurso.</p></section>`;
+  V.remix_ = () => {
+    $('c-add').addEventListener('click', () => { const end = $('c-end').value || new Date(Date.now() + 21 * 864e5).toISOString().slice(0, 10); S.contests.push({ title: 'Remix de ' + $('c-rel').value, end, prize: $('c-prize').value, entries: [] }); save(); render(); });
+    document.querySelectorAll('[data-enter]').forEach((b) => b.addEventListener('click', () => { const i = +b.dataset.enter, who = $('ce-who-' + i).value.trim(), nm = $('ce-name-' + i).value.trim(); if (!who || !nm) return; S.contests[i].entries.push({ who, name: nm, votes: 0 }); save(); render(); }));
+    document.querySelectorAll('[data-vote]').forEach((b) => b.addEventListener('click', () => { const [i, nm] = b.dataset.vote.split('|'); const e = S.contests[+i].entries.find((x) => x.name === nm); if (e) e.votes++; save(); render(); }));
+  };
+  // ---------- PÁGINA PÚBLICA
+  V.publica = () => { const L = S.label; return `<p class="small muted">Así ven tu sello los fans y los artistas en <span class="mono">nexsound.es/sello/${esc(L.id)}</span></p>
+    <div class="pub"><div class="cover" style="background:linear-gradient(135deg, var(--accent), #101513)"><div class="row"><img class="logo" style="width:64px;height:64px" src="${L.logo || monogram(L.name)}" alt=""><div><h2>${esc(L.name)}</h2><span class="badge" style="color:#fff;border-color:#fff">${CHECK} Sello verificado · fundado por ${esc(L.founder.name)}</span></div></div></div>
+    <div class="body"><p style="margin:0">${esc(L.bio || '')}</p><h2>Lanzamientos</h2><div class="cards">${S.releases.map((r) => `<div class="card"><b>${esc(r.title)}</b><span>${esc(r.artists)} · ${r.type}</span><span>${r.status === 'publicado' ? 'Ya disponible' : r.date ? 'Sale el ' + fdate(r.date + 'T12:00') : 'Próximamente'}</span></div>`).join('') || '<p class="empty">Pronto.</p>'}</div>
+    <h2>Artistas</h2><div class="cards">${S.artists.filter((a) => a.status === 'firmado').map((a) => `<div class="card"><b>${esc(a.name)}</b><span>${esc(a.role)}</span></div>`).join('')}</div>
+    <h2>Tienda</h2><div class="cards">${S.products.map((p) => `<div class="card"><b>${esc(p.title)}</b><span>${money(p.price)}</span><button class="btn small" disabled title="Pagos en la versión real">Comprar</button></div>`).join('') || '<p class="empty">Pronto.</p>'}</div>
+    <h2>Envía tu demo</h2>${demoForm()}</div></div>`; };
+  V.publica_ = () => bindDemoForm();
+  // ---------- MÁS IDEAS
+  V.ideas = () => `<header class="tool"><h1>Lo que viene</h1><p class="lede">Ideas para que los sellos de Nexsound sean distintos de cualquier distribuidora. Las marcadas como «ya aquí» funcionan en esta versión.</p></header><div class="feat">
+    ${[['ya aquí', 'Pasaporte del tema', 'Cada máster lleva su huella SHA-256 y la historia de cada paso (calidad, envío, cambios), en un PDF que cualquiera puede comprobar.'], ['ya aquí', 'Certificado de fundación', 'Prueba con fecha y huella de quién fundó el sello.'], ['ya aquí', 'Concursos de remix', 'Stems abiertos, votación y lanzamiento del ganador.'], ['ya aquí', 'Control de calidad automático', 'El sello no deja salir un máster saturado, bajo de volumen o sin portada correcta.'],
+      ['próximo', 'Fichaje por los fans', 'Las demos más votadas por la comunidad pasan a la mesa del A&R.'], ['próximo', 'Royalties en tiempo real', 'Cada artista ve cada día lo que gana, no a los tres meses.'], ['próximo', 'Adelanto de royalties', 'El sello adelanta dinero al artista según lo que su tema ya está generando.'], ['próximo', 'Sello escuela', 'Productores con experiencia apadrinan a nuevos; el mentor recibe un porcentaje del primer lanzamiento.'],
+      ['próximo', 'Coediciones entre sellos', 'Dos sellos lanzan juntos un tema y el reparto entre ambos se hace solo.'], ['próximo', 'Showcases del sello', 'Noches oficiales en salas, con venta de entradas en la página del sello y grabación con Set Cam.'], ['próximo', 'Vinilo bajo demanda', 'Cuando 100 fans reservan, se fabrica la tirada; si no se llega, no se cobra a nadie.'], ['próximo', 'Licencias para creadores', 'Streamers y youtubers licencian el catálogo del sello con un clic, y se reparte entre artistas.']].map(([s, a, b]) => `<div class="${s === 'próximo' ? 'soon' : ''}"><span class="status ${s === 'ya aquí' ? 'st-ok' : 'st-info'}" style="justify-self:start">${s}</span><b>${a}</b><span>${b}</span></div>`).join('')}
+  </div>`;
+  addEventListener('hashchange', () => { const t = location.hash.slice(1); if (TABS.some((x) => x[0] === t) && t !== tab) go(t); });
+  nav(); render();
 })();
 </script>
+</body></html>
