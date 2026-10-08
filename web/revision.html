@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Revisión</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --void: #07060b; --panel: #100e17; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --ok: #4fd18b; --line: rgba(236,232,244,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+body { background: var(--void); color: var(--ink); font: 13px/1.5 var(--f-mono); padding: calc(14px + env(safe-area-inset-top,0px)) 16px 40px; overflow-x: hidden; }
+.back { position: absolute; top: calc(10px + env(safe-area-inset-top,0px)); right: 16px; color: var(--dim); font-size: 11px; text-decoration: none; letter-spacing: .1em; }
+.back:hover, .back:focus-visible { color: var(--ink); }
+h1 { font: 900 clamp(40px, 10vw, 84px)/.9 var(--f-disp); text-transform: uppercase; margin: 22px 0 6px; }
+h1 span { color: var(--heat); }
+h2 { font: 800 22px/1 var(--f-disp); text-transform: uppercase; letter-spacing: .03em; margin: 0 0 8px; }
+.lede { color: var(--dim); max-width: 64ch; margin: 0 0 16px; }
+button, select, input, textarea { font: 600 12px/1.2 var(--f-mono); color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 9px 11px; border-radius: 0; }
+input, textarea, select { font-weight: 400; background: var(--panel); max-width: 100%; }
+button { letter-spacing: .08em; text-transform: uppercase; cursor: pointer; touch-action: manipulation; }
+button:hover { border-color: var(--uv); }
+:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+button.hot { border-color: var(--heat); color: var(--heat); }
+button.hot:hover { background: var(--heat); color: var(--void); }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.panel { background: var(--panel); border: 1px solid var(--line); padding: 14px; }
+.muted { color: var(--dim); }
+.wrap { max-width: 1200px; margin: 0 auto; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+.slot { display: grid; gap: 8px; }
+.drop { border: 1px dashed var(--line); padding: 12px; }
+.drop.over { border-color: var(--uv); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+@media (max-width: 640px) { .two { grid-template-columns: 1fr; } }
+#wave { width: 100%; height: 170px; display: block; background: var(--panel); border: 1px solid var(--line); cursor: crosshair; touch-action: manipulation; }
+.time { font-variant-numeric: tabular-nums; }
+.cm { display: flex; gap: 8px; align-items: flex-start; border-bottom: 1px solid var(--line); padding: 8px 0; }
+.cm .t { color: var(--heat); min-width: 44px; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; text-transform: none; letter-spacing: 0; text-align: left; }
+.cm span { flex: 1; overflow-wrap: anywhere; }
+.cm.done span { color: var(--dim); text-decoration: line-through; }
+.cm button { padding: 5px 7px; font-size: 10px; }
+.legend { font-size: 11px; color: var(--dim); display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
+.legend i { display: inline-block; width: 10px; height: 10px; vertical-align: middle; margin-right: 4px; }
+textarea { width: 100%; }
+.ab button { min-width: 64px; font-size: 14px; }
+</style>
+<a class="back" href="experiencias.html">← Experiencias</a>
+<div class="wrap">
+<h1>Nexsound <span>Revisión</span></h1>
+<p class="lede">Carga tu mezcla, toca la onda para dejar notas en el tiempo («1:32 el bajo tapa la voz») y compara con otra versión en A/B sincronizado, con nivel igualado.</p>
+<div class="two">
+  <div class="panel slot drop" id="dropA"><h2>Versión A</h2><div class="row"><input type="file" accept="audio/*" id="fileA" aria-label="Archivo versión A" style="max-width:220px"><button id="demoA">Usar demo</button></div><div class="muted" id="infoA">Sin audio. Arrastra un archivo aquí.</div></div>
+  <div class="panel slot drop" id="dropB"><h2>Versión B</h2><div class="row"><input type="file" accept="audio/*" id="fileB" aria-label="Archivo versión B" style="max-width:220px"><button id="demoB">Usar demo v2</button></div><div class="muted" id="infoB">Opcional: para comparar.</div></div>
+</div>
+<div class="panel">
+  <canvas id="wave" aria-label="Forma de onda. Toca para colocar el cursor y comentar."></canvas>
+  <div class="legend"><span><i style="background:#8a83a0"></i>Onda de la versión que suena</span><span><i style="background:var(--heat)"></i>B más fuerte que A (dB)</span><span><i style="background:var(--uv)"></i>B más suave que A</span><span><i style="background:var(--ok)"></i>Comentarios</span></div>
+  <div class="row" style="margin-top:10px">
+    <button id="play" class="hot" disabled>Reproducir</button>
+    <span class="time" id="clock">0:00 / 0:00</span>
+    <span style="flex:1"></span>
+    <span class="row ab"><button id="selA" aria-pressed="true" disabled>A</button><button id="selB" aria-pressed="false" disabled>B</button></span>
+    <label class="muted" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="match" checked> Igualar nivel</label>
+  </div>
+  <div class="muted" id="levels" style="margin-top:6px"></div>
+  <form class="row" id="cform" style="margin-top:10px">
+    <span class="time" id="ctime" style="color:var(--heat)">0:00</span>
+    <input id="ctext" placeholder="el bajo tapa la voz" style="flex:1;min-width:150px" aria-label="Comentario">
+    <button class="hot" disabled id="cadd">Comentar</button>
+  </form>
+</div>
+<div class="two" style="margin-top:12px">
+  <section class="panel"><h2>Comentarios</h2><div class="row"><button id="fAll" aria-pressed="true">Todos</button><button id="fOpen" aria-pressed="false">Pendientes</button></div><div id="clist"></div></section>
+  <section class="panel"><h2>Resumen para compartir</h2><textarea id="summary" rows="12" readonly aria-label="Resumen"></textarea><div class="row" style="margin-top:6px"><button id="copy">Copiar resumen</button><span class="muted" id="cmsg" role="status"></span></div></section>
+</div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = t => { t = Math.max(0, t); return Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0'); };
+let ctx = null;
+const ac = () => ctx || (ctx = new AudioContext());
+const S = { A: null, B: null }; // {buf, name, rms, env}
+let cur = 'A', playing = false, startAt = 0, offset = 0, nodes = null, cursorT = 0, comments = [], filterOpen = false;
+async function renderDemo(v2) {
+  const sr = 44100, dur = 30, o = new OfflineAudioContext(2, sr * dur, sr), bpm = 120, beat = 60 / bpm;
+  const master = o.createGain(); master.gain.value = v2 ? 0.8 : 0.55; master.connect(o.destination);
+  const notes = [45, 41, 48, 43];
+  for (let b = 0; b < dur / beat; b++) {
+    const t = b * beat, bar = Math.floor(b / 4), sec = Math.floor(t / 7.5);
+    if (sec !== 0 || b % 2 === 0) { // kick
+      const os = o.createOscillator(), g = o.createGain(); os.frequency.setValueAtTime(140, t); os.frequency.exponentialRampToValueAtTime(42, t + .12);
+      g.gain.setValueAtTime(.9, t); g.gain.exponentialRampToValueAtTime(.001, t + .35); os.connect(g).connect(master); os.start(t); os.stop(t + .4);
+    }
+    if (sec >= 1) { // bass on offbeats
+      const f = 440 * 2 ** ((notes[bar % 4] - 69) / 12), os = o.createOscillator(), lp = o.createBiquadFilter(), g = o.createGain();
+      os.type = 'sawtooth'; os.frequency.value = f; lp.type = 'lowpass'; lp.frequency.value = v2 ? 900 : 380;
+      const tt = t + beat / 2; g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(v2 && sec >= 2 ? .45 : .28, tt + .01); g.gain.exponentialRampToValueAtTime(.001, tt + beat * .45);
+      os.connect(lp).connect(g).connect(master); os.start(tt); os.stop(tt + beat * .5);
+    }
+    if (b % 4 === 0) { // pad
+      [0, 3, 7, 12].forEach(iv => {
+        const os = o.createOscillator(), g = o.createGain(), p = o.createStereoPanner(); os.type = 'triangle'; os.frequency.value = 440 * 2 ** ((notes[bar % 4] + 24 + iv - 69) / 12);
+        p.pan.value = (iv / 12) - .5; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.05, t + .3); g.gain.linearRampToValueAtTime(0, t + beat * 4);
+        os.connect(g).connect(p).connect(master); os.start(t); os.stop(t + beat * 4);
+      });
+    }
+    if (sec >= 2 && b % 2 === 1) { // "voz" lead
+      const m = [72, 75, 77, 79, 77, 75][b % 6], os = o.createOscillator(), vib = o.createOscillator(), vg = o.createGain(), g = o.createGain(), bp = o.createBiquadFilter();
+      os.type = 'sawtooth'; os.frequency.value = 440 * 2 ** ((m - 69) / 12); vib.frequency.value = 5.5; vg.gain.value = 6; vib.connect(vg).connect(os.frequency);
+      bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 2; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.22, t + .05); g.gain.linearRampToValueAtTime(0, t + beat * 1.9);
+      os.connect(bp).connect(g).connect(master); os.start(t); vib.start(t); os.stop(t + beat * 2); vib.stop(t + beat * 2);
+    }
+  }
+  return o.startRendering();
+}
+function analyse(buf) {
+  const ch = [...Array(buf.numberOfChannels)].map((_, i) => buf.getChannelData(i)), n = buf.length, win = Math.floor(buf.sampleRate * .4), env = [];
+  let tot = 0;
+  for (let s = 0; s < n; s += win) { let a = 0; const e = Math.min(n, s + win); for (let i = s; i < e; i++) { const v = (ch[0][i] + (ch[1] || ch[0])[i]) / 2; a += v * v; } tot += a; env.push(10 * Math.log10(a / (e - s) + 1e-10)); }
+  const peaks = new Float32Array(1200); const step = n / 1200;
+  for (let p = 0; p < 1200; p++) { let m = 0; for (let i = Math.floor(p * step); i < Math.floor((p + 1) * step); i += 4) m = Math.max(m, Math.abs(ch[0][i])); peaks[p] = m; }
+  return { rms: 10 * Math.log10(tot / n + 1e-10), env, win: win / buf.sampleRate, peaks };
+}
+function setSlot(k, buf, name) {
+  stop(); S[k] = { buf, name, ...analyse(buf) };
+  $('#info' + k).textContent = `${name} · ${fmt(buf.duration)} · ${S[k].rms.toFixed(1)} dBFS RMS`;
+  $('#play').disabled = $('#cadd').disabled = !S.A && !S.B; if (!S[cur]) cur = k;
+  $('#selA').disabled = !S.A; $('#selB').disabled = !S.B; updAB(); draw(); summary();
+}
+async function loadFile(k, f) {
+  if (!f) return; $('#info' + k).textContent = 'Decodificando…';
+  try { setSlot(k, await ac().decodeAudioData(await f.arrayBuffer()), f.name); } catch (e) { $('#info' + k).textContent = 'No se pudo leer ese archivo.'; }
+}
+['A', 'B'].forEach(k => {
+  $('#file' + k).onchange = e => loadFile(k, e.target.files[0]);
+  const d = $('#drop' + k);
+  d.addEventListener('dragover', e => { e.preventDefault(); d.classList.add('over'); });
+  d.addEventListener('dragleave', () => d.classList.remove('over'));
+  d.addEventListener('drop', e => { e.preventDefault(); d.classList.remove('over'); loadFile(k, e.dataTransfer.files[0]); });
+  $('#demo' + k).onclick = async () => { ac(); $('#info' + k).textContent = 'Sintetizando…'; setSlot(k, await renderDemo(k === 'B'), k === 'B' ? 'Demo v2 (bajo más fuerte)' : 'Demo v1'); };
+});
+const dur = () => Math.max(S.A?.buf.duration || 0, S.B?.buf.duration || 0);
+const now = () => playing ? Math.min(dur(), ctx.currentTime - startAt) : offset;
+function gains() {
+  const ref = S.A && S.B ? Math.min(S.A.rms, S.B.rms) : null, g = {};
+  for (const k of ['A', 'B']) g[k] = S[k] ? ($('#match').checked && ref !== null ? 10 ** ((ref - S[k].rms) / 20) : 1) : 0;
+  return g;
+}
+function updAB() {
+  $('#selA').setAttribute('aria-pressed', cur === 'A'); $('#selB').setAttribute('aria-pressed', cur === 'B');
+  const g = gains();
+  $('#levels').textContent = S.A && S.B ? `Diferencia de nivel B−A: ${(S.B.rms - S.A.rms).toFixed(1)} dB. ${$('#match').checked ? 'Compensado: escuchas ambas al mismo nivel.' : 'Sin compensar.'}` : '';
+  if (nodes) for (const k of ['A', 'B']) nodes[k]?.g.gain.setTargetAtTime(k === cur ? g[k] : 0, ctx.currentTime, .015);
+}
+function play() {
+  ac().resume(); const g = gains(); nodes = {}; if (offset >= dur()) offset = 0;
+  startAt = ctx.currentTime + .05 - offset;
+  for (const k of ['A', 'B']) if (S[k]) {
+    const s = ctx.createBufferSource(), gn = ctx.createGain(); s.buffer = S[k].buf; gn.gain.value = k === cur ? g[k] : 0;
+    s.connect(gn).connect(ctx.destination); if (offset < s.buffer.duration) s.start(ctx.currentTime + .05, offset); nodes[k] = { s, g: gn };
+  }
+  playing = true; $('#play').textContent = 'Pausa'; tick();
+}
+function stop() {
+  if (!playing) return; offset = now(); playing = false;
+  for (const k in nodes) try { nodes[k].s.stop(); } catch (e) {}
+  nodes = null; $('#play').textContent = 'Reproducir';
+}
+function seek(t) { const p = playing; stop(); offset = Math.max(0, Math.min(dur(), t)); if (p) play(); draw(); }
+$('#play').onclick = () => playing ? stop() : play();
+$('#selA').onclick = () => { cur = 'A'; updAB(); draw(); };
+$('#selB').onclick = () => { cur = 'B'; updAB(); draw(); };
+$('#match').onchange = updAB;
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input,textarea,select')) return;
+  if (e.code === 'Space') { e.preventDefault(); if (!$('#play').disabled) $('#play').click(); }
+  if (e.key === 'a' && S.A) $('#selA').click(); if (e.key === 'b' && S.B) $('#selB').click();
+});
+function tick() { if (!playing) return; if (now() >= dur()) { stop(); offset = 0; } draw(); requestAnimationFrame(tick); }
+const cv = $('#wave'), g2 = cv.getContext('2d');
+function draw() {
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight; cv.width = W * dpr; cv.height = H * dpr; g2.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g2.clearRect(0, 0, W, H); const D = dur(); $('#clock').textContent = `${fmt(now())} / ${fmt(D)}`;
+  if (!D) { g2.fillStyle = '#8a83a0'; g2.font = '12px monospace'; g2.fillText('Carga una mezcla o usa la demo', 12, H / 2); return; }
+  const src = S[cur] || S.A || S.B, len = src.buf.duration / D;
+  g2.fillStyle = 'rgba(138,131,160,.75)';
+  for (let x = 0; x < W * len; x++) { const p = src.peaks[Math.floor(x / (W * len) * 1200)] || 0, h = p * H * .45; g2.fillRect(x, H / 2 - h, 1, h * 2 || 1); }
+  if (S.A && S.B) { // loudness difference overlay
+    const n = Math.min(S.A.env.length, S.B.env.length), mid = H / 2;
+    for (let i = 0; i < n; i++) {
+      const d = Math.max(-12, Math.min(12, S.B.env[i] - S.A.env[i])), x0 = i * S.A.win / D * W, x1 = (i + 1) * S.A.win / D * W, h = d / 12 * (H * .45);
+      g2.fillStyle = d > 0 ? 'rgba(255,90,54,.35)' : 'rgba(143,107,255,.35)'; g2.fillRect(x0, d > 0 ? mid - h : mid, x1 - x0, Math.abs(h));
+    }
+    g2.strokeStyle = 'rgba(236,232,244,.25)'; g2.beginPath(); g2.moveTo(0, mid); g2.lineTo(W, mid); g2.stroke();
+  }
+  comments.forEach(c => { const x = c.t / D * W; g2.fillStyle = c.done ? 'rgba(79,209,139,.35)' : '#4fd18b'; g2.fillRect(x - 1, 0, 2, H); g2.beginPath(); g2.arc(x, 8, 5, 0, 7); g2.fill(); });
+  g2.fillStyle = '#ff5a36'; g2.fillRect(cursorT / D * W - 1, 0, 2, H);
+  g2.fillStyle = '#ece8f4'; g2.fillRect(now() / D * W, 0, 1.5, H);
+}
+cv.addEventListener('click', e => { const D = dur(); if (!D) return; const r = cv.getBoundingClientRect(); cursorT = (e.clientX - r.left) / r.width * D; $('#ctime').textContent = fmt(cursorT); seek(cursorT); $('#ctext').focus({ preventScroll: true }); });
+$('#cform').onsubmit = e => {
+  e.preventDefault(); const txt = $('#ctext').value.trim(); if (!txt || !dur()) return;
+  const t = /^\d+:\d\d\s/.test(txt) ? (([m, s]) => +m * 60 + +s)(txt.split(' ')[0].split(':')) : (playing ? now() : cursorT);
+  comments.push({ t, text: txt.replace(/^\d+:\d\d\s+/, ''), v: cur, done: false }); comments.sort((a, b) => a.t - b.t);
+  $('#ctext').value = ''; list(); draw(); summary();
+};
+function list() {
+  const shown = comments.filter(c => !filterOpen || !c.done);
+  $('#clist').innerHTML = shown.length ? shown.map(c => { const i = comments.indexOf(c); return `<div class="cm${c.done ? ' done' : ''}"><button class="t" data-go="${i}">${fmt(c.t)}</button><span>${esc(c.text)} <small class="muted">(${c.v})</small></span><button data-rs="${i}">${c.done ? 'Reabrir' : 'Resolver'}</button><button data-rm="${i}" aria-label="Borrar">✕</button></div>`; }).join('') : '<p class="muted">Aún no hay comentarios. Toca la onda y escribe.</p>';
+}
+$('#clist').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.go) { cursorT = comments[+b.dataset.go].t; $('#ctime').textContent = fmt(cursorT); seek(cursorT); }
+  if (b.dataset.rs) comments[+b.dataset.rs].done = !comments[+b.dataset.rs].done;
+  if (b.dataset.rm) comments.splice(+b.dataset.rm, 1);
+  list(); draw(); summary();
+};
+$('#fAll').onclick = () => { filterOpen = false; $('#fAll').setAttribute('aria-pressed', true); $('#fOpen').setAttribute('aria-pressed', false); list(); };
+$('#fOpen').onclick = () => { filterOpen = true; $('#fAll').setAttribute('aria-pressed', false); $('#fOpen').setAttribute('aria-pressed', true); list(); };
+function summary() {
+  const open = comments.filter(c => !c.done), done = comments.filter(c => c.done);
+  let s = `Revisión de mezcla — ${new Date().toLocaleDateString('es')}\n`;
+  if (S.A) s += `A: ${S.A.name}\n`; if (S.B) s += `B: ${S.B.name} (B−A ${(S.B.rms - S.A?.rms || 0).toFixed(1)} dB)\n`;
+  s += `\nPendiente (${open.length}):\n` + (open.map(c => `• ${fmt(c.t)} [${c.v}] ${c.text}`).join('\n') || '—');
+  s += `\n\nResuelto (${done.length}):\n` + (done.map(c => `✓ ${fmt(c.t)} [${c.v}] ${c.text}`).join('\n') || '—');
+  $('#summary').value = s;
+}
+$('#copy').onclick = async () => { try { await navigator.clipboard.writeText($('#summary').value); $('#cmsg').textContent = 'Copiado.'; } catch (e) { $('#summary').select(); document.execCommand('copy'); $('#cmsg').textContent = 'Seleccionado para copiar.'; } };
+addEventListener('resize', draw); list(); summary(); draw();
+</script>

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Ciego</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --void: #07060b; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --ok: #3ddc97; --line: rgba(236,232,244,.14); --panel: #100e18;
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body { background: var(--void); color: var(--ink); font-family: var(--f-mono); font-size: 13px; line-height: 1.6; overflow-x: hidden; }
+.back { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); left: 16px; z-index: 20; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); text-decoration: none; padding: 6px 0; }
+.back:hover, .back:focus-visible { color: var(--ink); }
+main { max-width: 760px; margin: 0 auto; padding: calc(52px + env(safe-area-inset-top, 0px)) 16px 48px; }
+h1 { font: 900 clamp(52px, 14vw, 120px)/.85 var(--f-disp); margin: 0 0 14px; text-transform: uppercase; letter-spacing: -.01em; }
+h1 span { color: var(--heat); }
+h2 { font: 800 28px/1 var(--f-disp); text-transform: uppercase; margin: 0 0 10px; letter-spacing: .02em; }
+p { margin: 0 0 12px; color: var(--dim); max-width: 60ch; }
+b, strong { color: var(--ink); font-weight: 600; }
+button { font: 600 12px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 12px 14px; cursor: pointer; touch-action: manipulation; }
+button:hover { border-color: var(--uv); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button:disabled { opacity: .4; cursor: default; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+button.hot { border-color: var(--heat); color: var(--heat); }
+button.hot:hover { background: var(--heat); color: var(--void); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.panel { border: 1px solid var(--line); background: var(--panel); padding: 14px; margin: 12px 0; }
+.lbl { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+.num { font-variant-numeric: tabular-nums; }
+input[type=range] { width: 100%; accent-color: var(--uv); touch-action: none; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+td, th { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); font-weight: 400; }
+th { color: var(--dim); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+kbd { font: 600 11px var(--f-mono); border: 1px solid var(--line); padding: 1px 5px; color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+.blind { position: fixed; inset: 0; background: #000; z-index: 10; display: grid; place-items: center; padding: 16px; }
+.blind .ctl { position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 10px; }
+.blind .msg { color: #2a2733; font: 800 clamp(28px, 8vw, 56px)/1 var(--f-disp); text-transform: uppercase; text-align: center; }
+.blind.help .msg { color: var(--dim); }
+.meter { height: 48px; position: relative; border: 1px solid var(--line); margin-top: 8px; }
+.meter i { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--heat); left: 50%; }
+.meter::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--dim); }
+.jog { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.jog button { padding: 18px 8px; font-size: 13px; }
+#lockBtn { border-color: var(--ok); color: var(--ok); }
+.big { font: 900 clamp(40px, 12vw, 80px)/1 var(--f-disp); }
+#hud { color: var(--dim); font-size: 11px; text-align: center; min-height: 16px; }
+</style>
+<a class="back" href="experiencias.html">← Experiencias</a>
+<main id="home">
+  <h1>Nexsound<br><span>Ciego</span></h1>
+  <p>Beatmatching sin ojos. Suenan dos decks: el <b>A</b> (bombo grave y hi-hat) marca el tempo. El <b>B</b> (palmada y click agudo) arranca con un tempo y una fase al azar. La pantalla se queda en negro: ajusta el <b>pitch</b> y empuja el <b>jog</b> solo de oído hasta que los dos golpes suenen como uno.</p>
+  <p>Teclado: <kbd>↑</kbd><kbd>↓</kbd> pitch fino (con <kbd>Shift</kbd> grueso) · <kbd>←</kbd><kbd>→</kbd> jog (mantén) · <kbd>Espacio</kbd> bloquear · <kbd>H</kbd> ayuda.</p>
+  <div class="row"><button class="hot" id="go">Empezar a ciegas</button><button id="helpToggle" aria-pressed="false">Mostrar ayuda visual</button></div>
+  <section class="panel" id="result" hidden>
+    <h2>Resultado</h2>
+    <div class="row" style="gap:24px">
+      <div><div class="lbl">Tiempo</div><div class="big num" id="rTime">—</div></div>
+      <div><div class="lbl">Error tempo</div><div class="big num" id="rBpm">—</div></div>
+      <div><div class="lbl">Error fase</div><div class="big num" id="rMs">—</div></div>
+      <div><div class="lbl">Puntos</div><div class="big num" id="rPts">—</div></div>
+    </div>
+    <p id="rNote" style="margin-top:10px"></p>
+  </section>
+  <section class="panel">
+    <h2>Marcador</h2>
+    <table><thead><tr><th>#</th><th>Puntos</th><th>Tiempo</th><th>BPM</th><th>ms</th></tr></thead><tbody id="board"></tbody></table>
+    <p id="boardEmpty" style="margin-top:10px">Aún no hay partidas en este navegador.</p>
+  </section>
+</main>
+<div class="blind" id="blind" hidden>
+  <div style="width:100%;max-width:520px">
+    <div class="msg" id="msg">Escucha</div>
+    <div id="helpBox" hidden>
+      <div class="meter" aria-hidden="true"><i id="ph"></i></div>
+      <div id="hud" class="num"></div>
+    </div>
+  </div>
+  <div class="ctl">
+    <label class="lbl" for="pitch">Pitch B (±8 %)</label>
+    <input type="range" id="pitch" min="-800" max="800" step="1" value="0" aria-label="Pitch del deck B, más o menos 8 por ciento">
+    <div class="jog">
+      <button id="jl" aria-label="Frenar deck B">◀ Frenar</button>
+      <button id="lockBtn">Bloqueado</button>
+      <button id="jr" aria-label="Empujar deck B">Empujar ▶</button>
+    </div>
+    <div class="row" style="justify-content:space-between"><button id="hb" aria-pressed="false">Ayuda</button><button id="quit">Abandonar</button></div>
+  </div>
+</div>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let ctx, master, timer, t0, help = false, running = false;
+  let bpmA, bpmB0, nextA, nextB, beatsA = 0, nudge = 0;
+  const pitchEl = $('pitch');
+  const effB = () => bpmB0 * (1 + pitchEl.value / 10000) * (1 + nudge);
+  const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+
+  function noise(len) { const b = ctx.createBuffer(1, ctx.sampleRate * len, ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
+  let nb;
+  function kick(t) { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(45, t + .12); g.gain.setValueAtTime(1, t); g.gain.exponentialRampToValueAtTime(.001, t + .35); o.connect(g).connect(master); o.start(t); o.stop(t + .4); }
+  function hat(t, v) { const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = nb; f.type = 'highpass'; f.frequency.value = 8000; g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + .05); s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + .06); }
+  function clap(t) { const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = nb; f.type = 'bandpass'; f.frequency.value = 1500; f.Q.value = 1.2; g.gain.setValueAtTime(.7, t); g.gain.exponentialRampToValueAtTime(.001, t + .12); s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + .14);
+    const o = ctx.createOscillator(), og = ctx.createGain(); o.type = 'square'; o.frequency.value = 2400; og.gain.setValueAtTime(.12, t); og.gain.exponentialRampToValueAtTime(.001, t + .02); o.connect(og).connect(master); o.start(t); o.stop(t + .03); }
+
+  function tick() {
+    const ahead = ctx.currentTime + .12;
+    while (nextA < ahead) { kick(nextA); hat(nextA + 30 / bpmA, .25); nextA += 60 / bpmA; beatsA++; }
+    while (nextB < ahead) { clap(nextB); nextB += 60 / effB(); }
+    if (help) draw();
+  }
+  function phaseErr() { // ms, B relative to nearest A beat
+    const pa = 60 / bpmA; let d = (nextB - nextA) % pa; if (d > pa / 2) d -= pa; if (d < -pa / 2) d += pa; return d * 1000;
+  }
+  function draw() {
+    const e = phaseErr(), pa = 60000 / bpmA; $('ph').style.left = (50 + e / pa * 100) + '%';
+    $('hud').textContent = `A ${bpmA.toFixed(2)} · B ${effB().toFixed(2)} bpm · fase ${e >= 0 ? '+' : ''}${e.toFixed(0)} ms`;
+  }
+  function start() {
+    if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = .6; master.connect(ctx.destination); nb = noise(.2); }
+    ctx.resume();
+    bpmA = 118 + Math.round(Math.random() * 10);
+    const off = (Math.random() < .5 ? -1 : 1) * (1.5 + Math.random() * 4.5) / 100;
+    bpmB0 = bpmA * (1 + off); pitchEl.value = 0; nudge = 0;
+    nextA = ctx.currentTime + .2; nextB = nextA + Math.random() * 60 / bpmA;
+    running = true; t0 = performance.now();
+    $('blind').hidden = false; $('result').hidden = true; setHelp(help);
+    $('msg').textContent = 'Escucha'; timer = setInterval(tick, 25); pitchEl.focus();
+  }
+  function stop() { clearInterval(timer); running = false; master.gain.setTargetAtTime(0, ctx.currentTime, .05); setTimeout(() => { if (!running) master.gain.value = .6; }, 400); $('blind').hidden = true; $('go').focus(); }
+  function lock() {
+    if (!running) return;
+    const secs = (performance.now() - t0) / 1000, eb = Math.abs(effB() - bpmA), em = Math.abs(phaseErr());
+    stop();
+    const pts = Math.max(0, Math.round(1000 - eb * 400 - em * 4 - secs * 3));
+    $('rTime').textContent = secs.toFixed(1) + ' s'; $('rBpm').textContent = eb.toFixed(2); $('rMs').textContent = em.toFixed(0) + ' ms'; $('rPts').textContent = pts;
+    $('rNote').textContent = eb < .1 && em < 15 ? 'Clavado. Eso es oído de cabina.' : eb < .3 && em < 40 ? 'Muy cerca: en un club nadie lo notaría unos compases.' : eb > 1 ? 'Los tempos aún se separan: escucha cómo el flam se abre y se cierra y mueve el pitch hacia donde se cierra más despacio.' : 'Tempo cerca, fase floja: usa el jog hasta que bombo y palmada suenen como un solo golpe.';
+    $('result').hidden = false;
+    const b = store.get('nx-ciego', []); b.push({ pts, secs, eb, em, d: Date.now() }); b.sort((x, y) => y.pts - x.pts); store.set('nx-ciego', b.slice(0, 10)); board();
+  }
+  function board() {
+    const b = store.get('nx-ciego', []); $('boardEmpty').hidden = b.length > 0;
+    $('board').innerHTML = b.map((r, i) => `<tr><td>${i + 1}</td><td class="num"><b>${r.pts}</b></td><td class="num">${r.secs.toFixed(1)} s</td><td class="num">${r.eb.toFixed(2)}</td><td class="num">${r.em.toFixed(0)}</td></tr>`).join('');
+  }
+  function setHelp(v) { help = v; $('helpBox').hidden = !v; $('blind').classList.toggle('help', v); $('hb').setAttribute('aria-pressed', v); $('helpToggle').setAttribute('aria-pressed', v); $('helpToggle').textContent = v ? 'Ayuda visual activada' : 'Mostrar ayuda visual'; }
+  function jog(dir) { nudge = dir * .04; }
+  [['jl', -1], ['jr', 1]].forEach(([id, d]) => { const b = $(id);
+    b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture?.(e.pointerId); jog(d); });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => b.addEventListener(ev, () => jog(0)));
+    b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); jog(d); } });
+    b.addEventListener('keyup', () => jog(0));
+  });
+  $('go').onclick = start; $('lockBtn').onclick = lock; $('quit').onclick = stop;
+  $('hb').onclick = () => setHelp(!help); $('helpToggle').onclick = () => setHelp(!help);
+  addEventListener('keydown', e => {
+    if (!running) return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); jog(e.key === 'ArrowLeft' ? -1 : 1); }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { if (document.activeElement === pitchEl) return; e.preventDefault(); pitchEl.value = +pitchEl.value + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 50 : 5); }
+    else if (e.key === ' ' && document.activeElement.tagName !== 'BUTTON') { e.preventDefault(); lock(); }
+    else if (e.key.toLowerCase() === 'h') setHelp(!help);
+    else if (e.key === 'Escape') stop();
+  });
+  pitchEl.addEventListener('keydown', e => { if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); pitchEl.value = +pitchEl.value + (e.key === 'ArrowUp' || e.key === 'ArrowRight' ? 50 : -50); } });
+  addEventListener('keyup', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') jog(0); });
+  board();
+})();
+</script>

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Proyectos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --void: #07060b; --panel: #100e17; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --ok: #4fd18b; --line: rgba(236,232,244,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+body { background: var(--void); color: var(--ink); font: 13px/1.5 var(--f-mono); padding: calc(14px + env(safe-area-inset-top,0px)) 16px 40px; overflow-x: hidden; }
+.back { position: absolute; top: calc(10px + env(safe-area-inset-top,0px)); right: 16px; color: var(--dim); font-size: 11px; text-decoration: none; letter-spacing: .1em; }
+.back:hover, .back:focus-visible { color: var(--ink); }
+h1 { font: 900 clamp(40px, 10vw, 84px)/.9 var(--f-disp); text-transform: uppercase; margin: 22px 0 6px; }
+h1 span { color: var(--heat); }
+h2 { font: 800 22px/1 var(--f-disp); text-transform: uppercase; letter-spacing: .03em; margin: 0 0 8px; }
+.lede { color: var(--dim); max-width: 64ch; margin: 0 0 16px; }
+button, select, input, textarea { font: 600 12px/1.2 var(--f-mono); color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 9px 11px; border-radius: 0; }
+input, textarea, select { font-weight: 400; background: var(--panel); max-width: 100%; }
+button { letter-spacing: .08em; text-transform: uppercase; cursor: pointer; touch-action: manipulation; }
+button:hover { border-color: var(--uv); }
+:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+button.hot { border-color: var(--heat); color: var(--heat); }
+button.hot:hover { background: var(--heat); color: var(--void); }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.panel { background: var(--panel); border: 1px solid var(--line); padding: 14px; }
+.muted { color: var(--dim); }
+.wrap { max-width: 1200px; margin: 0 auto; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+.board { display: grid; grid-template-columns: repeat(5, minmax(230px, 1fr)); gap: 10px; overflow-x: auto; padding-bottom: 10px; }
+@media (max-width: 760px) { .board { grid-template-columns: 1fr; overflow-x: visible; } }
+.col { background: var(--panel); border: 1px solid var(--line); min-height: 120px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.col.over { border-color: var(--uv); background: #161226; }
+.col h2 { display: flex; justify-content: space-between; align-items: baseline; }
+.col h2 small { font: 400 11px var(--f-mono); color: var(--dim); }
+.card { border: 1px solid var(--line); background: var(--void); padding: 10px; cursor: grab; }
+.card.drag { opacity: .4; }
+.card h3 { margin: 0 0 4px; font: 800 20px/1 var(--f-disp); text-transform: uppercase; overflow-wrap: anywhere; }
+.tag { display: inline-block; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; border: 1px solid var(--line); padding: 1px 5px; margin: 0 4px 4px 0; color: var(--dim); }
+.tag.ex { color: var(--uv); border-color: var(--uv); }
+.tag.late { color: var(--heat); border-color: var(--heat); }
+.meta { color: var(--dim); font-size: 11px; }
+.bar { height: 3px; background: var(--line); margin: 6px 0; } .bar i { display: block; height: 100%; background: var(--ok); }
+.card .row button { padding: 6px 8px; font-size: 10px; }
+dialog { background: var(--panel); color: var(--ink); border: 1px solid var(--line); width: min(640px, calc(100vw - 32px)); max-height: 90vh; padding: 16px; }
+dialog::backdrop { background: rgba(0,0,0,.7); }
+label { display: grid; gap: 4px; font-size: 11px; color: var(--dim); letter-spacing: .06em; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 480px) { .grid2 { grid-template-columns: 1fr; } }
+.list { display: grid; gap: 4px; margin: 6px 0 12px; }
+.li { display: flex; gap: 6px; align-items: center; } .li span { flex: 1; overflow-wrap: anywhere; }
+.li button { padding: 4px 7px; font-size: 10px; }
+textarea { width: 100%; }
+fieldset { border: 1px solid var(--line); padding: 10px; margin: 10px 0; } legend { color: var(--dim); font-size: 11px; }
+</style>
+<a class="back" href="experiencias.html">← Experiencias</a>
+<div class="wrap">
+<h1>Nexsound <span>Proyectos</span></h1>
+<p class="lede">Tus temas, de la idea al lanzamiento. Arrastra las tarjetas entre columnas o usa las flechas. Todo se guarda en este navegador.</p>
+<div class="row" style="margin-bottom:12px">
+  <button class="hot" id="add">+ Nuevo tema</button>
+  <input id="q" type="search" placeholder="Buscar título, colaborador…" aria-label="Buscar" style="flex:1;min-width:160px">
+  <select id="fCollab" aria-label="Filtrar por colaborador"><option value="">Todos los colaboradores</option></select>
+  <select id="fDue" aria-label="Filtrar por fecha"><option value="">Cualquier fecha</option><option value="late">Atrasados</option><option value="week">Vencen en 7 días</option></select>
+  <button id="io">Exportar / Importar</button>
+</div>
+<div class="board" id="board"></div>
+<section class="panel" id="ioBox" hidden style="margin-top:12px">
+  <h2>Exportar / Importar JSON</h2>
+  <p class="muted">Copia el texto para guardarlo donde quieras, o pega uno y pulsa Importar (reemplaza todo).</p>
+  <textarea id="ioText" rows="10" aria-label="JSON"></textarea>
+  <div class="row" style="margin-top:6px"><button id="ioCopy">Copiar</button><button id="ioLoad" class="hot">Importar</button><button id="clearEx">Borrar ejemplos</button><span id="ioMsg" class="muted" role="status"></span></div>
+</section>
+</div>
+<dialog id="dlg">
+  <form method="dialog" id="form">
+    <h2 id="dlgT">Tema</h2>
+    <div class="grid2">
+      <label>Título<input name="title" required></label>
+      <label>Estado<select name="stage"></select></label>
+      <label>BPM<input name="bpm" type="number" min="30" max="300"></label>
+      <label>Tonalidad<input name="key" placeholder="La menor"></label>
+      <label>Colaboradores (comas)<input name="collab"></label>
+      <label>Fecha límite<input name="due" type="date"></label>
+    </div>
+    <fieldset><legend>Versiones</legend><div class="list" id="vList"></div>
+      <div class="row"><input id="vName" placeholder="v3" style="width:70px" aria-label="Versión"><input id="vNote" placeholder="Notas de la versión" style="flex:1;min-width:120px" aria-label="Notas"><button type="button" id="vAdd">Añadir</button></div></fieldset>
+    <fieldset><legend>Checklist</legend><div class="list" id="cList"></div>
+      <div class="row"><input id="cText" placeholder="Grabar voces" style="flex:1;min-width:120px" aria-label="Tarea"><button type="button" id="cAdd">Añadir</button></div></fieldset>
+    <div class="row"><button class="hot" value="save" id="save">Guardar</button><button type="button" id="cancel">Cancelar</button><span style="flex:1"></span><button type="button" id="del">Eliminar</button></div>
+  </form>
+</dialog>
+<script>
+const STAGES = ['Idea','Maqueta','Mezcla','Máster','Lanzado'];
+const KEY = 'nexsound-proyectos';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Math.random().toString(36).slice(2, 9);
+const day = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+function seed() {
+  return [
+    { id: uid(), example: true, title: 'Luz de neón', stage: 'Idea', bpm: 124, key: 'Fa menor', collab: ['Marta'], due: day(20), versions: [{ n: 'v1', note: 'Loop de acordes y pad' }], checklist: [{ t: 'Definir estructura', d: false }, { t: 'Buscar vocalista', d: false }] },
+    { id: uid(), example: true, title: 'Ruta 9', stage: 'Maqueta', bpm: 98, key: 'Re menor', collab: ['Leo', 'Ana'], due: day(6), versions: [{ n: 'v1', note: 'Beat base' }, { n: 'v2', note: 'Añadido bajo y estribillo' }], checklist: [{ t: 'Letra completa', d: true }, { t: 'Grabar voces guía', d: false }] },
+    { id: uid(), example: true, title: 'Marea', stage: 'Mezcla', bpm: 128, key: 'La menor', collab: ['Ana'], due: day(-2), versions: [{ n: 'v3', note: 'Bajo tapa la voz en el drop' }], checklist: [{ t: 'Balance de niveles', d: true }, { t: 'Automatizar reverb', d: false }, { t: 'Referencia en coche', d: false }] },
+    { id: uid(), example: true, title: 'Polvo', stage: 'Lanzado', bpm: 140, key: 'Sol menor', collab: [], due: day(-30), versions: [{ n: 'final', note: 'Máster -9 LUFS' }], checklist: [{ t: 'Subir a distribuidora', d: true }] }
+  ];
+}
+let data;
+try { data = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+if (!Array.isArray(data)) data = seed();
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {} }
+const board = $('#board');
+let dragId = null;
+function filtered(t) {
+  const q = $('#q').value.trim().toLowerCase(), c = $('#fCollab').value, f = $('#fDue').value, today = day(0), wk = day(7);
+  if (q && !(t.title + ' ' + t.collab.join(' ') + ' ' + t.key).toLowerCase().includes(q)) return false;
+  if (c && !t.collab.includes(c)) return false;
+  if (f === 'late' && !(t.due && t.due < today && t.stage !== 'Lanzado')) return false;
+  if (f === 'week' && !(t.due && t.due >= today && t.due <= wk)) return false;
+  return true;
+}
+function render() {
+  const all = [...new Set(data.flatMap(t => t.collab))].sort(), cur = $('#fCollab').value;
+  $('#fCollab').innerHTML = '<option value="">Todos los colaboradores</option>' + all.map(c => `<option${c === cur ? ' selected' : ''}>${esc(c)}</option>`).join('');
+  board.innerHTML = '';
+  STAGES.forEach((st, si) => {
+    const items = data.filter(t => t.stage === st && filtered(t));
+    const col = document.createElement('section');
+    col.className = 'col'; col.dataset.stage = st; col.setAttribute('aria-label', st);
+    col.innerHTML = `<h2>${st} <small>${items.length}</small></h2>`;
+    items.forEach(t => {
+      const done = t.checklist.filter(c => c.d).length, tot = t.checklist.length, late = t.due && t.due < day(0) && st !== 'Lanzado';
+      const el = document.createElement('article');
+      el.className = 'card'; el.draggable = true; el.dataset.id = t.id;
+      el.innerHTML = `<h3>${esc(t.title)}</h3>
+        <div>${t.example ? '<span class="tag ex">Ejemplo</span>' : ''}${t.bpm ? `<span class="tag">${esc(t.bpm)} BPM</span>` : ''}${t.key ? `<span class="tag">${esc(t.key)}</span>` : ''}${t.due ? `<span class="tag${late ? ' late' : ''}">${late ? 'Atrasado ' : ''}${esc(t.due)}</span>` : ''}</div>
+        <div class="meta">${t.collab.length ? 'Con ' + esc(t.collab.join(', ')) : 'Solo'} · ${t.versions.length} versión(es)${t.versions.length ? ' · última: ' + esc(t.versions.at(-1).n) : ''}</div>
+        ${tot ? `<div class="bar" title="${done}/${tot}"><i style="width:${done / tot * 100}%"></i></div><div class="meta">Checklist ${done}/${tot}</div>` : ''}
+        <div class="row" style="margin-top:6px"><button data-mv="-1" ${si === 0 ? 'disabled' : ''} aria-label="Mover a ${STAGES[si - 1] || ''}">←</button><button data-mv="1" ${si === 4 ? 'disabled' : ''} aria-label="Mover a ${STAGES[si + 1] || ''}">→</button><button data-ed>Abrir</button></div>`;
+      el.addEventListener('dragstart', e => { dragId = t.id; el.classList.add('drag'); e.dataTransfer.setData('text/plain', t.id); });
+      el.addEventListener('dragend', () => el.classList.remove('drag'));
+      el.addEventListener('click', e => {
+        const b = e.target.closest('button'); if (!b) return;
+        if (b.dataset.mv) { t.stage = STAGES[si + +b.dataset.mv]; persist(); render(); board.querySelector(`[data-id="${t.id}"] [data-ed]`)?.focus(); }
+        else open(t);
+      });
+      col.appendChild(el);
+    });
+    col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('over'); });
+    col.addEventListener('dragleave', () => col.classList.remove('over'));
+    col.addEventListener('drop', e => { e.preventDefault(); col.classList.remove('over'); const t = data.find(x => x.id === (e.dataTransfer.getData('text/plain') || dragId)); if (t) { t.stage = st; persist(); render(); } });
+    board.appendChild(col);
+  });
+}
+// Editor
+const dlg = $('#dlg'), form = $('#form');
+form.stage.innerHTML = STAGES.map(s => `<option>${s}</option>`).join('');
+let editing = null, draft = null;
+function open(t) {
+  editing = t; draft = JSON.parse(JSON.stringify(t || { id: uid(), title: '', stage: 'Idea', bpm: '', key: '', collab: [], due: '', versions: [], checklist: [] }));
+  $('#dlgT').textContent = t ? 'Editar tema' : 'Nuevo tema';
+  form.title.value = draft.title; form.stage.value = draft.stage; form.bpm.value = draft.bpm; form.key.value = draft.key; form.collab.value = draft.collab.join(', '); form.due.value = draft.due;
+  $('#del').hidden = !t; lists(); dlg.showModal();
+}
+function lists() {
+  $('#vList').innerHTML = draft.versions.map((v, i) => `<div class="li"><span><b>${esc(v.n)}</b> — ${esc(v.note)}</span><button type="button" data-vd="${i}" aria-label="Quitar versión">✕</button></div>`).join('') || '<span class="muted">Sin versiones</span>';
+  $('#cList').innerHTML = draft.checklist.map((c, i) => `<div class="li"><input type="checkbox" data-ct="${i}" ${c.d ? 'checked' : ''} aria-label="${esc(c.t)}"><span>${esc(c.t)}</span><button type="button" data-cd="${i}" aria-label="Quitar tarea">✕</button></div>`).join('') || '<span class="muted">Sin tareas</span>';
+}
+dlg.addEventListener('click', e => {
+  const b = e.target;
+  if (b.dataset.vd) { draft.versions.splice(+b.dataset.vd, 1); lists(); }
+  if (b.dataset.cd) { draft.checklist.splice(+b.dataset.cd, 1); lists(); }
+  if (b.dataset.ct) draft.checklist[+b.dataset.ct].d = b.checked;
+});
+$('#vAdd').onclick = () => { const n = $('#vName').value.trim() || 'v' + (draft.versions.length + 1); draft.versions.push({ n, note: $('#vNote').value.trim() }); $('#vName').value = $('#vNote').value = ''; lists(); };
+$('#cAdd').onclick = () => { const t = $('#cText').value.trim(); if (!t) return; draft.checklist.push({ t, d: false }); $('#cText').value = ''; lists(); };
+$('#cText').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#cAdd').click(); } });
+$('#vNote').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#vAdd').click(); } });
+$('#cancel').onclick = () => dlg.close();
+let delArm = false;
+$('#del').onclick = () => {
+  if (!delArm) { delArm = true; $('#del').textContent = '¿Seguro? Pulsa otra vez'; setTimeout(() => { delArm = false; $('#del').textContent = 'Eliminar'; }, 3000); return; }
+  data = data.filter(x => x.id !== editing.id); persist(); dlg.close(); render();
+};
+form.addEventListener('submit', e => {
+  if (e.submitter?.value !== 'save') return;
+  Object.assign(draft, { title: form.title.value.trim(), stage: form.stage.value, bpm: form.bpm.value ? +form.bpm.value : '', key: form.key.value.trim(), collab: form.collab.value.split(',').map(s => s.trim()).filter(Boolean), due: form.due.value });
+  delete draft.example;
+  if (editing) Object.assign(editing, draft), delete editing.example; else data.push(draft);
+  persist(); render();
+});
+$('#add').onclick = () => open(null);
+['#q', '#fCollab', '#fDue'].forEach(s => $(s).addEventListener('input', render));
+$('#io').onclick = () => { const b = $('#ioBox'); b.hidden = !b.hidden; $('#ioText').value = JSON.stringify(data, null, 2); $('#ioMsg').textContent = ''; };
+$('#ioCopy').onclick = async () => { $('#ioText').select(); try { await navigator.clipboard.writeText($('#ioText').value); $('#ioMsg').textContent = 'Copiado.'; } catch (e) { document.execCommand('copy'); $('#ioMsg').textContent = 'Seleccionado: copia con Ctrl/Cmd+C.'; } };
+$('#ioLoad').onclick = () => {
+  try {
+    const d = JSON.parse($('#ioText').value);
+    if (!Array.isArray(d)) throw 0;
+    data = d.filter(t => t && t.title).map(t => ({ id: t.id || uid(), example: !!t.example, title: String(t.title), stage: STAGES.includes(t.stage) ? t.stage : 'Idea', bpm: t.bpm || '', key: t.key || '', collab: Array.isArray(t.collab) ? t.collab.map(String) : [], due: t.due || '', versions: Array.isArray(t.versions) ? t.versions : [], checklist: Array.isArray(t.checklist) ? t.checklist : [] }));
+    persist(); render(); $('#ioMsg').textContent = `Importados ${data.length} temas.`;
+  } catch (e) { $('#ioMsg').textContent = 'JSON no válido.'; }
+};
+$('#clearEx').onclick = () => { data = data.filter(t => !t.example); persist(); render(); $('#ioText').value = JSON.stringify(data, null, 2); $('#ioMsg').textContent = 'Ejemplos borrados.'; };
+render();
+</script>

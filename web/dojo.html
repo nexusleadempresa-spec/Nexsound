@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Dojo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one column dojo. Belt strip on top, exam card in the middle, local ranking below. Single dark world. */
+:root {
+  --void: #07060b; --panel: #100e17; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --ok: #3ee08f; --line: rgba(236,232,244,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+body { background: var(--void); color: var(--ink); font-family: var(--f-mono); font-size: 13px; line-height: 1.6; }
+.back { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: 16px; color: var(--dim); font-size: 11px; letter-spacing: .1em; text-decoration: none; text-transform: uppercase; }
+.back:hover, .back:focus-visible { color: var(--ink); }
+main { max-width: 720px; margin: 0 auto; padding: 44px 16px calc(40px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 22px; }
+h1 { font: 900 clamp(56px, 16vw, 128px)/.84 var(--f-disp); margin: 0; text-transform: uppercase; }
+h1 span { color: var(--heat); }
+h2 { font: 800 28px/1 var(--f-disp); margin: 0; text-transform: uppercase; letter-spacing: .02em; }
+p { margin: 0; color: var(--dim); }
+b { color: var(--ink); font-weight: 600; }
+button, input { font: 600 12px/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 12px 14px; cursor: pointer; border-radius: 0; }
+input { cursor: text; width: 7em; font-size: 16px; letter-spacing: 0; }
+button:hover { border-color: var(--uv); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button:disabled { opacity: .4; cursor: default; }
+.go { border-color: var(--heat); color: var(--heat); font-size: 14px; padding: 16px 20px; }
+.go:hover { background: var(--heat); color: var(--void); }
+.belts { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.belt { height: 30px; border: 1px solid var(--line); position: relative; opacity: .35; }
+.belt.got { opacity: 1; }
+.belt.cur { opacity: 1; outline: 2px solid var(--ink); outline-offset: 2px; }
+.belt i { position: absolute; left: 0; right: 0; bottom: -18px; font-size: 9px; font-style: normal; text-align: center; color: var(--dim); letter-spacing: .04em; }
+.card { background: var(--panel); border: 1px solid var(--line); padding: 18px 16px; display: grid; gap: 14px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.opts button { padding: 16px 10px; text-transform: none; letter-spacing: .02em; font-size: 13px; }
+.opts button.right { border-color: var(--ok); color: var(--ok); }
+.opts button.wrong { border-color: var(--heat); color: var(--heat); }
+.meta { display: flex; justify-content: space-between; color: var(--dim); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
+.dots { display: flex; gap: 4px; }
+.dots span { width: 12px; height: 12px; border: 1px solid var(--line); }
+.dots .y { background: var(--ok); border-color: var(--ok); }
+.dots .n { background: var(--heat); border-color: var(--heat); }
+#q { font: 800 26px/1.1 var(--f-disp); color: var(--ink); text-transform: uppercase; letter-spacing: .02em; }
+#fb { min-height: 1.6em; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+td, th { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+th { color: var(--dim); font-weight: 400; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+.big { font: 900 64px/1 var(--f-disp); }
+@media (prefers-reduced-motion: no-preference) { .card { transition: border-color .2s; } }
+</style>
+
+<a class="back" href="experiencias.html">← Experiencias</a>
+<main>
+  <header style="display:grid;gap:14px">
+    <h1>Dojo<br><span>del oído</span></h1>
+    <p>Siete cinturones, de blanco a negro. Cada examen son <b>10 preguntas</b>: aciertas 8 y te ganas el siguiente. Las pruebas se endurecen: tempo, altura, intervalos, BPM, ecualización y compresión. Usa auriculares.</p>
+  </header>
+
+  <section style="display:grid;gap:26px">
+    <div class="belts" id="belts"></div>
+    <div class="row" style="justify-content:space-between">
+      <div><div class="meta">cinturón actual</div><h2 id="beltName">Blanco</h2></div>
+      <div class="row"><button class="go" id="start">Empezar examen</button></div>
+    </div>
+    <p id="beltInfo"></p>
+  </section>
+
+  <section class="card" id="exam" hidden aria-live="polite">
+    <div class="meta"><span>pregunta <b id="qn">1</b>/10</span><div class="dots" id="dots"></div></div>
+    <div id="q"></div>
+    <p id="qhelp"></p>
+    <div class="row" id="plays"></div>
+    <div class="opts" id="opts"></div>
+    <div class="row" id="bpmRow" hidden><input id="bpmIn" type="number" inputmode="numeric" min="40" max="220" aria-label="BPM"><button id="bpmOk">Responder</button></div>
+    <p id="fb"></p>
+    <div class="row"><button id="next" hidden>Siguiente</button><button id="quit">Abandonar</button></div>
+  </section>
+
+  <section class="card" id="result" hidden>
+    <div class="big" id="resScore">0/10</div>
+    <h2 id="resTitle"></h2>
+    <p id="resText"></p>
+    <div class="row"><button class="go" id="again">Otro examen</button></div>
+  </section>
+
+  <section style="display:grid;gap:10px">
+    <h2>Ranking local</h2>
+    <p>Tus mejores exámenes en este navegador. Un ranking mundial necesitaría un servidor, así que aquí solo compites contigo.</p>
+    <table><thead><tr><th>#</th><th>Cinturón</th><th>Nota</th><th>Tiempo</th><th>Fecha</th></tr></thead><tbody id="rank"></tbody></table>
+    <div class="row"><button id="reset">Borrar progreso</button></div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const BELTS = [
+    { n: 'Blanco', c: '#f2f0f5', t: ['tempo', 'altura'], info: '¿Qué loop va más rápido? ¿Qué nota es más aguda? Diferencias grandes.' },
+    { n: 'Amarillo', c: '#f5d23a', t: ['tempo', 'altura', 'intervalo'], info: 'Diferencias más pequeñas y primeros intervalos.' },
+    { n: 'Naranja', c: '#ff8a2a', t: ['altura', 'intervalo', 'bpm'], info: 'Intervalos y adivinar el BPM con ±8 de margen.' },
+    { n: 'Verde', c: '#3ec46d', t: ['intervalo', 'bpm', 'eq'], info: 'BPM ±6 y detectar qué banda está realzada +6 dB.' },
+    { n: 'Azul', c: '#3d7bff', t: ['bpm', 'eq', 'comp'], info: 'BPM ±4, EQ +4 dB y compresión sí/no.' },
+    { n: 'Marrón', c: '#8a5a34', t: ['bpm', 'eq', 'comp', 'intervalo'], info: 'BPM ±2, EQ +2 dB, compresión más sutil.' },
+    { n: 'Negro', c: '#1b1a20', t: ['bpm', 'eq', 'comp', 'intervalo'], info: 'BPM ±1, EQ +1 dB. Lo más fino.' },
+  ];
+  const BPM_TOL = [8, 8, 8, 6, 4, 2, 1], EQ_DB = [6, 6, 6, 6, 4, 2, 1];
+  const BANDS = [63, 125, 250, 500, 1000, 2000, 4000, 8000];
+  const IV = [['Unísono', 0], ['2ª menor', 1], ['2ª mayor', 2], ['3ª menor', 3], ['3ª mayor', 4], ['4ª justa', 5], ['Tritono', 6], ['5ª justa', 7], ['6ª menor', 8], ['6ª mayor', 9], ['7ª menor', 10], ['7ª mayor', 11], ['Octava', 12]];
+  const IV_SET = [null, [4, 7, 12], [3, 4, 5, 7, 12], [2, 3, 4, 5, 7, 9, 12], null, null, null];
+  const store = { get(k, d) { try { const v = localStorage.getItem('nx-dojo-' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem('nx-dojo-' + k, JSON.stringify(v)); } catch (e) {} } };
+  let belt = store.get('belt', 0), maxBelt = store.get('max', 0), ranking = store.get('rank', []);
+  let ctx, noiseBuf, playing = [], exam = null;
+  const rnd = (a) => a[Math.floor(Math.random() * a.length)];
+  const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const fmtHz = (f) => f >= 1000 ? (f / 1000) + ' kHz' : f + ' Hz';
+
+  function audio() {
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // pink noise (Paul Kellet), 4 s
+      const len = ctx.sampleRate * 4; noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate); const d = noiseBuf.getChannelData(0);
+      let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+      for (let i = 0; i < len; i++) { const w = Math.random() * 2 - 1; b0 = .99886 * b0 + w * .0555179; b1 = .99332 * b1 + w * .0750759; b2 = .969 * b2 + w * .153852; b3 = .8665 * b3 + w * .3104856; b4 = .55 * b4 + w * .5329522; b5 = -.7616 * b5 - w * .016898; d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * .5362) * .09; b6 = w * .115926; }
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+  function stopAll() { playing.forEach((n) => { try { n.stop(); } catch (e) {} }); playing = []; }
+
+  // Drum loop rendered offline: kick, snare, hats, a bass note.
+  const loopCache = new Map();
+  async function renderLoop(bpm, secs) {
+    const key = bpm + ':' + secs; if (loopCache.has(key)) return loopCache.get(key);
+    const sr = 44100, oc = new OfflineAudioContext(1, Math.ceil(sr * secs), sr), beat = 60 / bpm;
+    const nb = oc.createBuffer(1, sr, sr), nd = nb.getChannelData(0); for (let i = 0; i < sr; i++) nd[i] = Math.random() * 2 - 1;
+    const env = (g, t, p, d) => { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(p, t + .002); g.gain.exponentialRampToValueAtTime(0.0001, t + d); };
+    for (let s = 0; s * beat / 2 < secs; s++) {
+      const t = s * beat / 2;
+      if (s % 2 === 0) { const o = oc.createOscillator(), g = oc.createGain(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(45, t + .12); env(g, t, .9, .35); o.connect(g).connect(oc.destination); o.start(t); o.stop(t + .4); }
+      if (s % 4 === 2) { const n = oc.createBufferSource(), f = oc.createBiquadFilter(), g = oc.createGain(); n.buffer = nb; f.type = 'bandpass'; f.frequency.value = 1900; env(g, t, .55, .16); n.connect(f).connect(g).connect(oc.destination); n.start(t); n.stop(t + .2); }
+      { const n = oc.createBufferSource(), f = oc.createBiquadFilter(), g = oc.createGain(); n.buffer = nb; f.type = 'highpass'; f.frequency.value = 7500; env(g, t, s % 2 ? .22 : .12, .05); n.connect(f).connect(g).connect(oc.destination); n.start(t, Math.random() * .5); n.stop(t + .08); }
+      if (s % 4 === 1 || s % 8 === 7) { const o = oc.createOscillator(), f = oc.createBiquadFilter(), g = oc.createGain(); o.type = 'sawtooth'; o.frequency.value = s % 8 === 7 ? 73.4 : 55; f.type = 'lowpass'; f.frequency.value = 700; env(g, t, .3, beat * .45); o.connect(f).connect(g).connect(oc.destination); o.start(t); o.stop(t + beat * .5); }
+    }
+    const buf = await oc.startRendering(); loopCache.set(key, buf); return buf;
+  }
+  function playBuf(buf, chain, gain = .8, dur) {
+    const c = audio(), s = c.createBufferSource(), g = c.createGain(); s.buffer = buf; g.gain.value = gain;
+    let node = s; (chain || []).forEach((n) => { node.connect(n); node = n; }); node.connect(g).connect(c.destination);
+    s.start(); if (dur) s.stop(c.currentTime + dur); playing.push(s); return s;
+  }
+  function tone(midi, t, dur, gain = .3) {
+    const c = audio(), o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain(); o.type = 'triangle'; o2.type = 'sine'; o.frequency.value = mtof(midi); o2.frequency.value = mtof(midi) * 2;
+    const g2 = c.createGain(); g2.gain.value = .25; o2.connect(g2).connect(g);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + .015); g.gain.setTargetAtTime(gain * .6, t + .05, .2); g.gain.setTargetAtTime(0.0001, t + dur, .05);
+    o.connect(g).connect(c.destination); o.start(t); o2.start(t); o.stop(t + dur + .4); o2.stop(t + dur + .4); playing.push(o, o2);
+  }
+  function eqChain(freq, db) { const f = ctx.createBiquadFilter(); f.type = 'peaking'; f.frequency.value = freq; f.Q.value = 1.41; f.gain.value = db; return [f]; }
+  function compChain(lvl) {
+    const c = ctx.createDynamicsCompressor(), mk = ctx.createGain();
+    const th = [-34, -30, -26, -22][lvl], ra = [20, 12, 6, 4][lvl];
+    c.threshold.value = th; c.ratio.value = ra; c.attack.value = .001; c.release.value = .08; c.knee.value = 3; mk.gain.value = Math.pow(10, (-th * (1 - 1 / ra)) * .55 / 20);
+    return [c, mk];
+  }
+
+  // Question generators. Each returns { q, help, plays:[{label, fn}], opts:[...], answer } or bpm-type.
+  function genQ(b) {
+    const type = rnd(BELTS[b].t);
+    if (type === 'tempo') {
+      const base = 90 + Math.floor(Math.random() * 40), pct = b === 0 ? .14 : .07, fast = Math.random() < .5 ? 0 : 1;
+      const bpms = [base, base]; bpms[fast] = Math.round(base * (1 + pct));
+      return { q: '¿Qué loop va más rápido?', help: 'Escucha A y B. Diferencia de ' + Math.round(pct * 100) + '%.', plays: [{ label: '▶ A', fn: async () => playBuf(await renderLoop(bpms[0], 4), null, .8) }, { label: '▶ B', fn: async () => playBuf(await renderLoop(bpms[1], 4), null, .8) }], opts: ['A', 'B'], answer: fast === 0 ? 'A' : 'B', reveal: 'A ' + bpms[0] + ' BPM · B ' + bpms[1] + ' BPM' };
+    }
+    if (type === 'altura') {
+      const base = 57 + Math.floor(Math.random() * 12), cents = b === 0 ? 300 : b === 1 ? 100 : 40, up = Math.random() < .5;
+      const n = [base, base + cents / 100]; if (!up) n.reverse();
+      return { q: '¿Qué nota es más aguda?', help: 'Suenan la 1 y luego la 2. Diferencia de ' + cents + ' cents.', plays: [{ label: '▶ Escuchar', fn: () => { const t = audio().currentTime + .05; tone(n[0], t, .6); tone(n[1], t + .8, .6); } }], opts: ['1ª', '2ª'], answer: n[0] > n[1] ? '1ª' : '2ª', reveal: (n[0] > n[1] ? 'La primera' : 'La segunda') + ' estaba ' + cents + ' cents por encima.' };
+    }
+    if (type === 'intervalo') {
+      const set = IV_SET[b] || IV.map((x) => x[1]).filter((x) => x > 0), iv = rnd(set), root = 55 + Math.floor(Math.random() * 10), harm = b >= 5 && Math.random() < .4;
+      const name = IV.find((x) => x[1] === iv)[0];
+      const others = shuffle(set.filter((x) => x !== iv)).slice(0, 3).map((x) => IV.find((y) => y[1] === x)[0]);
+      return { q: '¿Qué intervalo es?', help: harm ? 'Melódico y luego armónico (a la vez).' : 'Dos notas seguidas, de grave a aguda.', plays: [{ label: '▶ Escuchar', fn: () => { const t = audio().currentTime + .05; tone(root, t, .6); tone(root + iv, t + .75, .6); if (harm) { tone(root, t + 1.7, 1, .22); tone(root + iv, t + 1.7, 1, .22); } } }], opts: shuffle([name, ...others]), answer: name, reveal: 'Era ' + name + '.' };
+    }
+    if (type === 'bpm') {
+      const bpm = 80 + Math.floor(Math.random() * 81), tol = BPM_TOL[b];
+      return { q: '¿A cuántos BPM va?', help: 'Escribe el tempo. Margen: ±' + tol + ' BPM.', plays: [{ label: '▶ Loop', fn: async () => playBuf(await renderLoop(bpm, 8), null, .8) }], bpm, tol, reveal: 'Iba a ' + bpm + ' BPM.' };
+    }
+    if (type === 'eq') {
+      const db = EQ_DB[b], band = rnd(BANDS), src = Math.random() < .5 ? 'ruido rosa' : 'loop de batería';
+      const others = shuffle(BANDS.filter((x) => x !== band)).slice(0, b >= 5 ? 5 : 3);
+      const getBuf = async () => src === 'ruido rosa' ? (audio(), noiseBuf) : renderLoop(120, 4);
+      return { q: '¿Qué banda está realzada?', help: 'Fuente: ' + src + '. Una banda de octava sube +' + db + ' dB. Compara plano y procesado.', plays: [{ label: '▶ Plano', fn: async () => playBuf(await getBuf(), null, .7, 3) }, { label: '▶ Con EQ', fn: async () => { const bf = await getBuf(); playBuf(bf, eqChain(band, db), .7, 3); } }], opts: shuffle([band, ...others]).map(fmtHz), answer: fmtHz(band), reveal: 'Realce de +' + db + ' dB en ' + fmtHz(band) + '.' };
+    }
+    // comp
+    const lvl = Math.min(3, Math.max(0, b - 4 + (b >= 6 ? 1 : 0))), which = Math.random() < .5 ? 'A' : 'B';
+    return { q: '¿Cuál está comprimido?', help: 'Mismo loop dos veces, con volumen parecido. Uno lleva compresión.', plays: ['A', 'B'].map((k) => ({ label: '▶ ' + k, fn: async () => { const bf = await renderLoop(110, 4); audio(); playBuf(bf, k === which ? compChain(lvl) : null, .6); } })), opts: ['A', 'B'], answer: which, reveal: 'El comprimido era ' + which + '.' };
+  }
+
+  function drawBelts() {
+    $('belts').innerHTML = BELTS.map((x, i) => '<div class="belt' + (i <= maxBelt ? ' got' : '') + (i === belt ? ' cur' : '') + '" style="background:' + x.c + '" title="' + x.n + '"><i>' + x.n + '</i></div>').join('');
+    $('beltName').textContent = BELTS[belt].n + (maxBelt >= 7 ? ' · maestro' : '');
+    $('beltInfo').textContent = BELTS[belt].info;
+  }
+  function drawRank() {
+    $('rank').innerHTML = ranking.length ? ranking.map((r, i) => '<tr><td>' + (i + 1) + '</td><td>' + BELTS[r.b].n + '</td><td>' + r.s + '/10</td><td>' + r.t + ' s</td><td>' + new Date(r.d).toLocaleDateString('es') + '</td></tr>').join('') : '<tr><td colspan="5" style="color:var(--dim)">Aún no hay exámenes.</td></tr>';
+  }
+
+  function startExam() {
+    audio(); stopAll();
+    exam = { b: belt, i: 0, ok: 0, marks: [], t0: performance.now() };
+    $('result').hidden = true; $('exam').hidden = false; $('start').disabled = true;
+    showQ();
+  }
+  function showQ() {
+    stopAll();
+    const Q = exam.cur = genQ(exam.b); exam.answered = false;
+    $('qn').textContent = exam.i + 1; $('q').textContent = Q.q; $('qhelp').textContent = Q.help; $('fb').textContent = ''; $('next').hidden = true;
+    $('dots').innerHTML = Array.from({ length: 10 }, (_, k) => '<span class="' + (exam.marks[k] === undefined ? '' : exam.marks[k] ? 'y' : 'n') + '"></span>').join('');
+    $('plays').innerHTML = ''; Q.plays.forEach((p) => { const b = document.createElement('button'); b.textContent = p.label; b.onclick = () => { stopAll(); p.fn(); }; $('plays').appendChild(b); });
+    const stop = document.createElement('button'); stop.textContent = '■ Parar'; stop.onclick = stopAll; $('plays').appendChild(stop);
+    $('opts').innerHTML = ''; $('bpmRow').hidden = !Q.bpm;
+    if (Q.bpm) { $('bpmIn').value = ''; $('bpmIn').disabled = false; $('bpmOk').disabled = false; }
+    else Q.opts.forEach((o, k) => { const b = document.createElement('button'); b.textContent = (k + 1) + ' · ' + o; b.dataset.v = o; b.onclick = () => answer(o, b); $('opts').appendChild(b); });
+    $('plays').firstChild.focus();
+  }
+  function answer(v, btn) {
+    if (exam.answered) return; exam.answered = true;
+    const Q = exam.cur; let ok;
+    if (Q.bpm) { const n = parseFloat(v); ok = Math.abs(n - Q.bpm) <= Q.tol; $('bpmIn').disabled = true; $('bpmOk').disabled = true; }
+    else { ok = v === Q.answer; [...$('opts').children].forEach((b) => { b.disabled = true; if (b.dataset.v === Q.answer) b.classList.add('right'); }); if (!ok && btn) btn.classList.add('wrong'); }
+    exam.marks.push(ok); if (ok) exam.ok++;
+    $('fb').innerHTML = (ok ? '<b style="color:var(--ok)">Bien.</b> ' : '<b style="color:var(--heat)">No.</b> ') + Q.reveal;
+    $('next').hidden = false; $('next').textContent = exam.i === 9 ? 'Ver resultado' : 'Siguiente'; $('next').focus();
+  }
+  function next() { exam.i++; if (exam.i >= 10) finish(); else showQ(); }
+  function finish() {
+    stopAll();
+    const s = exam.ok, t = Math.round((performance.now() - exam.t0) / 1000), pass = s >= 8, b = exam.b;
+    ranking.push({ b, s, t, d: Date.now() }); ranking.sort((x, y) => y.b - x.b || y.s - x.s || x.t - y.t); ranking = ranking.slice(0, 10); store.set('rank', ranking);
+    let text;
+    if (pass) {
+      if (b === 6) { maxBelt = 7; text = 'Cinturón negro superado. Ya eres maestro del dojo: sigue repitiendo el examen negro para afinar tu marca.'; }
+      else { belt = b + 1; maxBelt = Math.max(maxBelt, belt); text = 'Te ganas el cinturón ' + BELTS[belt].n.toLowerCase() + '. Las pruebas se endurecen.'; }
+    } else text = 'Necesitas 8 de 10. Repite el examen ' + BELTS[b].n.toLowerCase() + '.';
+    store.set('belt', belt); store.set('max', maxBelt);
+    $('exam').hidden = true; $('result').hidden = false; $('start').disabled = false;
+    $('resScore').textContent = s + '/10'; $('resTitle').textContent = pass ? 'Aprobado' : 'Suspendido'; $('resTitle').style.color = pass ? 'var(--ok)' : 'var(--heat)'; $('resText').textContent = text + ' Tiempo: ' + t + ' s.';
+    exam = null; drawBelts(); drawRank(); $('again').focus();
+  }
+
+  $('start').onclick = startExam; $('again').onclick = startExam; $('next').onclick = next;
+  $('quit').onclick = () => { stopAll(); exam = null; $('exam').hidden = true; $('start').disabled = false; };
+  $('bpmOk').onclick = () => { if ($('bpmIn').value) answer($('bpmIn').value); };
+  $('bpmIn').addEventListener('keydown', (e) => { if (e.key === 'Enter' && $('bpmIn').value) { e.preventDefault(); answer($('bpmIn').value); } });
+  $('belts').addEventListener('click', (e) => { const i = [...$('belts').children].indexOf(e.target.closest('.belt')); if (i >= 0 && i <= Math.min(6, maxBelt) && !exam) { belt = i; store.set('belt', belt); drawBelts(); } });
+  $('reset').onclick = () => { if ($('reset').dataset.arm) { belt = 0; maxBelt = 0; ranking = []; store.set('belt', 0); store.set('max', 0); store.set('rank', []); drawBelts(); drawRank(); $('reset').textContent = 'Borrar progreso'; delete $('reset').dataset.arm; } else { $('reset').dataset.arm = 1; $('reset').textContent = 'Pulsa otra vez para borrar'; } };
+  document.addEventListener('keydown', (e) => {
+    if (!exam || e.target.tagName === 'INPUT') return;
+    const n = parseInt(e.key, 10); const bs = $('opts').children;
+    if (n >= 1 && n <= bs.length && !exam.answered) bs[n - 1].click();
+    else if ((e.key === 'a' || e.key === 'A') && $('plays').children[0]) $('plays').children[0].click();
+    else if ((e.key === 'b' || e.key === 'B') && $('plays').children.length > 2) $('plays').children[1].click();
+  });
+  drawBelts(); drawRank();
+  window.__dojo = { genQ, answer: (v) => answer(v), get exam() { return exam; }, next };
+})();
+</script>

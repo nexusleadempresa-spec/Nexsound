@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Bombos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --void: #07060b; --panel: #100e17; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --acid: #c8ff3d; --line: rgba(236,232,244,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+body { background: var(--void); color: var(--ink); font-family: var(--f-mono); font-size: 13px; line-height: 1.6; overflow-x: hidden; }
+main { max-width: 1100px; margin: 0 auto; padding: calc(44px + env(safe-area-inset-top,0px)) 16px calc(40px + env(safe-area-inset-bottom,0px)); }
+.back { position: absolute; top: calc(12px + env(safe-area-inset-top,0px)); left: 16px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); text-decoration: none; }
+.back:hover, .back:focus-visible { color: var(--ink); }
+h1 { font: 900 clamp(48px, 13vw, 120px)/.85 var(--f-disp); text-transform: uppercase; margin: 0 0 12px; letter-spacing: -.01em; }
+h1 span { color: var(--heat); }
+h2 { font: 800 clamp(22px, 5vw, 32px)/1 var(--f-disp); text-transform: uppercase; margin: 28px 0 10px; letter-spacing: .02em; }
+p.lead { color: var(--dim); max-width: 60ch; margin: 0 0 18px; }
+button { font: 600 12px/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 10px 12px; cursor: pointer; touch-action: manipulation; }
+button:hover { border-color: var(--uv); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+button.hot { border-color: var(--heat); color: var(--heat); }
+button.hot:hover { background: var(--heat); color: var(--void); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.muted { color: var(--dim); }
+label { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+input[type=range] { accent-color: var(--heat); width: 160px; max-width: 100%; }
+select, input[type=text], textarea { font: 400 13px var(--f-mono); color: var(--ink); background: var(--panel); border: 1px solid var(--line); padding: 9px 10px; max-width: 100%; }
+.card { background: var(--panel); border: 1px solid var(--line); padding: 12px; min-width: 0; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+<style>
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+@media (max-width: 420px) { .grid { grid-template-columns: 1fr 1fr; } }
+.k { display: grid; gap: 6px; cursor: pointer; position: relative; }
+.k canvas { width: 100%; height: 64px; display: block; background: #0b0a11; }
+.k h3 { margin: 0; font: 800 20px/1 var(--f-disp); display: flex; justify-content: space-between; align-items: baseline; }
+.k h3 small { font: 400 10px var(--f-mono); color: var(--dim); }
+.k.sel { border-color: var(--acid); box-shadow: inset 0 0 0 1px var(--acid); }
+.k.sel h3::after { content: "PADRE"; font: 600 10px var(--f-mono); color: var(--acid); letter-spacing: .1em; }
+.k.hit { border-color: var(--heat); }
+.k .row button { padding: 8px 8px; font-size: 10px; flex: 1; }
+.genebar { display: flex; gap: 2px; height: 8px; }
+.genebar i { flex: 1; background: var(--uv); }
+.counter { font: 900 clamp(40px, 10vw, 72px)/1 var(--f-disp); }
+.counter small { font: 600 12px var(--f-mono); color: var(--dim); letter-spacing: .1em; }
+#final { display: grid; gap: 10px; border-color: var(--heat); }
+#final canvas { width: 100%; height: 110px; background: #0b0a11; display: block; }
+#code { width: 100%; font-size: 14px; color: var(--acid); resize: none; }
+table { border-collapse: collapse; font-size: 12px; width: 100%; }
+td { padding: 3px 6px; border-bottom: 1px solid var(--line); } td:last-child { text-align: right; color: var(--ink); } td:first-child { color: var(--dim); }
+</style>
+<a class="back" href="experiencias.html">← Experiencias</a>
+<main>
+  <h1>Genético <span>de bombos</span></h1>
+  <p class="lead">Diez bombos sintetizados a partir de un genoma de ocho parámetros. Toca para escuchar, marca dos padres y engendra la siguiente camada con mutación. Al final de diez generaciones, elige tu bombo y llévate su código.</p>
+  <div class="row" style="justify-content:space-between;margin-bottom:12px">
+    <div class="counter" aria-live="polite">GEN <span id="gen">1</span><small> / 10</small></div>
+    <div class="row">
+      <label for="mut">Mutación <b id="mutv" style="color:var(--ink)">20%</b></label>
+      <input type="range" id="mut" min="0" max="60" value="20">
+    </div>
+  </div>
+  <div class="row" style="margin-bottom:12px">
+    <button class="hot" id="next" disabled>Siguiente generación</button>
+    <button id="reset">Empezar de cero</button>
+    <span class="muted" id="hint">Elige 2 padres (botón «Padre»).</span>
+  </div>
+  <div class="grid" id="grid"></div>
+
+  <section id="finalWrap" hidden>
+    <h2>Bombo final</h2>
+    <div class="card" id="final">
+      <canvas id="fcv" aria-label="Forma de onda del bombo final"></canvas>
+      <div class="row"><button class="hot" id="fplay">▶ Escuchar</button><button id="copy">Copiar código</button><span class="muted" id="copied" aria-live="polite"></span></div>
+      <label for="code">Código del genoma</label>
+      <textarea id="code" rows="2" readonly></textarea>
+      <table id="ftab"></table>
+      <p class="muted" style="margin:0">Pega el código en «Cargar código» para recuperar este bombo más tarde.</p>
+    </div>
+  </section>
+  <h2>Cargar código</h2>
+  <div class="row"><label for="load" style="position:absolute;left:-9999px">Código</label><input type="text" id="load" placeholder="NXK1-…" style="flex:1;min-width:0"><button id="loadBtn">Cargar como semilla</button></div>
+  <p class="muted" id="loadMsg" aria-live="polite"></p>
+</main>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const GENES = [
+    ['pitchIni', 'Tono inicial', 60, 400, 'Hz'], ['pitchFin', 'Tono final', 28, 90, 'Hz'], ['barrido', 'Barrido', .005, .3, 's'],
+    ['caida', 'Caída', .08, 1.4, 's'], ['click', 'Click', 0, 1, ''], ['ruido', 'Ruido', 0, 1, ''], ['drive', 'Saturación', 0, 1, ''], ['sub', 'Cola sub', 0, 1, ''] ];
+  const rnd = Math.random, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const randG = () => GENES.map(() => rnd());          // genome = 8 normalized values 0..1
+  const val = (g, i) => GENES[i][2] + g[i] * (GENES[i][3] - GENES[i][2]);
+  const fmt = (g, i) => { const v = val(g, i), u = GENES[i][4]; return u === 'Hz' ? Math.round(v) + ' Hz' : u === 's' ? (v * 1000).toFixed(0) + ' ms' : Math.round(v * 100) + '%'; };
+  const encode = (g) => 'NXK1-' + g.map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('').toUpperCase();
+  const decode = (s) => { const m = /^NXK1-([0-9A-F]{16})$/i.exec(s.trim()); if (!m) return null; return m[1].match(/../g).map(h => parseInt(h, 16) / 255); };
+
+  const curve = (amt) => { const n = 1024, c = new Float32Array(n), k = amt * 40; for (let i = 0; i < n; i++) { const x = i / n * 2 - 1; c[i] = (1 + k) * x / (1 + k * Math.abs(x)); } return c; };
+  async function render(g) {
+    const sr = 44100, dur = 1.6, ctx = new OfflineAudioContext(1, sr * dur, sr);
+    const p0 = val(g, 0), p1 = Math.min(val(g, 1), p0 * .9), sw = val(g, 2), dec = val(g, 3), click = val(g, 4), nz = val(g, 5), drive = val(g, 6), sub = val(g, 7);
+    const sh = ctx.createWaveShaper(); sh.curve = curve(drive); sh.oversample = '2x';
+    const post = ctx.createGain(); post.gain.value = .9 / (1 + drive * .8);
+    sh.connect(post).connect(ctx.destination);
+    const o = ctx.createOscillator(), v = ctx.createGain();
+    o.frequency.setValueAtTime(p0, 0); o.frequency.exponentialRampToValueAtTime(p1, sw);
+    v.gain.setValueAtTime(1, 0); v.gain.exponentialRampToValueAtTime(.001, dec);
+    o.connect(v).connect(sh); o.start(0); o.stop(dec + .02);
+    if (sub > .02) { const s = ctx.createOscillator(), sv = ctx.createGain(); s.frequency.value = p1 * .99;
+      sv.gain.setValueAtTime(0, 0); sv.gain.linearRampToValueAtTime(.6 * sub, sw + .01); sv.gain.exponentialRampToValueAtTime(.001, Math.min(1.55, dec * (1.3 + sub * 1.5)));
+      s.connect(sv).connect(post); s.start(0); s.stop(1.58); }
+    const nb = ctx.createBuffer(1, sr * .3, sr), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = rnd() * 2 - 1;
+    if (click > .02) { const c = ctx.createBufferSource(); c.buffer = nb; const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 2500;
+      const cv = ctx.createGain(); cv.gain.setValueAtTime(click * .9, 0); cv.gain.exponentialRampToValueAtTime(.001, .012); c.connect(f).connect(cv).connect(sh); c.start(0); c.stop(.02); }
+    if (nz > .02) { const c = ctx.createBufferSource(); c.buffer = nb; const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1200; f.Q.value = .7;
+      const cv = ctx.createGain(); cv.gain.setValueAtTime(nz * .5, 0); cv.gain.exponentialRampToValueAtTime(.001, .05 + nz * .2); c.connect(f).connect(cv).connect(sh); c.start(0); c.stop(.3); }
+    return ctx.startRendering();
+  }
+  function wave(cv, buf, col) {
+    const r = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+    cv.width = Math.max(1, r.width * dpr); cv.height = Math.max(1, r.height * dpr);
+    const c = cv.getContext('2d'), W = cv.width, H = cv.height, d = buf.getChannelData(0), n = d.length;
+    c.clearRect(0, 0, W, H); c.fillStyle = col;
+    const step = n / W;
+    for (let x = 0; x < W; x++) { let mn = 1, mx = -1; const a = Math.floor(x * step), b = Math.floor((x + 1) * step);
+      for (let i = a; i < b; i++) { const s = d[i]; if (s < mn) mn = s; if (s > mx) mx = s; }
+      c.fillRect(x, (1 - mx) * H / 2, 1, Math.max(1, (mx - mn) * H / 2)); }
+  }
+
+  let ac = null, gen = 1, pop = [], sel = [], finalI = null;
+  const ensure = async () => { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') await ac.resume(); };
+  async function audition(k, el) {
+    await ensure();
+    const s = ac.createBufferSource(); s.buffer = k.buf; s.connect(ac.destination); s.start();
+    if (el) { el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 180); }
+  }
+  async function populate(genomes) {
+    pop = await Promise.all(genomes.map(async (g) => ({ g, buf: await render(g) })));
+    sel = []; draw();
+  }
+  function draw() {
+    const grid = $('grid'); grid.innerHTML = '';
+    pop.forEach((k, i) => {
+      const d = document.createElement('div'); d.className = 'card k' + (sel.includes(i) ? ' sel' : '');
+      d.innerHTML = '<h3>#' + (i + 1) + ' <small>' + Math.round(val(k.g, 0)) + '→' + Math.round(Math.min(val(k.g, 1), val(k.g, 0) * .9)) + ' Hz</small></h3><canvas aria-hidden="true"></canvas>' +
+        '<div class="genebar" aria-hidden="true">' + k.g.map((v, j) => '<i style="opacity:' + (.15 + .85 * v).toFixed(2) + ';background:hsl(' + (j * 40 + 250) + ' 90% 65%)"></i>').join('') + '</div>' +
+        '<div class="row"><button data-a>▶ Oír</button><button data-p aria-pressed="' + sel.includes(i) + '">Padre</button></div>' +
+        (gen >= 10 ? '<button class="hot" data-f>Elegir final</button>' : '');
+      d.querySelector('[data-a]').onclick = (e) => { e.stopPropagation(); audition(k, d); };
+      d.querySelector('[data-p]').onclick = (e) => { e.stopPropagation(); toggle(i); };
+      const f = d.querySelector('[data-f]'); if (f) f.onclick = (e) => { e.stopPropagation(); chooseFinal(i); };
+      d.onclick = () => audition(k, d);
+      grid.appendChild(d);
+      requestAnimationFrame(() => wave(d.querySelector('canvas'), k.buf, sel.includes(i) ? '#c8ff3d' : '#ece8f4'));
+    });
+    $('gen').textContent = gen;
+    $('next').disabled = sel.length !== 2 || gen >= 10;
+    $('hint').textContent = gen >= 10 ? 'Generación 10: elige tu bombo final.' : sel.length === 2 ? 'Listo: engendra la siguiente generación.' : 'Elige 2 padres (botón «Padre»). Seleccionados: ' + sel.length + '/2';
+  }
+  function toggle(i) {
+    if (sel.includes(i)) sel = sel.filter(x => x !== i); else { sel.push(i); if (sel.length > 2) sel.shift(); }
+    draw();
+  }
+  async function next() {
+    if (sel.length !== 2 || gen >= 10) return;
+    const [a, b] = sel.map(i => pop[i].g), rate = $('mut').value / 100;
+    const kids = [a.slice(), b.slice()]; // elitism: parents survive
+    while (kids.length < 10) kids.push(a.map((v, j) => {
+      let c = rnd() < .5 ? v : b[j];
+      if (rnd() < .3) c = (v + b[j]) / 2;
+      if (rnd() < rate) c = clamp(c + (rnd() - .5) * .6, 0, 1);
+      return c; }));
+    gen++; $('next').disabled = true;
+    await populate(kids);
+    if (gen >= 10) $('hint').textContent = 'Generación 10: elige tu bombo final.';
+  }
+  async function chooseFinal(i) {
+    finalI = pop[i]; $('finalWrap').hidden = false;
+    $('code').value = encode(finalI.g);
+    $('ftab').innerHTML = GENES.map((G, j) => '<tr><td>' + G[1] + '</td><td>' + fmt(finalI.g, j) + '</td></tr>').join('');
+    requestAnimationFrame(() => wave($('fcv'), finalI.buf, '#ff5a36'));
+    $('finalWrap').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    audition(finalI);
+  }
+  $('fplay').onclick = () => finalI && audition(finalI);
+  $('copy').onclick = async () => {
+    try { await navigator.clipboard.writeText($('code').value); $('copied').textContent = 'Copiado'; }
+    catch (e) { $('code').select(); $('copied').textContent = 'Selecciónalo y copia (Ctrl/Cmd+C)'; }
+  };
+  $('next').onclick = next;
+  $('reset').onclick = () => { gen = 1; $('finalWrap').hidden = true; populate(Array.from({length: 10}, randG)); };
+  $('mut').oninput = () => { $('mutv').textContent = $('mut').value + '%'; };
+  $('loadBtn').onclick = async () => {
+    const g = decode($('load').value);
+    if (!g) { $('loadMsg').textContent = 'Código no válido. Formato: NXK1- seguido de 16 caracteres hexadecimales.'; return; }
+    gen = 1; $('finalWrap').hidden = true;
+    const rate = .25;
+    await populate([g, ...Array.from({length: 9}, () => g.map(v => rnd() < rate ? clamp(v + (rnd() - .5) * .5, 0, 1) : v))]);
+    $('loadMsg').textContent = 'Cargado: el #1 es tu bombo; los demás son mutaciones suyas.';
+  };
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(draw, 150); });
+  populate(Array.from({length: 10}, randG));
+})();
+</script>

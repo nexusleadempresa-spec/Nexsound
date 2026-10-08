@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound ADN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --void: #07060b; --panel: #100e17; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --acid: #c8ff3d; --line: rgba(236,232,244,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+body { background: var(--void); color: var(--ink); font-family: var(--f-mono); font-size: 13px; line-height: 1.6; overflow-x: hidden; }
+main { max-width: 1100px; margin: 0 auto; padding: calc(44px + env(safe-area-inset-top,0px)) 16px calc(40px + env(safe-area-inset-bottom,0px)); }
+.back { position: absolute; top: calc(12px + env(safe-area-inset-top,0px)); left: 16px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); text-decoration: none; }
+.back:hover, .back:focus-visible { color: var(--ink); }
+h1 { font: 900 clamp(48px, 13vw, 120px)/.85 var(--f-disp); text-transform: uppercase; margin: 0 0 12px; letter-spacing: -.01em; }
+h1 span { color: var(--heat); }
+h2 { font: 800 clamp(22px, 5vw, 32px)/1 var(--f-disp); text-transform: uppercase; margin: 28px 0 10px; letter-spacing: .02em; }
+p.lead { color: var(--dim); max-width: 60ch; margin: 0 0 18px; }
+button { font: 600 12px/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 10px 12px; cursor: pointer; touch-action: manipulation; }
+button:hover { border-color: var(--uv); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+button.hot { border-color: var(--heat); color: var(--heat); }
+button.hot:hover { background: var(--heat); color: var(--void); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.muted { color: var(--dim); }
+label { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+input[type=range] { accent-color: var(--heat); width: 160px; max-width: 100%; }
+select, input[type=text], textarea { font: 400 13px var(--f-mono); color: var(--ink); background: var(--panel); border: 1px solid var(--line); padding: 9px 10px; max-width: 100%; }
+.card { background: var(--panel); border: 1px solid var(--line); padding: 12px; min-width: 0; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+<style>
+.parents { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.kids { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.ind { display: grid; gap: 8px; }
+.ind.fav { border-color: var(--acid); box-shadow: inset 0 0 0 1px var(--acid); }
+.ind.playing { border-color: var(--heat); }
+.ind h3 { margin: 0; font: 800 22px/1 var(--f-disp); text-transform: uppercase; letter-spacing: .03em; display: flex; justify-content: space-between; gap: 8px; }
+.ind h3 small { font: 400 11px var(--f-mono); color: var(--dim); letter-spacing: .06em; text-transform: none; }
+.genes { display: grid; gap: 3px; }
+.gene { display: grid; grid-template-columns: 62px 1fr; gap: 6px; align-items: center; font-size: 10px; color: var(--dim); }
+.gene .bar { display: flex; height: 12px; gap: 1px; min-width: 0; }
+.gene .bar i { flex: 1; min-width: 0; }
+.meta { font-size: 11px; color: var(--dim); }
+#tree { width: 100%; overflow-x: auto; border: 1px solid var(--line); background: var(--panel); }
+#tree svg { display: block; }
+.status { min-height: 1.6em; color: var(--acid); font-size: 12px; }
+</style>
+<a class="back" href="experiencias.html">← Experiencias</a>
+<main>
+  <h1>ADN <span>musical</span></h1>
+  <p class="lead">Cada loop es un genoma: tempo, tono, escala, patrones de bombo, hi-hat y bajo, timbre, curva de energía y acordes. Elige dos padres, crúzalos, escucha a los hijos y cría a tus favoritos generación tras generación.</p>
+
+  <h2>Padres</h2>
+  <div class="parents">
+    <div class="card ind" id="pA"></div>
+    <div class="card ind" id="pB"></div>
+  </div>
+
+  <div class="row" style="margin-top:14px">
+    <button class="hot" id="cross">Cruzar → 6 hijos</button>
+    <label for="mut">Mutación <b id="mutv" style="color:var(--ink)">15%</b></label>
+    <input type="range" id="mut" min="0" max="60" value="15">
+    <button id="stop">Parar</button>
+  </div>
+  <p class="status" id="status" aria-live="polite"></p>
+
+  <section id="kidsWrap" hidden>
+    <h2>Generación <span id="genN">1</span></h2>
+    <p class="muted" style="margin:0 0 10px">Escucha y marca como favorito (★). Con 2 o más favoritos, «Criar» los convierte en los nuevos padres (los dos primeros) y vuelve a cruzar.</p>
+    <div class="kids" id="kids"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="hot" id="breed" disabled>Criar siguiente generación</button>
+      <span class="muted" id="favN">0 favoritos</span>
+    </div>
+  </section>
+
+  <h2>Árbol familiar</h2>
+  <p class="muted" style="margin:0 0 8px">Cada punto es un genoma; las líneas van a sus padres. Toca un punto para escucharlo.</p>
+  <div id="tree"></div>
+</main>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const NOTES = ['Do','Do#','Re','Re#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'];
+  const SCALES = { mayor: [0,2,4,5,7,9,11], menor: [0,2,3,5,7,8,10] };
+  const GENE_COL = { kick: '#ff5a36', hat: '#c8ff3d', bass: '#8f6bff', timbre: '#3dd6ff', energy: '#ffb13d', chords: '#ff4fa3', base: '#ece8f4' };
+  const rnd = Math.random;
+  const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  const PRESETS = {
+    'Techno': () => ({ bpm: 130, key: 9, scale: 'menor',
+      kick: [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0], hat: [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,1],
+      bass: [-1,-1,0,-1,-1,0,-1,0,-1,-1,0,-1,-1,0,2,-1], timbre: { cut: .35, res: .6, wave: .9, dec: .25 },
+      energy: [.4,.5,.6,.7,.8,.9,1,.8], chords: [0,0,5,3] }),
+    'Reggaetón': () => ({ bpm: 94, key: 2, scale: 'menor',
+      kick: [1,0,0,1,0,0,1,0,1,0,0,1,0,0,1,0], hat: [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0],
+      bass: [0,-1,-1,0,-1,-1,0,-1,4,-1,-1,4,-1,-1,4,-1], timbre: { cut: .55, res: .2, wave: .2, dec: .5 },
+      energy: [.6,.7,.7,.8,.6,.8,.9,1], chords: [0,5,2,4] }),
+    'House': () => ({ bpm: 124, key: 5, scale: 'mayor',
+      kick: [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0], hat: [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],
+      bass: [-1,-1,0,0,-1,-1,0,-1,-1,-1,4,4,-1,-1,4,-1], timbre: { cut: .7, res: .35, wave: .5, dec: .35 },
+      energy: [.5,.6,.7,.8,.8,.9,1,1], chords: [0,5,3,4] }),
+    'Lo-fi': () => ({ bpm: 76, key: 0, scale: 'mayor',
+      kick: [1,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0], hat: [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,0],
+      bass: [0,-1,-1,-1,-1,-1,0,-1,3,-1,-1,-1,4,-1,-1,-1], timbre: { cut: .2, res: .1, wave: .05, dec: .7 },
+      energy: [.5,.5,.6,.6,.5,.6,.7,.6], chords: [1,4,0,5] }),
+  };
+  const randomGenome = () => ({ bpm: ri(70, 150), key: ri(0, 11), scale: rnd() < .5 ? 'mayor' : 'menor',
+    kick: Array.from({length:16}, (_, i) => +(i % 4 === 0 ? rnd() < .85 : rnd() < .18)),
+    hat: Array.from({length:16}, () => +(rnd() < .45)),
+    bass: Array.from({length:16}, () => rnd() < .45 ? ri(0, 6) : -1),
+    timbre: { cut: rnd(), res: rnd(), wave: rnd(), dec: rnd() },
+    energy: Array.from({length:8}, () => +(.3 + rnd() * .7).toFixed(2)),
+    chords: Array.from({length:4}, () => ri(0, 6)) });
+
+  let uid = 0;
+  const all = [];   // {id,name,g,parents,gen}
+  const make = (g, name, parents, gen) => { const o = { id: ++uid, g, name, parents, gen, buf: null }; all.push(o); return o; };
+
+  // ---------- crossover + mutation ----------
+  function cross(a, b, rate) {
+    const pick = (x, y) => rnd() < .5 ? x : y;
+    const arrX = (x, y) => { const c = ri(1, x.length - 1); return x.map((v, i) => i < c ? v : y[i]); };
+    const g = {
+      bpm: Math.round(pick(a.bpm, b.bpm)), key: pick(a.key, b.key), scale: pick(a.scale, b.scale),
+      kick: arrX(a.kick, b.kick), hat: arrX(a.hat, b.hat), bass: arrX(a.bass, b.bass),
+      timbre: { cut: pick(a.timbre.cut, b.timbre.cut), res: pick(a.timbre.res, b.timbre.res), wave: pick(a.timbre.wave, b.timbre.wave), dec: pick(a.timbre.dec, b.timbre.dec) },
+      energy: a.energy.map((v, i) => +((v + b.energy[i]) / 2).toFixed(2)), chords: arrX(a.chords, b.chords) };
+    const m = () => rnd() < rate;
+    if (m()) g.bpm = clamp(g.bpm + ri(-12, 12), 60, 170);
+    if (m()) g.key = ri(0, 11);
+    if (m() && m()) g.scale = g.scale === 'mayor' ? 'menor' : 'mayor';
+    g.kick = g.kick.map(v => m() ? 1 - v : v);
+    g.hat = g.hat.map(v => m() ? 1 - v : v);
+    g.bass = g.bass.map(v => m() ? (rnd() < .4 ? -1 : ri(0, 6)) : v);
+    for (const k in g.timbre) if (m()) g.timbre[k] = +clamp(g.timbre[k] + (rnd() - .5) * .5, 0, 1).toFixed(2);
+    g.energy = g.energy.map(v => m() ? +clamp(v + (rnd() - .5) * .5, .2, 1).toFixed(2) : v);
+    g.chords = g.chords.map(v => m() ? ri(0, 6) : v);
+    return g;
+  }
+
+  // ---------- synthesis (8 bars, offline) ----------
+  async function render(g) {
+    const sr = 44100, step = 60 / g.bpm / 4, bars = 8, len = step * 16 * bars + 1;
+    const ctx = new OfflineAudioContext(2, Math.ceil(sr * len), sr);
+    const out = ctx.createDynamicsCompressor(); out.threshold.value = -14; out.ratio.value = 4; out.connect(ctx.destination);
+    const sc = SCALES[g.scale], root = 36 + g.key;
+    const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+    const deg = (d, oct = 0) => root + sc[((d % 7) + 7) % 7] + 12 * (Math.floor(d / 7) + oct);
+    const noise = ctx.createBuffer(1, sr, sr); { const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = rnd() * 2 - 1; }
+    const T = g.timbre;
+    for (let bar = 0; bar < bars; bar++) {
+      const e = g.energy[bar], chord = g.chords[bar % 4];
+      const t0 = bar * 16 * step;
+      // pad chord
+      [0, 2, 4].forEach((iv, k) => {
+        const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = hz(deg(chord + iv, 2));
+        o.detune.value = (k - 1) * 6;
+        const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 600 + T.cut * 3000 * e;
+        const v = ctx.createGain(); v.gain.setValueAtTime(0, t0); v.gain.linearRampToValueAtTime(.05 * e, t0 + .15); v.gain.setValueAtTime(.05 * e, t0 + 16 * step - .1); v.gain.linearRampToValueAtTime(0, t0 + 16 * step);
+        o.connect(f).connect(v).connect(out); o.start(t0); o.stop(t0 + 16 * step + .05);
+      });
+      for (let s = 0; s < 16; s++) {
+        const t = t0 + s * step;
+        if (g.kick[s]) {
+          const o = ctx.createOscillator(), v = ctx.createGain();
+          o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(45, t + .12);
+          v.gain.setValueAtTime(.9, t); v.gain.exponentialRampToValueAtTime(.001, t + .35);
+          o.connect(v).connect(out); o.start(t); o.stop(t + .4);
+        }
+        if (g.hat[s] && e > .25) {
+          const n = ctx.createBufferSource(); n.buffer = noise; const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7000;
+          const v = ctx.createGain(); const acc = s % 2 ? .12 : .2;
+          v.gain.setValueAtTime(acc * e, t); v.gain.exponentialRampToValueAtTime(.001, t + .05);
+          n.connect(f).connect(v).connect(out); n.start(t, rnd() * .5); n.stop(t + .06);
+        }
+        if (g.bass[s] >= 0) {
+          const o = ctx.createOscillator(); o.type = T.wave > .5 ? 'sawtooth' : 'square';
+          o.frequency.value = hz(deg(chord + g.bass[s], 0) + (deg(chord + g.bass[s]) > root + 14 ? -12 : 0));
+          const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 1 + T.res * 14;
+          const dur = step * (1 + T.dec * 3);
+          f.frequency.setValueAtTime(200 + T.cut * 2500 * e, t); f.frequency.exponentialRampToValueAtTime(120, t + dur);
+          const v = ctx.createGain(); v.gain.setValueAtTime(.22, t); v.gain.exponentialRampToValueAtTime(.001, t + dur);
+          o.connect(f).connect(v).connect(out); o.start(t); o.stop(t + dur + .02);
+        }
+      }
+    }
+    return ctx.startRendering();
+  }
+
+  // ---------- playback ----------
+  let ac = null, src = null, playingId = 0;
+  function stop() { if (src) { try { src.stop(); } catch (e) {} src = null; } playingId = 0; document.querySelectorAll('.ind.playing').forEach(n => n.classList.remove('playing')); refreshPlayLabels(); }
+  async function play(ind) {
+    if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === 'suspended') await ac.resume();
+    if (playingId === ind.id) { stop(); return; }
+    stop();
+    $('status').textContent = 'Sintetizando ' + ind.name + '…';
+    if (!ind.buf) ind.buf = await render(ind.g);
+    stop();
+    src = ac.createBufferSource(); src.buffer = ind.buf; src.loop = true; src.connect(ac.destination); src.start();
+    playingId = ind.id;
+    document.querySelectorAll('[data-id="' + ind.id + '"]').forEach(n => n.classList.add('playing'));
+    $('status').textContent = '▶ ' + ind.name + ' · ' + ind.g.bpm + ' bpm · ' + NOTES[ind.g.key] + ' ' + ind.g.scale;
+    refreshPlayLabels(); drawTree();
+  }
+  function refreshPlayLabels() { document.querySelectorAll('button[data-play]').forEach(b => { const on = +b.dataset.play === playingId; b.textContent = on ? '■ Parar' : '▶ Escuchar'; b.setAttribute('aria-pressed', on); }); }
+
+  // ---------- gene bars ----------
+  function geneBars(g) {
+    const row = (name, col, vals) => '<div class="gene"><span>' + name + '</span><div class="bar">' + vals.map(v => '<i style="background:' + col + ';opacity:' + (0.12 + .88 * v).toFixed(2) + '"></i>').join('') + '</div></div>';
+    return '<div class="genes" aria-hidden="true">' +
+      row('base', GENE_COL.base, [(g.bpm - 60) / 110, g.key / 11, g.scale === 'mayor' ? 1 : 0]) +
+      row('bombo', GENE_COL.kick, g.kick) + row('hi-hat', GENE_COL.hat, g.hat) +
+      row('bajo', GENE_COL.bass, g.bass.map(v => v < 0 ? 0 : .35 + v / 10)) +
+      row('timbre', GENE_COL.timbre, [g.timbre.cut, g.timbre.res, g.timbre.wave, g.timbre.dec]) +
+      row('energía', GENE_COL.energy, g.energy) + row('acordes', GENE_COL.chords, g.chords.map(v => .2 + v / 7.5)) + '</div>';
+  }
+  const ROMAN = ['I','II','III','IV','V','VI','VII'];
+  const desc = (g) => g.bpm + ' bpm · ' + NOTES[g.key] + ' ' + g.scale + ' · ' + g.chords.map(c => ROMAN[c]).join('–');
+
+  // ---------- parents ----------
+  let parents = [null, null];
+  function parentCard(slot) {
+    const el = $(slot ? 'pB' : 'pA'), p = parents[slot];
+    el.dataset.id = p.id;
+    el.innerHTML = '<h3>' + (slot ? 'Padre B' : 'Padre A') + ' <small>' + p.name + '</small></h3>' +
+      '<div class="row"><label for="sel' + slot + '" style="position:absolute;left:-9999px">Origen</label><select id="sel' + slot + '">' +
+      '<option value="">— cambiar —</option>' + Object.keys(PRESETS).map(k => '<option>' + k + '</option>').join('') + '<option value="__r">Aleatorio</option></select>' +
+      '<button data-play="' + p.id + '">▶ Escuchar</button></div>' + geneBars(p.g) + '<div class="meta">' + desc(p.g) + '</div>';
+    el.querySelector('select').onchange = (e) => {
+      const v = e.target.value; if (!v) return;
+      parents[slot] = v === '__r' ? make(randomGenome(), 'Aleatorio #' + (uid + 1), [], 0) : make(PRESETS[v](), v, [], 0);
+      if (playingId) stop();
+      parentCard(slot); drawTree();
+    };
+    el.querySelector('[data-play]').onclick = () => play(parents[slot]);
+    if (playingId === p.id) el.classList.add('playing'); else el.classList.remove('playing');
+    refreshPlayLabels();
+  }
+
+  // ---------- children ----------
+  let gen = 0, kids = [];
+  const favs = new Set();
+  function crossNow() {
+    stop();
+    gen++;
+    const rate = $('mut').value / 100;
+    kids = Array.from({length: 6}, (_, i) => make(cross(parents[0].g, parents[1].g, rate), 'G' + gen + '·' + (i + 1), [parents[0].id, parents[1].id], gen));
+    favs.clear();
+    $('genN').textContent = gen; $('kidsWrap').hidden = false;
+    renderKids(); drawTree();
+    $('status').textContent = '6 hijos nacidos en la generación ' + gen + '. Escúchalos.';
+  }
+  function renderKids() {
+    $('kids').innerHTML = '';
+    kids.forEach(k => {
+      const d = document.createElement('div'); d.className = 'card ind' + (favs.has(k.id) ? ' fav' : ''); d.dataset.id = k.id;
+      d.innerHTML = '<h3>' + k.name + ' <small>' + k.g.bpm + ' bpm</small></h3>' +
+        '<div class="row"><button data-play="' + k.id + '">▶ Escuchar</button><button data-fav aria-pressed="' + favs.has(k.id) + '">★ Favorito</button></div>' +
+        geneBars(k.g) + '<div class="meta">' + desc(k.g) + '</div>';
+      d.querySelector('[data-play]').onclick = () => play(k);
+      d.querySelector('[data-fav]').onclick = () => { favs.has(k.id) ? favs.delete(k.id) : favs.add(k.id); renderKids(); };
+      $('kids').appendChild(d);
+    });
+    $('favN').textContent = favs.size + (favs.size === 1 ? ' favorito' : ' favoritos');
+    $('breed').disabled = favs.size < 2;
+    refreshPlayLabels();
+    if (playingId) document.querySelectorAll('[data-id="' + playingId + '"]').forEach(n => n.classList.add('playing'));
+  }
+  $('breed').onclick = () => {
+    const f = kids.filter(k => favs.has(k.id));
+    parents = [f[0], f[1]];
+    parentCard(0); parentCard(1); crossNow();
+  };
+  $('cross').onclick = crossNow;
+  $('stop').onclick = stop;
+  $('mut').oninput = () => { $('mutv').textContent = $('mut').value + '%'; };
+
+  // ---------- family tree ----------
+  function drawTree() {
+    const used = new Set(); const need = [...parents.map(p => p.id), ...kids.map(k => k.id)];
+    const byId = new Map(all.map(o => [o.id, o]));
+    const walk = (id) => { if (used.has(id)) return; used.add(id); (byId.get(id)?.parents || []).forEach(walk); };
+    need.forEach(walk);
+    const nodes = all.filter(o => used.has(o.id));
+    const gens = [...new Set(nodes.map(n => n.gen))].sort((a, b) => a - b);
+    const rows = gens.map(gv => nodes.filter(n => n.gen === gv));
+    const maxN = Math.max(...rows.map(r => r.length));
+    const W = Math.max(358, maxN * 56 + 20), RH = 64, H = rows.length * RH + 20;
+    const pos = new Map();
+    rows.forEach((r, ri_) => r.forEach((n, i) => pos.set(n.id, [ (i + .5) * (W / r.length), 24 + ri_ * RH ])));
+    let s = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Árbol familiar">';
+    nodes.forEach(n => n.parents.forEach(pid => { const a = pos.get(n.id), b = pos.get(pid); if (a && b) s += '<line x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '" stroke="rgba(236,232,244,.18)"/>'; }));
+    rows.forEach((r, ri_) => s += '<text x="6" y="' + (14 + ri_ * RH) + '" fill="#8a83a0" font-size="9" font-family="monospace">' + (gens[ri_] ? 'G' + gens[ri_] : 'ORIGEN') + '</text>');
+    nodes.forEach(n => {
+      const [x, y] = pos.get(n.id), isP = parents.some(p => p.id === n.id), fav = favs.has(n.id), pl = n.id === playingId;
+      const hue = Math.round((n.g.key / 12) * 360);
+      s += '<g data-node="' + n.id + '" tabindex="0" role="button" aria-label="Escuchar ' + n.name + '" style="cursor:pointer"><circle cx="' + x + '" cy="' + y + '" r="' + (isP ? 11 : 8) + '" fill="hsl(' + hue + ' 80% ' + (n.g.scale === 'mayor' ? 65 : 45) + '%)" stroke="' + (pl ? '#ff5a36' : fav ? '#c8ff3d' : 'none') + '" stroke-width="3"/>' +
+        '<text x="' + x + '" y="' + (y + 24) + '" fill="#ece8f4" font-size="9" text-anchor="middle" font-family="monospace">' + n.name.slice(0, 10) + '</text></g>';
+    });
+    $('tree').innerHTML = s + '</svg>';
+    $('tree').querySelectorAll('[data-node]').forEach(g => {
+      const go = () => play(byId.get(+g.dataset.node));
+      g.addEventListener('click', go); g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    });
+  }
+
+  parents = [make(PRESETS['Techno'](), 'Techno', [], 0), make(PRESETS['Reggaetón'](), 'Reggaetón', [], 0)];
+  parentCard(0); parentCard(1); drawTree();
+})();
+</script>
