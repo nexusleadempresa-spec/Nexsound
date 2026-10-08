@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Juicio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --void: #07060b; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --ok: #4be3a0; --warn: #ffc83d; --line: rgba(236,232,244,.14); --panel: rgba(236,232,244,.04);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+body { background: var(--void); color: var(--ink); font-family: var(--f-mono); font-size: 13px; line-height: 1.6; overflow-x: hidden; }
+main { max-width: 860px; margin: 0 auto; padding: calc(44px + env(safe-area-inset-top, 0px)) 16px calc(40px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 18px; }
+.back { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); left: 16px; z-index: 5; color: var(--dim); text-decoration: none; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; background: rgba(7,6,11,.8); padding: 4px 6px; }
+.back:hover, .back:focus-visible { color: var(--ink); outline: 1px solid var(--uv); }
+h1 { font: 900 clamp(52px, 14vw, 120px)/.85 var(--f-disp); text-transform: uppercase; margin: 0; letter-spacing: -.01em; }
+h1 span { color: var(--heat); }
+h2 { font: 800 26px/1 var(--f-disp); text-transform: uppercase; margin: 0; letter-spacing: .02em; }
+p { margin: 0; }
+.dim { color: var(--dim); }
+.card { border: 1px solid var(--line); background: var(--panel); padding: 14px; display: grid; gap: 12px; min-width: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button, select, input[type=text], input[type=number] { font: 600 12px/1 var(--f-mono); letter-spacing: .08em; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 10px 12px; }
+button { cursor: pointer; text-transform: uppercase; touch-action: manipulation; }
+select option { background: var(--void); }
+button:hover:not(:disabled) { border-color: var(--uv); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+.hot { border-color: var(--heat); color: var(--heat); }
+.hot:hover:not(:disabled) { background: var(--heat); color: var(--void); }
+input[type=range] { accent-color: var(--uv); min-width: 0; }
+label { color: var(--dim); font-size: 12px; }
+canvas { display: block; width: 100%; max-width: 100%; }
+.stat { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.stat div { border: 1px solid var(--line); padding: 8px 10px; }
+.stat b { display: block; font: 800 28px/1 var(--f-disp); }
+.stat span { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+.drop { border: 1px dashed var(--line); padding: 18px; text-align: center; color: var(--dim); }
+.drop.over { border-color: var(--uv); color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+.vote { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.vote button { height: 90px; font: 800 30px/1 var(--f-disp); }
+#yes { border-color: var(--ok); color: var(--ok); } #no { border-color: var(--heat); color: var(--heat); }
+#q { font: 800 clamp(28px, 7vw, 44px)/1 var(--f-disp); text-transform: uppercase; }
+.bar { height: 4px; background: var(--line); } .bar i { display: block; height: 100%; background: var(--uv); width: 0; }
+#map { height: 200px; border: 1px solid var(--line); }
+table { border-collapse: collapse; font-size: 11px; width: 100%; } td, th { border-bottom: 1px solid var(--line); padding: 4px 6px; text-align: left; }
+.scroll { overflow-x: auto; max-width: 100%; }
+</style>
+<a class="back" href="experiencias.html">← Experiencias</a>
+<main>
+  <header style="display:grid;gap:12px">
+    <h1>El juicio de<br><span>los 3 segundos</span></h1>
+    <p class="dim">Tu tema troceado en fragmentos de 3 segundos, en orden aleatorio. Cada juez escucha y decide: ¿seguirías escuchando? Con suficientes votos sale un mapa de retención por tramo del tema. Varios jueces pueden turnarse en este mismo dispositivo.</p>
+  </header>
+  <section class="card">
+    <h2>1 · El tema</h2>
+    <div class="drop" id="drop">Arrastra aquí un audio o <label style="color:var(--ink);text-decoration:underline;cursor:pointer">elige archivo<input type="file" id="file" accept="audio/*" hidden></label></div>
+    <div class="row"><button id="demo">Usar demo</button><span class="dim" id="tinfo">Sin tema cargado</span></div>
+  </section>
+  <section class="card" id="judgeCard" hidden>
+    <h2>2 · El juez</h2>
+    <div class="row"><input type="text" id="name" placeholder="Tu nombre" maxlength="24" style="flex:1;min-width:0;text-transform:none"><button id="startR" class="hot">Empezar ronda</button></div>
+    <p class="dim" id="judges"></p>
+  </section>
+  <section class="card" id="round" hidden>
+    <div class="row"><span id="who" class="dim" style="flex:1"></span><span id="prog" class="dim"></span></div>
+    <div class="bar"><i id="pbar"></i></div>
+    <p id="q" aria-live="polite">Escucha…</p>
+    <div class="vote"><button id="yes" disabled>Sí <small style="font-size:12px">(S / →)</small></button><button id="no" disabled>No <small style="font-size:12px">(N / ←)</small></button></div>
+    <div class="row"><button id="again" disabled>Repetir fragmento</button><button id="endR">Terminar ronda</button></div>
+  </section>
+  <section class="card" id="res" hidden>
+    <h2>3 · Mapa de retención</h2>
+    <p class="dim" id="summary"></p>
+    <canvas id="map" aria-label="Mapa de retención por tramo"></canvas>
+    <div class="scroll"><table id="tbl"></table></div>
+  </section>
+  <section class="card">
+    <h2>¿Y a escala mundial?</h2>
+    <p class="dim">Esta versión es local: los votos viven solo en esta pestaña y se pierden al cerrarla. Para un juicio mundial, con oyentes de cualquier parte votando el mismo tema, haría falta un servidor que guarde los fragmentos y reúna los votos de todos. Aquí no hay ninguno: nada sale de tu dispositivo.</p>
+  </section>
+</main>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let ctx, buf, segs = 0, votes = [], order = [], idx = 0, judge = '', src = null, waitT = 0;
+  const SEG = 3;
+  function audio() { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume(); return ctx; }
+  // Synthesizes a ~30 s demo track: intro, build, sub-heavy drop, break, outro.
+  async function makeDemo() {
+    const sr = 44100, dur = 30, oc = new OfflineAudioContext(2, sr * dur, sr), bus = oc.createGain();
+    bus.gain.value = .6; bus.connect(oc.destination);
+    const spb = 60 / 124, nb = oc.createBuffer(1, sr, sr), nd = nb.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    const env = (node, t, peak, d) => { node.gain.setValueAtTime(0, t); node.gain.linearRampToValueAtTime(peak, t + .005); node.gain.exponentialRampToValueAtTime(.0001, t + d); };
+    const kick = (t, sub) => { const o = oc.createOscillator(), a = oc.createGain(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(sub ? 38 : 50, t + .12); env(a, t, .9, sub ? .55 : .3); o.connect(a).connect(bus); o.start(t); o.stop(t + .6); };
+    const hat = (t, v) => { const s = oc.createBufferSource(), f = oc.createBiquadFilter(), a = oc.createGain(); s.buffer = nb; f.type = 'highpass'; f.frequency.value = 8000; env(a, t, v, .05); s.connect(f).connect(a).connect(bus); s.start(t); s.stop(t + .08); };
+    const note = (t, f, d, v, type) => { const o = oc.createOscillator(), a = oc.createGain(), lp = oc.createBiquadFilter(); o.type = type; o.frequency.value = f; lp.frequency.value = f * 4; env(a, t, v, d); o.connect(lp).connect(a).connect(bus); o.start(t); o.stop(t + d + .05); };
+    const chords = [[220, 261.6, 329.6], [174.6, 220, 261.6], [196, 246.9, 293.7], [164.8, 207.7, 246.9]];
+    for (let b = 0; b * spb < dur; b++) {
+      const t = b * spb, bar = Math.floor(b / 4), sec = t < 8 ? 'intro' : t < 15.5 ? 'build' : t < 23 ? 'drop' : t < 27 ? 'break' : 'outro';
+      if (b % 4 === 0) chords[bar % 4].forEach(f => note(t, f, spb * 4, .2, 'sawtooth'));
+      if (sec === 'build' || sec === 'drop' || sec === 'outro') kick(t, sec === 'drop');
+      if (sec !== 'intro' && sec !== 'break') hat(t + spb / 2, .25);
+      if (sec === 'build' && t > 12) for (let k = 0; k < 4; k++) hat(t + k * spb / 4, .1 + (t - 12) * .06);
+      if (sec === 'drop') { note(t + spb / 2, chords[bar % 4][0] / 4, spb * .9, 1.2, 'sine'); note(t + spb / 2, chords[bar % 4][0] / 2, spb * .3, .15, 'sawtooth'); note(t, [880, 784, 659, 587][b % 4], .15, .2, 'square'); }
+      if (sec === 'break' || sec === 'intro') note(t, [659, 587, 523, 494][b % 4], .3, .2, 'triangle');
+    }
+    return oc.startRendering();
+  }
+  function loaded(b, name) {
+    buf = b; segs = Math.max(1, Math.floor(b.duration / SEG)); votes = [];
+    $('tinfo').textContent = `${name} · ${b.duration.toFixed(1)} s · ${segs} fragmentos`;
+    $('judgeCard').hidden = false; $('res').hidden = true; $('round').hidden = true; renderJudges(); $('name').focus();
+  }
+  async function loadFile(f) {
+    if (!f) return; audio(); $('tinfo').textContent = 'Decodificando…';
+    try { loaded(await ctx.decodeAudioData(await f.arrayBuffer()), f.name); } catch (e) { $('tinfo').textContent = 'No se pudo leer ese archivo de audio.'; }
+  }
+  $('file').onchange = (e) => loadFile(e.target.files[0]);
+  const dr = $('drop');
+  dr.addEventListener('dragover', e => { e.preventDefault(); dr.classList.add('over'); });
+  dr.addEventListener('dragleave', () => dr.classList.remove('over'));
+  dr.addEventListener('drop', e => { e.preventDefault(); dr.classList.remove('over'); loadFile(e.dataTransfer.files[0]); });
+  $('demo').onclick = async () => { audio(); $('tinfo').textContent = 'Sintetizando demo…'; loaded(await makeDemo(), 'Demo Nexsound'); };
+
+  function renderJudges() {
+    const names = [...new Set(votes.map(v => v.j))];
+    $('judges').textContent = names.length ? `Jueces: ${names.map(n => `${n} (${votes.filter(v => v.j === n).length})`).join(', ')}` : 'Aún no ha votado nadie. Cada juez escucha todos los fragmentos en un orden distinto.';
+  }
+  function playSeg() {
+    stopSrc(); audio();
+    const s = order[idx], t = ctx.currentTime + .05;
+    src = ctx.createBufferSource(); src.buffer = buf; const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + .03); g.gain.setValueAtTime(1, t + SEG - .08); g.gain.linearRampToValueAtTime(0, t + SEG);
+    src.connect(g).connect(ctx.destination); src.start(t, s * SEG, SEG);
+    $('q').textContent = 'Escucha…'; setVote(false);
+    clearTimeout(waitT); waitT = setTimeout(() => { $('q').textContent = '¿Seguirías escuchando?'; setVote(true); }, 1500);
+    $('prog').textContent = `${idx + 1} / ${order.length}`; $('pbar').style.width = (100 * idx / order.length) + '%';
+  }
+  function stopSrc() { if (src) { try { src.stop(); } catch (e) {} src = null; } }
+  function setVote(on) { $('yes').disabled = $('no').disabled = !on; $('again').disabled = !on; }
+  $('startR').onclick = () => {
+    judge = $('name').value.trim() || `Juez ${new Set(votes.map(v => v.j)).size + 1}`;
+    votes = votes.filter(v => v.j !== judge);
+    order = Array.from({ length: segs }, (_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) { const k = Math.floor(Math.random() * (i + 1)); [order[i], order[k]] = [order[k], order[i]]; }
+    idx = 0; $('who').textContent = `Juzga: ${judge}`; $('round').hidden = false; $('judgeCard').hidden = true; playSeg();
+  };
+  function vote(yes) {
+    if ($('yes').disabled) return;
+    votes.push({ j: judge, s: order[idx], y: yes }); idx++;
+    if (idx >= order.length) endRound(); else playSeg();
+  }
+  function endRound() {
+    stopSrc(); clearTimeout(waitT); $('round').hidden = true; $('judgeCard').hidden = false; $('name').value = '';
+    $('startR').textContent = 'Siguiente juez'; renderJudges(); renderMap();
+  }
+  $('yes').onclick = () => vote(true); $('no').onclick = () => vote(false);
+  $('again').onclick = playSeg; $('endR').onclick = endRound;
+  addEventListener('keydown', e => {
+    if ($('round').hidden || e.target.tagName === 'INPUT') return;
+    const k = e.key.toLowerCase();
+    if (k === 's' || k === 'arrowright') { e.preventDefault(); vote(true); }
+    else if (k === 'n' || k === 'arrowleft') { e.preventDefault(); vote(false); }
+  });
+  const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  function stats() { return Array.from({ length: segs }, (_, i) => { const v = votes.filter(x => x.s === i); return { n: v.length, y: v.filter(x => x.y).length, r: v.length ? v.filter(x => x.y).length / v.length : null }; }); }
+  function renderMap() {
+    if (!votes.length) return;
+    $('res').hidden = false;
+    const st = stats(), judges = [...new Set(votes.map(v => v.j))], voted = st.filter(s => s.n).length;
+    const cv = $('map'), d = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight, g = cv.getContext('2d');
+    cv.width = W * d; cv.height = H * d; g.setTransform(d, 0, 0, d, 0, 0);
+    g.fillStyle = '#07060b'; g.fillRect(0, 0, W, H);
+    // waveform backdrop
+    const ch = buf.getChannelData(0), step = Math.max(1, Math.floor(ch.length / W));
+    g.fillStyle = 'rgba(236,232,244,.12)';
+    for (let x = 0; x < W; x++) { let m = 0; for (let i = x * step; i < (x + 1) * step && i < ch.length; i += 16) m = Math.max(m, Math.abs(ch[i])); g.fillRect(x, H / 2 - m * H * .4, 1, m * H * .8); }
+    const w = W / segs, top = 18, bh = H - top - 16;
+    st.forEach((s, i) => {
+      if (s.r == null) { g.fillStyle = 'rgba(138,131,160,.25)'; g.fillRect(i * w + 1, H - 16 - 4, w - 2, 4); return; }
+      const hue = s.r * 140; g.fillStyle = `hsla(${hue},80%,55%,.8)`;
+      g.fillRect(i * w + 1, top + bh * (1 - s.r), w - 2, bh * s.r);
+    });
+    g.strokeStyle = 'rgba(236,232,244,.4)'; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(0, top + bh / 2); g.lineTo(W, top + bh / 2); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#8a83a0'; g.font = '10px JetBrains Mono, monospace';
+    g.fillText('100 %', 4, 12); g.fillText('50 %', 4, top + bh / 2 - 3);
+    for (let i = 0; i < segs; i += Math.ceil(segs / 8)) g.fillText(fmt(i * SEG), i * w + 2, H - 4);
+    const valid = st.map((s, i) => ({ ...s, i })).filter(s => s.r != null);
+    const best = valid.reduce((a, b) => (b.r > a.r ? b : a)), worst = valid.reduce((a, b) => (b.r < a.r ? b : a));
+    const avg = valid.reduce((a, b) => a + b.r, 0) / valid.length;
+    const firstDrop = valid.find(s => s.r < .5);
+    const enough = judges.length >= 3 && voted === segs;
+    $('summary').innerHTML = `${judges.length} juez(es), ${votes.length} votos. Retención media <b>${Math.round(avg * 100)} %</b>. ` +
+      `Tramo más fuerte: <b>${fmt(best.i * SEG)}</b> (${Math.round(best.r * 100)} %). Más débil: <b>${fmt(worst.i * SEG)}</b> (${Math.round(worst.r * 100)} %). ` +
+      (firstDrop ? `El primer tramo que pierde a la mayoría empieza en <b>${fmt(firstDrop.i * SEG)}</b>. ` : 'Ningún tramo baja del 50 %. ') +
+      (enough ? '' : '<br>Aún son pocos votos: con 3 jueces o más que escuchen todo, el mapa es más fiable.');
+    let h = '<tr><th>Tramo</th><th>Sí</th><th>Votos</th>' + judges.map(j => `<th>${j.replace(/[<&]/g, '')}</th>`).join('') + '</tr>';
+    st.forEach((s, i) => { h += `<tr><td>${fmt(i * SEG)}</td><td>${s.r == null ? '—' : Math.round(s.r * 100) + ' %'}</td><td>${s.n}</td>` + judges.map(j => { const v = votes.find(x => x.j === j && x.s === i); return `<td>${v ? (v.y ? '✓' : '✗') : '·'}</td>`; }).join('') + '</tr>'; });
+    $('tbl').innerHTML = h;
+  }
+  addEventListener('resize', () => { if (!$('res').hidden) renderMap(); });
+})();
+</script>
