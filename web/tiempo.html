@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Cápsula</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --void: #07060b; --panel: #100e17; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --ok: #4fd18b; --line: rgba(236,232,244,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+body { background: var(--void); color: var(--ink); font: 13px/1.5 var(--f-mono); padding: calc(14px + env(safe-area-inset-top,0px)) 16px 40px; overflow-x: hidden; }
+.back { position: absolute; top: calc(10px + env(safe-area-inset-top,0px)); right: 16px; color: var(--dim); font-size: 11px; text-decoration: none; letter-spacing: .1em; }
+.back:hover, .back:focus-visible { color: var(--ink); }
+h1 { font: 900 clamp(40px, 10vw, 84px)/.9 var(--f-disp); text-transform: uppercase; margin: 22px 0 6px; }
+h1 span { color: var(--heat); }
+h2 { font: 800 22px/1 var(--f-disp); text-transform: uppercase; letter-spacing: .03em; margin: 0 0 8px; }
+.lede { color: var(--dim); max-width: 64ch; margin: 0 0 16px; }
+button, select, input, textarea { font: 600 12px/1.2 var(--f-mono); color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 9px 11px; border-radius: 0; }
+input, textarea, select { font-weight: 400; background: var(--panel); max-width: 100%; }
+button { letter-spacing: .08em; text-transform: uppercase; cursor: pointer; touch-action: manipulation; }
+button:hover { border-color: var(--uv); }
+:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+button.hot { border-color: var(--heat); color: var(--heat); }
+button.hot:hover { background: var(--heat); color: var(--void); }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.panel { background: var(--panel); border: 1px solid var(--line); padding: 14px; }
+.muted { color: var(--dim); }
+.wrap { max-width: 1200px; margin: 0 auto; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 680px) { .two { grid-template-columns: 1fr; } }
+input[type=range] { width: 100%; accent-color: var(--heat); padding: 0; }
+.big { font: 900 clamp(34px, 9vw, 64px)/1 var(--f-disp); font-variant-numeric: tabular-nums; }
+.cd { display: flex; gap: 14px; flex-wrap: wrap; } .cd div { display: grid; } .cd small { color: var(--dim); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 8px 0 0; } dt { color: var(--dim); } dd { margin: 0; overflow-wrap: anywhere; }
+canvas { width: 100%; height: 90px; display: block; background: var(--void); border: 1px solid var(--line); margin-top: 10px; }
+.lock { color: var(--heat); }
+</style>
+<a class="back" href="experiencias.html">← Experiencias</a>
+<div class="wrap">
+<h1>Nexsound <span>Cápsula</span></h1>
+<p class="lede">Un tema que cambia cada semana: el número de semana decide instrumentos, mezcla y final. La versión completa queda sellada hasta la fecha de apertura; hasta entonces solo suena un avance.</p>
+<div class="two">
+<section class="panel">
+  <h2>Semana</h2>
+  <div class="big" id="wk">—</div>
+  <div class="muted" id="wkDates"></div>
+  <input type="range" id="slider" min="1" max="52" aria-label="Semana del año" style="margin-top:10px">
+  <div class="row" style="margin-top:6px"><button id="today">Esta semana</button><button id="prev" aria-label="Semana anterior">←</button><button id="next" aria-label="Semana siguiente">→</button></div>
+  <dl id="arr"></dl>
+</section>
+<section class="panel">
+  <h2>Apertura</h2>
+  <label class="muted" style="display:grid;gap:4px">Fecha de apertura<input type="date" id="unlock" value="2036-01-01"></label>
+  <div class="cd big" id="cd" style="margin-top:12px" aria-live="off"></div>
+  <p id="state" class="muted"></p>
+  <div class="row"><button class="hot" id="teaser">▶ Avance</button><button id="full" disabled>▶ Versión completa</button><button id="stop">Parar</button></div>
+  <canvas id="scope" aria-hidden="true"></canvas>
+  <p class="muted" id="msg" role="status"></p>
+</section>
+</div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const YEAR = new Date().getFullYear();
+function isoWeek(d) { const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const n = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - n); const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return Math.ceil(((t - y0) / 864e5 + 1) / 7); }
+function weekStart(w) { const j4 = new Date(Date.UTC(YEAR, 0, 4)); const d = new Date(j4); d.setUTCDate(j4.getUTCDate() - ((j4.getUTCDay() || 7) - 1) + (w - 1) * 7); return d; }
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const KEYS = ['Do', 'Do♯', 'Re', 'Mi♭', 'Mi', 'Fa', 'Fa♯', 'Sol', 'La♭', 'La', 'Si♭', 'Si'];
+const LEADS = ['campana FM', 'sierra filtrada', 'pulso cuadrado', 'flauta senoidal'];
+const ENDS = ['corte seco', 'fundido largo', 'eco que se aleja', 'acorde final sostenido'];
+const MIXES = ['seco y cercano', 'amplio con eco', 'oscuro y grave', 'brillante'];
+function plan(w) {
+  const r = rng(YEAR * 1000 + w * 7919);
+  const p = { root: 45 + Math.floor(r() * 12), minor: r() < .6, bpm: 84 + Math.floor(r() * 9) * 6, drums: r() < .8, hats: r() < .7, bass: r() < .9, pad: r() < .75, arp: r() < .55, lead: Math.floor(r() * 4), end: Math.floor(r() * 4), mix: Math.floor(r() * 4), prog: [0, 1, 2, 3].map(() => [0, 3, 5, 7, 8, 10][Math.floor(r() * 6)]), mel: [...Array(16)].map(() => r() < .65 ? [0, 2, 3, 5, 7, 10, 12][Math.floor(r() * 7)] : null) };
+  p.prog[0] = 0; return p;
+}
+function describe(p) {
+  return { Tonalidad: `${KEYS[p.root % 12]} ${p.minor ? 'menor' : 'mayor'}`, Tempo: p.bpm + ' BPM', Instrumentos: ['bombo/caja' + (p.hats ? '/charles' : ''), p.bass && 'bajo', p.pad && 'colchón', p.arp && 'arpegio', LEADS[p.lead]].filter((x, i) => i ? x : p.drums && x).join(', '), Mezcla: MIXES[p.mix], Final: ENDS[p.end] };
+}
+const mtf = m => 440 * 2 ** ((m - 69) / 12);
+async function render(p) {
+  const sr = 44100, beat = 60 / p.bpm, bars = 16, len = bars * 4 * beat + 4, o = new OfflineAudioContext(2, Math.ceil(sr * len), sr);
+  const bus = o.createGain(), tone = o.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = [9000, 7000, 2200, 16000][p.mix];
+  bus.connect(tone); tone.connect(o.destination);
+  if (p.mix === 1 || p.end === 2) { const d = o.createDelay(1), fb = o.createGain(), wet = o.createGain(); d.delayTime.value = beat * .75; fb.gain.value = .4; wet.gain.value = .3; bus.connect(d); d.connect(fb).connect(d); d.connect(wet).connect(tone); }
+  const nz = o.createBuffer(1, sr, sr), nd = nz.getChannelData(0); const rr = rng(7); for (let i = 0; i < sr; i++) nd[i] = rr() * 2 - 1;
+  const third = p.minor ? 3 : 4, endBar = bars;
+  const env = (g, t, a, v, d) => { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + a); g.gain.exponentialRampToValueAtTime(.0005, t + d); };
+  const voice = (type, f, t, d, v, pan = 0) => { const os = o.createOscillator(), g = o.createGain(), pn = o.createStereoPanner(); os.type = type; os.frequency.value = f; pn.pan.value = pan; env(g, t, .01, v, d); os.connect(g).connect(pn).connect(bus); os.start(t); os.stop(t + d + .05); };
+  for (let bar = 0; bar < bars; bar++) {
+    const deg = p.prog[bar % 4], root = p.root + deg, t0 = bar * 4 * beat, last = bar === bars - 1, sect = bar < 4 ? 0 : bar < 12 ? 1 : 2;
+    if (last && p.end === 0) { voice('sine', mtf(root - 12), t0, .6, .6); break; }
+    for (let b = 0; b < 4; b++) {
+      const t = t0 + b * beat;
+      if (p.drums && sect > 0) { const os = o.createOscillator(), g = o.createGain(); os.frequency.setValueAtTime(130, t); os.frequency.exponentialRampToValueAtTime(40, t + .1); env(g, t, .002, .8, .3); os.connect(g).connect(bus); os.start(t); os.stop(t + .35);
+        if (b % 2) { const s = o.createBufferSource(), hp = o.createBiquadFilter(), g2 = o.createGain(); s.buffer = nz; hp.type = 'highpass'; hp.frequency.value = 1500; env(g2, t, .002, .3, .18); s.connect(hp).connect(g2).connect(bus); s.start(t, 0, .2); } }
+      if (p.hats && sect > 0) for (const h of [.5]) { const s = o.createBufferSource(), hp = o.createBiquadFilter(), g2 = o.createGain(); s.buffer = nz; hp.type = 'highpass'; hp.frequency.value = 7000; env(g2, t + h * beat, .001, .12, .05); s.connect(hp).connect(g2).connect(bus); s.start(t + h * beat, .3, .06); }
+      if (p.bass && sect > 0) voice('sawtooth', mtf(root - 12), t, beat * .8, .18);
+      if (p.arp && sect === 2) [0, third, 7, 12].forEach((iv, k) => voice('square', mtf(root + 12 + iv), t + k * beat / 4, beat / 5, .04, k % 2 ? .5 : -.5));
+    }
+    if (p.pad) [0, third, 7].forEach((iv, k) => { const os = o.createOscillator(), g = o.createGain(); os.type = 'triangle'; os.frequency.value = mtf(root + 12 + iv); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(.06, t0 + beat); g.gain.linearRampToValueAtTime(0, t0 + 4 * beat + (last && p.end === 3 ? 3 : 0)); os.connect(g).connect(bus); os.start(t0); os.stop(t0 + 4 * beat + 3.2); });
+    if (sect > 0 && bar % 2 === 0 || sect === 2) for (let s = 0; s < 8; s++) { const n = p.mel[(bar * 8 + s) % 16]; if (n === null) continue; const t = t0 + s * beat / 2;
+      if (p.lead === 0) { const c = o.createOscillator(), m = o.createOscillator(), mg = o.createGain(), g = o.createGain(); c.frequency.value = mtf(root + 24 + n); m.frequency.value = c.frequency.value * 3.5; mg.gain.value = 300; m.connect(mg).connect(c.frequency); env(g, t, .005, .1, .8); c.connect(g).connect(bus); c.start(t); m.start(t); c.stop(t + .9); m.stop(t + .9); }
+      else voice(['', 'sawtooth', 'square', 'sine'][p.lead], mtf(root + 24 + n), t, beat * .45, p.lead === 3 ? .12 : .05, .2); }
+  }
+  if (p.end === 1) { bus.gain.setValueAtTime(1, (bars - 4) * 4 * beat); bus.gain.linearRampToValueAtTime(0, bars * 4 * beat); }
+  return o.startRendering();
+}
+let ctx, src, an, week = isoWeek(new Date());
+const unlockDate = () => new Date(($('#unlock').value || '2036-01-01') + 'T00:00:00');
+const open = () => Date.now() >= unlockDate();
+function show() {
+  $('#slider').value = week; $('#wk').textContent = `Semana ${week} · ${YEAR}`;
+  const s = weekStart(week), e = new Date(s); e.setUTCDate(s.getUTCDate() + 6);
+  $('#wkDates').textContent = `${s.toLocaleDateString('es', { timeZone: 'UTC', day: 'numeric', month: 'short' })} – ${e.toLocaleDateString('es', { timeZone: 'UTC', day: 'numeric', month: 'short' })}${week === isoWeek(new Date()) ? ' (esta semana)' : ''}`;
+  $('#arr').innerHTML = Object.entries(describe(plan(week))).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+}
+function countdown() {
+  let ms = unlockDate() - Date.now();
+  if (ms <= 0) { $('#cd').innerHTML = '<span style="color:var(--ok)">Abierta</span>'; $('#state').textContent = 'La cápsula ya se puede escuchar completa.'; $('#full').disabled = false; return; }
+  const d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24, m = Math.floor(ms / 6e4) % 60, s = Math.floor(ms / 1e3) % 60;
+  $('#cd').innerHTML = [[d, 'días'], [h, 'horas'], [m, 'min'], [s, 'seg']].map(([v, l]) => `<div>${String(v).padStart(2, '0')}<small>${l}</small></div>`).join('');
+  $('#state').innerHTML = '<span class="lock">Sellada.</span> Hasta entonces solo suena el avance: 10 s filtrados y apagados.'; $('#full').disabled = true;
+}
+$('#slider').oninput = e => { week = +e.target.value; show(); };
+$('#today').onclick = () => { week = isoWeek(new Date()); show(); };
+$('#prev').onclick = () => { week = Math.max(1, week - 1); show(); };
+$('#next').onclick = () => { week = Math.min(52, week + 1); show(); };
+$('#unlock').onchange = countdown;
+function stop() { try { src?.stop(); } catch (e) {} src = null; }
+async function play(teaser) {
+  ctx = ctx || new AudioContext(); await ctx.resume(); stop();
+  $('#msg').textContent = 'Componiendo la semana ' + week + '…';
+  const buf = await render(plan(week)); src = ctx.createBufferSource(); src.buffer = buf; an = an || ctx.createAnalyser();
+  let out = src;
+  if (teaser) { const lp = ctx.createBiquadFilter(), g = ctx.createGain(); lp.type = 'lowpass'; lp.frequency.value = 700; const t = ctx.currentTime; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.8, t + 1); g.gain.setValueAtTime(.8, t + 8); g.gain.linearRampToValueAtTime(0, t + 10); src.connect(lp).connect(g); out = g; src.start(t, buf.duration * .35, 10); }
+  else src.start();
+  out.connect(an); an.connect(ctx.destination);
+  $('#msg').textContent = teaser ? `Avance de la semana ${week}.` : `Versión completa · semana ${week} · ${buf.duration.toFixed(0)} s.`;
+}
+$('#teaser').onclick = () => play(true);
+$('#full').onclick = () => open() && play(false);
+$('#stop').onclick = () => { stop(); $('#msg').textContent = ''; };
+const cv = $('#scope'), g = cv.getContext('2d'), data = new Uint8Array(1024);
+const still = matchMedia('(prefers-reduced-motion: reduce)');
+function loop() {
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight; if (cv.width !== W * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H); g.strokeStyle = '#ff5a36'; g.beginPath();
+  if (an && src) an.getByteTimeDomainData(data); else data.fill(128);
+  for (let i = 0; i < 1024; i += 4) { const x = i / 1024 * W, y = data[i] / 255 * H; i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke();
+  still.matches ? setTimeout(loop, 500) : requestAnimationFrame(loop);
+}
+show(); countdown(); setInterval(countdown, 1000); loop();
+</script>

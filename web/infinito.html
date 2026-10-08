@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Infinito</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --void: #07060b; --panel: #100e17; --ink: #ece8f4; --dim: #8a83a0; --uv: #8f6bff; --heat: #ff5a36; --ok: #4fd18b; --line: rgba(236,232,244,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+body { background: var(--void); color: var(--ink); font: 13px/1.5 var(--f-mono); padding: calc(14px + env(safe-area-inset-top,0px)) 16px 40px; overflow-x: hidden; }
+.back { position: absolute; top: calc(10px + env(safe-area-inset-top,0px)); right: 16px; color: var(--dim); font-size: 11px; text-decoration: none; letter-spacing: .1em; }
+.back:hover, .back:focus-visible { color: var(--ink); }
+h1 { font: 900 clamp(40px, 10vw, 84px)/.9 var(--f-disp); text-transform: uppercase; margin: 22px 0 6px; }
+h1 span { color: var(--heat); }
+h2 { font: 800 22px/1 var(--f-disp); text-transform: uppercase; letter-spacing: .03em; margin: 0 0 8px; }
+.lede { color: var(--dim); max-width: 64ch; margin: 0 0 16px; }
+button, select, input, textarea { font: 600 12px/1.2 var(--f-mono); color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 9px 11px; border-radius: 0; }
+input, textarea, select { font-weight: 400; background: var(--panel); max-width: 100%; }
+button { letter-spacing: .08em; text-transform: uppercase; cursor: pointer; touch-action: manipulation; }
+button:hover { border-color: var(--uv); }
+:focus-visible { outline: 2px solid var(--uv); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+button.hot { border-color: var(--heat); color: var(--heat); }
+button.hot:hover { background: var(--heat); color: var(--void); }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.panel { background: var(--panel); border: 1px solid var(--line); padding: 14px; }
+.muted { color: var(--dim); }
+.wrap { max-width: 1200px; margin: 0 auto; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+.two { display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; }
+@media (max-width: 680px) { .two { grid-template-columns: 1fr; } }
+.big { font: 900 clamp(40px, 11vw, 80px)/1 var(--f-disp); text-transform: uppercase; }
+.seed { font-variant-numeric: tabular-nums; color: var(--heat); }
+canvas { width: 100%; height: 140px; display: block; background: var(--void); border: 1px solid var(--line); margin: 10px 0; }
+#log { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow-y: auto; font-size: 12px; }
+#log li { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+#log li b { color: var(--heat); min-width: 48px; font-variant-numeric: tabular-nums; }
+#log li span { overflow-wrap: anywhere; }
+</style>
+<a class="back" href="experiencias.html">← Experiencias</a>
+<div class="wrap">
+<h1>Nexsound <span>Infinito</span></h1>
+<p class="lede">Un tema que no termina ni se repite. Tu semilla decide cada nota; las secciones (intro, subida, drop, pausa) mutan sin fin. La misma semilla siempre suena igual desde el principio.</p>
+<div class="two">
+<section class="panel">
+  <div class="muted">Semilla</div><div class="big seed" id="seedOut">—</div>
+  <div class="big" id="sec" style="font-size:clamp(28px,7vw,48px)">En silencio</div>
+  <div class="muted" id="info">&nbsp;</div>
+  <canvas id="viz" aria-hidden="true"></canvas>
+  <div class="row"><button class="hot" id="play">▶ Escuchar</button><button id="mine">Mi semilla</button><button id="rand">Semilla nueva</button></div>
+  <form class="row" id="sform" style="margin-top:8px"><input id="seedIn" inputmode="numeric" placeholder="Otra semilla (número)" aria-label="Semilla" style="flex:1;min-width:140px"><button>Usar</button></form>
+  <p class="muted" id="msg" role="status"></p>
+</section>
+<section class="panel"><h2>Lo que ha pasado</h2><ol id="log"><li><span class="muted">Pulsa Escuchar.</span></li></ol></section>
+</div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+function mk(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+let mySeed; try { mySeed = +localStorage.getItem('nexsound-infinito-seed'); } catch (e) {}
+if (!mySeed) { mySeed = 1 + Math.floor(Math.random() * 999999); try { localStorage.setItem('nexsound-infinito-seed', mySeed); } catch (e) {} }
+let seed = mySeed, ctx, master, an, rev, playing = false, timer, st;
+const NAMES = { intro: 'Intro', build: 'Subida', drop: 'Drop', brk: 'Pausa' };
+const NEXT = { intro: ['build'], build: ['drop'], drop: ['brk', 'build', 'drop'], brk: ['build', 'intro'] };
+const SCALES = [[0, 2, 3, 5, 7, 8, 10], [0, 2, 4, 7, 9], [0, 3, 5, 7, 10], [0, 2, 3, 5, 7, 9, 10], [0, 2, 4, 5, 7, 9, 11]];
+const SN = ['menor', 'pentatónica mayor', 'pentatónica menor', 'dórica', 'mayor'];
+const NOTE = ['Do', 'Do♯', 'Re', 'Mi♭', 'Mi', 'Fa', 'Fa♯', 'Sol', 'La♭', 'La', 'Si♭', 'Si'];
+const mtf = m => 440 * 2 ** ((m - 69) / 12);
+const fmt = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+function newSection(prev) {
+  const r = st.r, kind = prev ? NEXT[prev.kind][Math.floor(r() * NEXT[prev.kind].length)] : 'intro';
+  const s = { kind, bars: [4, 8, 8, 16][Math.floor(r() * 4)] };
+  // mutation: each section shifts something, so the piece drifts forever
+  const changes = [];
+  if (!prev || r() < .25) { st.root = 36 + ((st.root ?? Math.floor(r() * 12)) + [0, 5, 7, 2, 10][Math.floor(r() * 5)]) % 12; changes.push(`tono ${NOTE[st.root % 12]}`); }
+  if (!prev || r() < .2) { st.scale = Math.floor(r() * SCALES.length); changes.push(`escala ${SN[st.scale]}`); }
+  if (!prev || r() < .3) { st.bpm = Math.max(84, Math.min(140, (st.bpm || 100 + Math.floor(r() * 30)) + Math.floor(r() * 13) - 6)); changes.push(`${st.bpm} BPM`); }
+  if (!prev || r() < .45) { st.mel = [...Array(16)].map(() => r() < .55 ? Math.floor(r() * 10) : null); changes.push('melodía nueva'); }
+  if (!prev || r() < .35) { st.prog = [0, ...[1, 2, 3].map(() => Math.floor(r() * 6))]; changes.push('acordes nuevos'); }
+  if (!prev || r() < .3) { st.kick = [...Array(16)].map((_, i) => i % 4 === 0 || r() < .12); st.hat = [...Array(16)].map(() => r() < .55); changes.push('ritmo nuevo'); }
+  st.timbre = r() < .3 ? Math.floor(r() * 3) : st.timbre ?? 0;
+  s.changes = changes; st.n++;
+  log(`${NAMES[kind]} · ${s.bars} compases${changes.length ? ' · ' + changes.join(', ') : ''}`);
+  return s;
+}
+function log(t) {
+  const li = document.createElement('li'); li.innerHTML = `<b>${fmt(st.clock)}</b><span></span>`; li.lastChild.textContent = t;
+  const L = $('#log'); if (L.firstChild?.querySelector('.muted')) L.innerHTML = ''; L.prepend(li); while (L.children.length > 200) L.lastChild.remove();
+  st.history.push(t);
+}
+function reset() { st = { r: mk(seed), n: 0, clock: 0, step: 0, history: [] }; $('#log').innerHTML = ''; st.sec = newSection(null); st.secStep = 0; $('#seedOut').textContent = seed; }
+const noise = () => { const b = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate), d = b.getChannelData(0), r = mk(3); for (let i = 0; i < d.length; i++) d[i] = r() * 2 - 1; return b; };
+let NZ;
+function env(g, t, a, v, d) { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + a); g.gain.exponentialRampToValueAtTime(.0005, t + d); }
+function tone(type, f, t, d, v, dest = master, cutoff) { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type; o.frequency.value = f; let n = o; if (cutoff) { const lp = ctx.createBiquadFilter(); lp.frequency.value = cutoff; o.connect(lp); n = lp; } env(g, t, .01, v, d); n.connect(g).connect(dest); o.start(t); o.stop(t + d + .05); }
+function hit(t, f, v, d, hp) { const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = NZ; fl.type = 'highpass'; fl.frequency.value = hp; env(g, t, .001, v, d); s.connect(fl).connect(g).connect(master); s.start(t, st.r() * .5, d + .05); }
+function stepAt(t) {
+  const s = st.sec, i = st.step % 16, bar = Math.floor(st.secStep / 16), prog = st.prog[bar % 4], sc = SCALES[st.scale], dur = 60 / st.bpm / 4;
+  const deg = k => st.root + sc[k % sc.length] + 12 * Math.floor(k / sc.length);
+  const k = s.kind, prog01 = st.secStep / (s.bars * 16);
+  const drums = k === 'drop' || (k === 'build' && prog01 > .25);
+  if (drums && st.kick[i]) { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(42, t + .1); env(g, t, .002, k === 'drop' ? .9 : .6, .3); o.connect(g).connect(master); o.start(t); o.stop(t + .35); }
+  if (k === 'build' && prog01 > .75 && i % 2 === 0) hit(t, 0, .1 + prog01 * .2, .05, 3000);
+  if ((k === 'drop' || k === 'build') && st.hat[i]) hit(t, 0, .07, .04, 8000);
+  if (k === 'drop' && i % 8 === 4) hit(t, 0, .3, .18, 1200);
+  if (k !== 'intro' && k !== 'brk' && i % 2 === 0) tone('sawtooth', mtf(deg(prog) - 12), t, dur * 1.6, k === 'drop' ? .16 : .1, master, k === 'drop' ? 700 : 300 + prog01 * 600);
+  if (i === 0) sc.length && [0, 2, 4].forEach(o => { const g = ctx.createGain(), os = ctx.createOscillator(); os.type = 'triangle'; os.frequency.value = mtf(deg(prog + o) + 12); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(k === 'brk' || k === 'intro' ? .07 : .04, t + .4); g.gain.linearRampToValueAtTime(0, t + dur * 16); os.connect(g).connect(rev); os.connect(g); g.connect(master); os.start(t); os.stop(t + dur * 16 + .1); });
+  const m = st.mel[i];
+  if (m !== null && (k === 'drop' || k === 'brk' || (k === 'build' && i % 4 === 0) || (k === 'intro' && i % 8 === 0))) tone(['square', 'sine', 'sawtooth'][st.timbre], mtf(deg(prog + m) + 24), t, dur * (k === 'brk' ? 6 : 2), k === 'brk' ? .1 : .05, rev, 3500);
+  st.step++; st.secStep++; st.clock += dur;
+  if (st.secStep >= s.bars * 16) { st.sec = newSection(s); st.secStep = 0; }
+}
+let nextT = 0;
+function sched() { while (nextT < ctx.currentTime + .15) { stepAt(nextT); nextT += 60 / st.bpm / 4; } $('#sec').textContent = NAMES[st.sec.kind]; $('#info').textContent = `${NOTE[st.root % 12]} ${SN[st.scale]} · ${st.bpm} BPM · sección ${st.n} · ${fmt(st.clock)}`; }
+async function start() {
+  if (!ctx) { ctx = new AudioContext(); master = ctx.createGain(); master.gain.value = .6; an = ctx.createAnalyser(); master.connect(an).connect(ctx.destination); NZ = noise();
+    rev = ctx.createGain(); const d = ctx.createDelay(1), fb = ctx.createGain(); d.delayTime.value = .33; fb.gain.value = .45; rev.connect(master); rev.connect(d); d.connect(fb).connect(d); d.connect(master); }
+  await ctx.resume(); reset(); nextT = ctx.currentTime + .1; playing = true; $('#play').textContent = '■ Parar'; timer = setInterval(sched, 40); sched();
+}
+function stop() { playing = false; clearInterval(timer); $('#play').textContent = '▶ Escuchar'; $('#sec').textContent = 'En silencio'; if (master) { master.gain.setTargetAtTime(0, ctx.currentTime, .05); setTimeout(() => master.gain.setValueAtTime(.6, ctx.currentTime), 300); } }
+function use(s, why) { seed = s; $('#seedOut').textContent = seed; $('#msg').textContent = why; if (playing) { stop(); setTimeout(start, 320); } }
+$('#play').onclick = () => playing ? stop() : start();
+$('#mine').onclick = () => use(mySeed, 'Tu semilla: la misma versión desde el principio.');
+$('#rand').onclick = () => use(1 + Math.floor(Math.random() * 999999), 'Semilla nueva al azar.');
+$('#sform').onsubmit = e => { e.preventDefault(); const v = parseInt($('#seedIn').value.replace(/\D/g, ''), 10); if (!v) { $('#msg').textContent = 'Escribe un número.'; return; } use(v, 'Semilla ' + v + '.'); };
+const cv = $('#viz'), g = cv.getContext('2d'), buf = new Uint8Array(128), still = matchMedia('(prefers-reduced-motion: reduce)');
+function draw() {
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight; if (cv.width !== W * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  if (an && playing) an.getByteFrequencyData(buf); else buf.fill(0);
+  const bw = W / 64; for (let i = 0; i < 64; i++) { const h = buf[i] / 255 * H; g.fillStyle = i % 8 ? '#8f6bff' : '#ff5a36'; g.fillRect(i * bw, H - h, bw - 1, h); }
+  still.matches ? setTimeout(draw, 400) : requestAnimationFrame(draw);
+}
+$('#seedOut').textContent = seed; draw();
+</script>
