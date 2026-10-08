@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Detector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one column. A/B switch is the hero; verdict buttons under it; reveal card after. Single dark world. */
+:root {
+  --void: #0a0607; --panel: #140d0f; --ink: #f4ecee; --dim: #a08a90; --red: #ff3b4e; --ok: #3ee08f; --amber: #ffb02e; --line: rgba(244,236,238,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+body { background: var(--void); color: var(--ink); font-family: var(--f-mono); font-size: 13px; line-height: 1.6; }
+.back { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: 16px; color: var(--dim); font-size: 11px; letter-spacing: .1em; text-decoration: none; text-transform: uppercase; }
+.back:hover, .back:focus-visible { color: var(--ink); }
+main { max-width: 680px; margin: 0 auto; padding: 44px 16px calc(40px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 20px; }
+h1 { font: 900 clamp(52px, 15vw, 120px)/.84 var(--f-disp); margin: 0; text-transform: uppercase; }
+h1 span { color: var(--red); }
+h2 { font: 800 26px/1 var(--f-disp); margin: 0; text-transform: uppercase; }
+p { margin: 0; color: var(--dim); }
+b { color: var(--ink); font-weight: 600; }
+button { font: 600 12px/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 12px 14px; cursor: pointer; }
+button:hover { border-color: var(--red); }
+button:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+button:disabled { opacity: .4; cursor: default; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--void); border-color: var(--ink); }
+.go { border-color: var(--red); color: var(--red); font-size: 14px; padding: 16px 20px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.meta { display: flex; justify-content: space-between; gap: 10px; color: var(--dim); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+.ab { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ab button { font: 900 72px/1 var(--f-disp); padding: 18px 0; }
+.verdict { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.verdict button { padding: 16px 8px; }
+.verdict button.right { border-color: var(--ok); color: var(--ok); }
+.verdict button.wrong { border-color: var(--red); color: var(--red); }
+.card { background: var(--panel); border: 1px solid var(--line); padding: 18px 16px; display: grid; gap: 10px; }
+.lv button { min-width: 44px; }
+canvas { width: 100%; height: 60px; display: block; }
+.dots { display: flex; gap: 4px; }
+.dots span { width: 14px; height: 14px; border: 1px solid var(--line); }
+.dots .y { background: var(--ok); border-color: var(--ok); }
+.dots .n { background: var(--red); border-color: var(--red); }
+</style>
+
+<a class="back" href="experiencias.html">← Experiencias</a>
+<main>
+  <header style="display:grid;gap:14px">
+    <h1>Detector<br><span>de mentiras</span></h1>
+    <p>Dos versiones del mismo loop, A y B, sonando sincronizadas. Una esconde un defecto: un clic, un desfase de 5 ms, sobrecompresión, una capa con la polaridad invertida, reducción de bits, clipping o un colapso a mono. Cambia entre A y B con los botones, las teclas <b>A</b>/<b>B</b> o <b>espacio</b>, elige la culpable y descubre qué era.</p>
+  </header>
+
+  <div class="row lv" role="group" aria-label="Nivel"><span class="meta">nivel</span></div>
+  <div class="meta"><span>caso <b id="rn">1</b>/7</span><div class="dots" id="dots"></div><span>aciertos <b id="hits">0</b> · récord nivel <b id="best">0</b>/7</span></div>
+
+  <section class="card">
+    <div class="row"><button class="go" id="play">▶ Reproducir</button><span id="status" class="meta">listo</span></div>
+    <div class="ab"><button id="bA" aria-pressed="true">A</button><button id="bB" aria-pressed="false">B</button></div>
+    <canvas id="cv" aria-hidden="true"></canvas>
+    <p>¿Cuál tiene el defecto?</p>
+    <div class="verdict"><button id="vA">A miente</button><button id="vB">B miente</button></div>
+  </section>
+
+  <section class="card" id="reveal" hidden aria-live="polite">
+    <h2 id="rvT"></h2>
+    <p id="rvD"></p>
+    <div class="row"><button class="go" id="next">Siguiente caso</button></div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const SR = 44100, BPM = 116, BARS = 2, LEN = 60 / BPM * 4 * BARS;
+  const FLAWS = {
+    click: { n: 'Clic', d: 'Un salto de una sola muestra en mitad del loop, como un corte mal hecho o un error de buffer.' },
+    offset: { n: 'Desfase de 5 ms', d: 'Una copia del bajo y los acordes llega 5 ms tarde: filtro peine, el sonido se vuelve hueco y borroso.' },
+    comp: { n: 'Sobrecompresión', d: 'Compresor rápido y duro sobre la mezcla: transitorios aplastados, el bombo pierde pegada y todo bombea.' },
+    polarity: { n: 'Polaridad invertida', d: 'La capa sub del bombo está invertida respecto al cuerpo: se cancelan y se pierde graves.' },
+    bits: { n: 'Reducción de bits', d: 'Se cuantiza a menos bits: aparece ruido granuloso en las colas y en los pasajes suaves.' },
+    clip: { n: 'Clipping', d: 'La mezcla se satura y se recorta: distorsión áspera en cada golpe fuerte.' },
+    mono: { n: 'Colapso a mono', d: 'Las capas estéreo se suman al centro: la imagen se estrecha y los platos dejan de abrirse a los lados.' },
+  };
+  // amount per level 1..5 (1 obvious, 5 subtle)
+  const AMT = {
+    click: [.6, .3, .15, .07, .035], offset: [1, .7, .5, .35, .22], comp: [1, .8, .6, .45, .3], polarity: [1, .75, .5, .35, .25],
+    bits: [5, 7, 8, 9, 10], clip: [5, 3.2, 2.2, 1.7, 1.4], mono: [1, .8, .6, .45, .35],
+  };
+  const store = { get(k, d) { try { const v = localStorage.getItem('nx-detector-' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem('nx-detector-' + k, JSON.stringify(v)); } catch (e) {} } };
+  let level = store.get('level', 1), bests = store.get('best', {});
+  let ctx, srcs = null, gA, gB, side = 'A', cases = [], ci = 0, hits = 0, marks = [], cur = null, busy = false;
+
+  // Lay out the level buttons
+  for (let l = 1; l <= 5; l++) { const b = document.createElement('button'); b.textContent = l; b.dataset.l = l; b.onclick = () => { level = l; store.set('level', l); newSession(); }; document.querySelector('.lv').appendChild(b); }
+
+  function audio() { if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); gA = ctx.createGain(); gB = ctx.createGain(); gA.connect(ctx.destination); gB.connect(ctx.destination); } if (ctx.state === 'suspended') ctx.resume(); return ctx; }
+
+  async function renderMix(flaw, amt, seed) {
+    let s = seed; const rand = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    const oc = new OfflineAudioContext(2, Math.ceil(SR * LEN), SR), beat = 60 / BPM;
+    let bus = oc.createGain(); const out = bus;
+    if (flaw === 'comp') {
+      const c = oc.createDynamicsCompressor(); c.threshold.value = -12 - 30 * amt; c.ratio.value = 4 + 16 * amt; c.attack.value = .0005; c.release.value = .05; c.knee.value = 0;
+      bus = oc.createGain(); bus.connect(c); c.connect(oc.destination); out.connect(bus);
+    } else out.connect(oc.destination);
+    const target = out;
+    const nb = oc.createBuffer(1, SR, SR), nd = nb.getChannelData(0); for (let i = 0; i < SR; i++) nd[i] = rand() * 2 - 1;
+    const env = (g, t, p, d) => { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(p, t + .003); g.gain.exponentialRampToValueAtTime(0.0001, t + d); };
+    const pan = (x) => { const p = oc.createStereoPanner(); p.pan.value = x; p.connect(target); return p; };
+    const late = oc.createDelay(.1); late.delayTime.value = .005; const lateG = oc.createGain(); lateG.gain.value = flaw === 'offset' ? amt : 0; late.connect(lateG).connect(target);
+    const chords = [[57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 55, 59]];
+    for (let st = 0; st < BARS * 16; st++) {
+      const t = st * beat / 4;
+      if (st % 4 === 0) { // kick: body + sub layer
+        [0, 1].forEach((layer) => { const o = oc.createOscillator(), g = oc.createGain(); o.frequency.setValueAtTime(layer ? 60 : 140, t); o.frequency.exponentialRampToValueAtTime(48, t + (layer ? .03 : .1)); const inv = layer && flaw === 'polarity' ? -amt : 0; env(g, t, .55, .4); const pg = oc.createGain(); pg.gain.value = layer ? 1 - 2 * Math.max(0, inv * -1) * 1 : 1; o.connect(g).connect(pg).connect(target); o.start(t); o.stop(t + .45); });
+      }
+      if (st % 8 === 4) { const n = oc.createBufferSource(), f = oc.createBiquadFilter(), g = oc.createGain(); n.buffer = nb; f.type = 'bandpass'; f.frequency.value = 1800; env(g, t, .5, .18); n.connect(f).connect(g).connect(pan(0)); n.start(t, rand() * .5); n.stop(t + .2); }
+      if (st % 2 === 0 || rand() < .3) { const n = oc.createBufferSource(), f = oc.createBiquadFilter(), g = oc.createGain(); n.buffer = nb; f.type = 'highpass'; f.frequency.value = 8000; env(g, t, st % 4 === 2 ? .22 : .1, st % 8 === 6 ? .2 : .05); n.connect(f).connect(g).connect(pan(st % 4 === 2 ? .8 : -.7)); n.start(t, rand() * .5); n.stop(t + .25); }
+      if (st % 4 === 2 || st % 16 === 7) { const o = oc.createOscillator(), f = oc.createBiquadFilter(), g = oc.createGain(); o.type = 'sawtooth'; o.frequency.value = 440 * Math.pow(2, (chords[Math.floor(st / 8) % 4][0] - 24 - 69) / 12); f.type = 'lowpass'; f.frequency.value = 500; env(g, t, .3, beat * .4); o.connect(f).connect(g); g.connect(pan(0)); g.connect(late); o.start(t); o.stop(t + beat * .5); }
+      if (st % 8 === 0) { chords[Math.floor(st / 8) % 4].forEach((m, k) => { [-1, 1].forEach((side) => { const o = oc.createOscillator(), f = oc.createBiquadFilter(), g = oc.createGain(); o.type = 'sawtooth'; o.frequency.value = 440 * Math.pow(2, (m - 69) / 12); o.detune.value = side * 9; f.type = 'lowpass'; f.frequency.value = 1600; g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(.045, t + .05); g.gain.setTargetAtTime(0.0001, t + beat * 1.6, .1); o.connect(f).connect(g); g.connect(pan(side * .9)); g.connect(late); o.start(t); o.stop(t + beat * 2); }); }); }
+    }
+    const buf = await oc.startRendering();
+    const L = buf.getChannelData(0), R = buf.getChannelData(1);
+    if (flaw === 'click') { const i = Math.floor(L.length * (.3 + rand() * .4)); for (let k = 0; k < 2; k++) { L[i + k] += amt * (k ? -1 : 1); R[i + k] += amt * (k ? -1 : 1); } }
+    if (flaw === 'mono') for (let i = 0; i < L.length; i++) { const m = (L[i] + R[i]) / 2; L[i] += (m - L[i]) * amt; R[i] += (m - R[i]) * amt; }
+    if (flaw === 'clip') for (let i = 0; i < L.length; i++) { L[i] = Math.max(-.3, Math.min(.3, L[i] * amt)) / .3 * .5; R[i] = Math.max(-.3, Math.min(.3, R[i] * amt)) / .3 * .5; }
+    if (flaw === 'bits') { const q = Math.pow(2, amt - 1); for (let i = 0; i < L.length; i++) { L[i] = Math.round(L[i] * q) / q; R[i] = Math.round(R[i] * q) / q; } }
+    return buf;
+  }
+  function rms(b) { let s = 0, n = 0; for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < d.length; i += 4) { s += d[i] * d[i]; n++; } } return Math.sqrt(s / n); }
+  function normalize(b, target) { const g = target / (rms(b) || 1); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] *= g; } }
+  function peak(b) { let m = 0; for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < d.length; i++) m = Math.max(m, Math.abs(d[i])); } return m; }
+
+  function stop() { if (srcs) { srcs.forEach((s) => { try { s.stop(); } catch (e) {} }); srcs = null; } $('play').textContent = '▶ Reproducir'; }
+  function start() {
+    if (!cur || !cur.A) return; audio(); stop();
+    const t = ctx.currentTime + .05; srcs = [cur.A, cur.B].map((b, k) => { const s = ctx.createBufferSource(); s.buffer = b; s.loop = true; s.connect(k ? gB : gA); s.start(t); return s; });
+    setSide(side, true); $('play').textContent = '■ Parar';
+  }
+  function setSide(s, instant) {
+    side = s; $('bA').setAttribute('aria-pressed', s === 'A'); $('bB').setAttribute('aria-pressed', s === 'B');
+    if (!ctx) return; const t = ctx.currentTime, tc = instant ? .001 : .004;
+    gA.gain.cancelScheduledValues(t); gB.gain.cancelScheduledValues(t); gA.gain.setTargetAtTime(s === 'A' ? 1 : 0, t, tc); gB.gain.setTargetAtTime(s === 'B' ? 1 : 0, t, tc);
+    draw();
+  }
+  function draw() {
+    const cv = $('cv'), w = cv.width = cv.clientWidth * devicePixelRatio, h = cv.height = 60 * devicePixelRatio, g = cv.getContext('2d');
+    g.clearRect(0, 0, w, h); if (!cur || !cur.A) return;
+    const d = (side === 'A' ? cur.A : cur.B).getChannelData(0), step = Math.floor(d.length / w);
+    g.fillStyle = side === 'A' ? '#f4ecee' : '#ff3b4e';
+    for (let x = 0; x < w; x++) { let m = 0; for (let i = 0; i < step; i += 8) m = Math.max(m, Math.abs(d[x * step + i])); g.fillRect(x, h / 2 - m * h / 2, 1, Math.max(1, m * h)); }
+  }
+
+  function dots() { $('dots').innerHTML = Array.from({ length: 7 }, (_, k) => '<span class="' + (marks[k] === undefined ? '' : marks[k] ? 'y' : 'n') + '"></span>').join(''); }
+  function newSession() {
+    stop(); cases = Object.keys(FLAWS).sort(() => Math.random() - .5); ci = 0; hits = 0; marks = [];
+    document.querySelectorAll('.lv button').forEach((b) => b.setAttribute('aria-pressed', +b.dataset.l === level));
+    $('best').textContent = bests[level] || 0; $('hits').textContent = 0; loadCase();
+  }
+  async function loadCase() {
+    stop(); busy = true; $('reveal').hidden = true; dots(); $('rn').textContent = ci + 1;
+    ['vA', 'vB'].forEach((id) => { $(id).disabled = true; $(id).classList.remove('right', 'wrong'); });
+    $('status').textContent = 'sintetizando…';
+    const flaw = cases[ci], seed = 1 + Math.floor(Math.random() * 1e6), bad = Math.random() < .5 ? 'A' : 'B';
+    const [clean, dirty] = await Promise.all([renderMix(null, 0, seed), renderMix(flaw, AMT[flaw][level - 1], seed)]);
+    const r = rms(clean); normalize(clean, r); normalize(dirty, r);
+    const pk = Math.max(peak(clean), peak(dirty)), k = .9 / (pk || 1); [clean, dirty].forEach((b) => { for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] *= k; } });
+    cur = { flaw, bad, A: bad === 'A' ? dirty : clean, B: bad === 'B' ? dirty : clean, answered: false };
+    busy = false; $('status').textContent = 'nivel ' + level + ' · loop de ' + LEN.toFixed(1) + ' s'; ['vA', 'vB'].forEach((id) => { $(id).disabled = false; });
+    setSide('A', true); draw();
+  }
+  function verdict(s) {
+    if (!cur || cur.answered || busy) return; cur.answered = true;
+    const ok = s === cur.bad; marks.push(ok); if (ok) hits++; $('hits').textContent = hits; dots();
+    $(cur.bad === 'A' ? 'vA' : 'vB').classList.add('right'); if (!ok) $(s === 'A' ? 'vA' : 'vB').classList.add('wrong');
+    const F = FLAWS[cur.flaw];
+    $('rvT').innerHTML = (ok ? '<span style="color:var(--ok)">Pillado.</span> ' : '<span style="color:var(--red)">Te la colaron.</span> ') + cur.bad + ': ' + F.n;
+    $('rvD').textContent = F.d + ' Sigue escuchando A/B ahora que sabes qué buscar.';
+    $('reveal').hidden = false;
+    if (ci === 6) {
+      if (hits > (bests[level] || 0)) { bests[level] = hits; store.set('best', bests); $('best').textContent = hits; }
+      $('next').textContent = hits >= 5 && level < 5 ? 'Subir a nivel ' + (level + 1) : 'Nueva tanda';
+      $('rvD').textContent += ' Tanda terminada: ' + hits + '/7.';
+    } else $('next').textContent = 'Siguiente caso';
+    $('next').focus();
+  }
+  function next() { if (ci === 6) { if (hits >= 5 && level < 5) { level++; store.set('level', level); } newSession(); } else { ci++; loadCase(); } }
+
+  $('play').onclick = () => (srcs ? stop() : start());
+  $('bA').onclick = () => setSide('A'); $('bB').onclick = () => setSide('B');
+  $('vA').onclick = () => verdict('A'); $('vB').onclick = () => verdict('B'); $('next').onclick = next;
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'BUTTON' && (e.key === 'Enter')) return;
+    if (e.key === 'a' || e.key === 'A') setSide('A'); else if (e.key === 'b' || e.key === 'B') setSide('B');
+    else if (e.code === 'Space') { e.preventDefault(); if (!srcs) start(); else setSide(side === 'A' ? 'B' : 'A'); }
+  });
+  addEventListener('resize', draw);
+  newSession();
+  window.__det = { get cur() { return cur; }, verdict, next, start };
+})();
+</script>

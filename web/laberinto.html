@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}*{box-sizing:border-box}[hidden]{display:none!important}</style>
+<title>Nexsound Laberinto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one column. Square maze canvas with fog; d-pad under it; HUD on top. Single dark world. */
+:root {
+  --void: #060a07; --panel: #0d140f; --ink: #eaf4ec; --dim: #86a08c; --lime: #b6ff3b; --heat: #ff5a36; --line: rgba(234,244,236,.14);
+  --f-disp: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+body { background: var(--void); color: var(--ink); font-family: var(--f-mono); font-size: 13px; line-height: 1.6; }
+.back { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: 16px; color: var(--dim); font-size: 11px; letter-spacing: .1em; text-decoration: none; text-transform: uppercase; }
+.back:hover, .back:focus-visible { color: var(--ink); }
+main { max-width: 560px; margin: 0 auto; padding: 44px 16px calc(40px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 16px; }
+h1 { font: 900 clamp(44px, 12vw, 110px)/.84 var(--f-disp); margin: 0; text-transform: uppercase; overflow-wrap: anywhere; }
+main > * { min-width: 0; }
+h1 span { color: var(--lime); }
+p { margin: 0; color: var(--dim); }
+b { color: var(--ink); font-weight: 600; }
+button { font: 600 12px/1 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink); background: transparent; border: 1px solid var(--line); padding: 12px 14px; cursor: pointer; touch-action: manipulation; }
+button:hover { border-color: var(--lime); }
+button:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+button:disabled { opacity: .3; cursor: default; }
+.go { border-color: var(--lime); color: var(--lime); font-size: 14px; padding: 16px 20px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.meta { display: flex; justify-content: space-between; gap: 10px; color: var(--dim); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+canvas { width: 100%; aspect-ratio: 1; display: block; background: #000; border: 1px solid var(--line); touch-action: none; }
+.pad { display: grid; grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(3, 56px); gap: 6px; justify-content: center; }
+.pad button { font-size: 22px; padding: 0; }
+.pad button.lit { border-color: var(--lime); color: var(--void); background: var(--lime); }
+#msg { min-height: 3.2em; }
+</style>
+
+<a class="back" href="experiencias.html">← Experiencias</a>
+<main>
+  <header style="display:grid;gap:12px">
+    <h1>Laberinto<br><span>de frecuencias</span></h1>
+    <p>Estás a oscuras: solo ves las casillas cercanas. Al empezar suena la <b>nota guía</b>. En cada casilla, cada camino abierto emite un tono desde su lado (izquierda a la izquierda, derecha a la derecha, arriba y abajo al centro). <b>El camino bueno siempre suena con la nota guía.</b> Síguela hasta la salida. Usa auriculares.</p>
+  </header>
+  <div class="meta"><span>nivel <b id="lv">1</b></span><span>pasos <b id="steps">0</b> · desvíos <b id="errs">0</b></span><span>récord nivel <b id="best">—</b></span></div>
+  <canvas id="cv" aria-label="Laberinto visto desde arriba"></canvas>
+  <p id="msg" aria-live="polite">Pulsa Empezar para oír la nota guía.</p>
+  <div class="row"><button class="go" id="start">Empezar</button><button id="ref">♪ Nota guía</button><button id="rep">↻ Repetir tonos</button></div>
+  <div class="pad">
+    <span></span><button id="dU" aria-label="Arriba">↑</button><span></span>
+    <button id="dL" aria-label="Izquierda">←</button><span></span><button id="dR" aria-label="Derecha">→</button>
+    <span></span><button id="dD" aria-label="Abajo">↓</button><span></span>
+  </div>
+  <p>Teclado: flechas o WASD para moverte, <b>espacio</b> repite los tonos, <b>G</b> la nota guía. En táctil también puedes deslizar sobre el mapa.</p>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const DIRS = { U: [0, -1, 0, 'Arriba'], D: [0, 1, 0, 'Abajo'], L: [-1, 0, -1, 'Izquierda'], R: [1, 0, 1, 'Derecha'] };
+  const ORDER = ['L', 'U', 'R', 'D'];
+  const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const store = { get(k, d) { try { const v = localStorage.getItem('nx-lab-' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem('nx-lab-' + k, JSON.stringify(v)); } catch (e) {} } };
+  let bests = store.get('best', {}), level = store.get('level', 1);
+  let ctx, M = null, timers = [];
+
+  function audio() { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume(); return ctx; }
+  function tone(midi, t, dur, pan, g0 = .25) {
+    const c = audio(), o = c.createOscillator(), g = c.createGain(), p = c.createStereoPanner(); o.type = 'triangle'; o.frequency.value = mtof(midi); p.pan.value = pan;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(g0, t + .02); g.gain.setTargetAtTime(0.0001, t + dur, .06);
+    o.connect(g).connect(p).connect(c.destination); o.start(t); o.stop(t + dur + .5);
+  }
+
+  function build(lv) {
+    const n = Math.min(17, 4 + lv * 2), W = n, H = n;
+    const walls = Array.from({ length: W * H }, () => ({ U: 1, D: 1, L: 1, R: 1 }));
+    const seen = new Uint8Array(W * H), stack = [[0, 0]]; seen[0] = 1;
+    while (stack.length) {
+      const [x, y] = stack[stack.length - 1];
+      const nb = ORDER.filter((d) => { const nx = x + DIRS[d][0], ny = y + DIRS[d][1]; return nx >= 0 && ny >= 0 && nx < W && ny < H && !seen[ny * W + nx]; });
+      if (!nb.length) { stack.pop(); continue; }
+      const d = nb[Math.floor(Math.random() * nb.length)], nx = x + DIRS[d][0], ny = y + DIRS[d][1], op = { U: 'D', D: 'U', L: 'R', R: 'L' }[d];
+      walls[y * W + x][d] = 0; walls[ny * W + nx][op] = 0; seen[ny * W + nx] = 1; stack.push([nx, ny]);
+    }
+    // braid: knock out some extra walls so there are real junctions with loops
+    for (let k = 0; k < W * H * .08; k++) { const x = 1 + Math.floor(Math.random() * (W - 2)), y = 1 + Math.floor(Math.random() * (H - 2)), d = ORDER[Math.floor(Math.random() * 4)], op = { U: 'D', D: 'U', L: 'R', R: 'L' }[d]; walls[y * W + x][d] = 0; walls[(y + DIRS[d][1]) * W + x + DIRS[d][0]][op] = 0; }
+    const ex = W - 1, ey = H - 1, dist = new Int32Array(W * H).fill(-1), q = [ey * W + ex]; dist[q[0]] = 0;
+    while (q.length) { const i = q.shift(), x = i % W, y = (i / W) | 0; ORDER.forEach((d) => { if (walls[i][d]) return; const j = (y + DIRS[d][1]) * W + x + DIRS[d][0]; if (dist[j] < 0) { dist[j] = dist[i] + 1; q.push(j); } }); }
+    const target = 60 + Math.floor(Math.random() * 12);
+    const spread = lv <= 1 ? [5, 7] : lv === 2 ? [3, 4, 5] : lv === 3 ? [2, 3] : lv === 4 ? [1, 2] : [1];
+    return { W, H, walls, dist, ex, ey, px: 0, py: 0, target, spread, visited: new Uint8Array(W * H), steps: 0, errs: 0, done: false, optimal: dist[0], cues: {} };
+  }
+  const open = (x, y) => ORDER.filter((d) => !M.walls[y * M.W + x][d]);
+  function bestDir(x, y) { const i = y * M.W + x; return open(x, y).find((d) => M.dist[(y + DIRS[d][1]) * M.W + x + DIRS[d][0]] === M.dist[i] - 1); }
+
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; document.querySelectorAll('.pad button').forEach((b) => b.classList.remove('lit')); }
+  function cue() {
+    if (!M || M.done) return; clearTimers(); audio();
+    const ds = open(M.px, M.py), good = bestDir(M.px, M.py), key = M.px + ',' + M.py;
+    // fixed distractor notes per cell so repeats sound the same
+    if (!M.cues[key]) { M.cues[key] = {}; const used = new Set(); ds.forEach((d) => { if (d === good) return; let n; do { n = M.target + M.spread[Math.floor(Math.random() * M.spread.length)] * (Math.random() < .5 ? -1 : 1); } while (used.has(n) && used.size < M.spread.length * 2); used.add(n); M.cues[key][d] = n; }); }
+    const t0 = ctx.currentTime + .08, gap = .55;
+    ds.forEach((d, k) => {
+      const note = d === good ? M.target : M.cues[key][d];
+      tone(note, t0 + k * gap, .38, DIRS[d][2] * .9);
+      const b = $('d' + d);
+      timers.push(setTimeout(() => b.classList.add('lit'), k * gap * 1000 + 80), setTimeout(() => b.classList.remove('lit'), k * gap * 1000 + 480));
+    });
+  }
+  function ref() { if (!M) return; audio(); const t = ctx.currentTime + .05; tone(M.target, t, .5, 0, .3); tone(M.target, t + .6, .8, 0, .3); }
+
+  function move(d) {
+    if (!M || M.done) return;
+    if (M.walls[M.py * M.W + M.px][d]) { audio(); const c = ctx, o = c.createOscillator(), g = c.createGain(); o.type = 'square'; o.frequency.value = 70; g.gain.setValueAtTime(.12, c.currentTime); g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + .12); o.connect(g).connect(c.destination); o.start(); o.stop(c.currentTime + .15); $('msg').textContent = 'Pared.'; return; }
+    const good = bestDir(M.px, M.py);
+    if (d !== good) { M.errs++; $('msg').textContent = 'Ese no era el tono guía. Puedes volver.'; } else $('msg').textContent = DIRS[d][3] + '.';
+    M.visited[M.py * M.W + M.px] = 1; M.px += DIRS[d][0]; M.py += DIRS[d][1]; M.steps++; M.visited[M.py * M.W + M.px] = 1;
+    $('steps').textContent = M.steps; $('errs').textContent = M.errs;
+    if (M.px === M.ex && M.py === M.ey) return win();
+    draw(); cue();
+  }
+  function win() {
+    M.done = true; clearTimers(); draw();
+    const score = Math.max(0, 1000 - M.errs * 80 - (M.steps - M.optimal) * 20), prev = bests[level];
+    if (prev === undefined || score > prev) { bests[level] = score; store.set('best', bests); }
+    const t = ctx.currentTime + .05; [0, 4, 7, 12].forEach((iv, k) => tone(M.target + iv, t + k * .12, .4, 0, .22));
+    $('msg').innerHTML = '<b style="color:var(--lime)">¡Fuera!</b> ' + M.steps + ' pasos (mínimo ' + M.optimal + '), ' + M.errs + ' desvíos. Puntos: <b>' + score + '</b>.';
+    level++; store.set('level', level); $('start').textContent = 'Nivel ' + level; $('best').textContent = bests[level - 1];
+  }
+  function startLevel() {
+    audio(); M = build(level); M.visited[0] = 1;
+    $('lv').textContent = level; $('steps').textContent = 0; $('errs').textContent = 0; $('best').textContent = bests[level] ?? '—';
+    $('msg').textContent = 'Nota guía. Memorízala… después suenan los caminos.'; $('start').textContent = 'Reiniciar';
+    draw(); ref(); clearTimers(); timers.push(setTimeout(cue, 1700));
+  }
+
+  function draw() {
+    const cv = $('cv'), dpr = devicePixelRatio || 1, S = cv.clientWidth * dpr; cv.width = cv.height = S; const g = cv.getContext('2d');
+    g.fillStyle = '#000'; g.fillRect(0, 0, S, S); if (!M) return;
+    const c = S / M.W, R = 1.6;
+    for (let y = 0; y < M.H; y++) for (let x = 0; x < M.W; x++) {
+      const dd = Math.hypot(x - M.px, y - M.py), i = y * M.W + x, vis = dd <= R || M.done, mem = M.visited[i];
+      if (!vis && !mem) continue;
+      const a = vis ? Math.max(.35, 1 - dd / (R + 1)) : .16;
+      g.fillStyle = 'rgba(182,255,59,' + (a * .1) + ')'; g.fillRect(x * c, y * c, c, c);
+      g.strokeStyle = 'rgba(234,244,236,' + a + ')'; g.lineWidth = Math.max(2, c * .08); g.beginPath();
+      const w = M.walls[i];
+      if (w.U) { g.moveTo(x * c, y * c); g.lineTo(x * c + c, y * c); }
+      if (w.D) { g.moveTo(x * c, y * c + c); g.lineTo(x * c + c, y * c + c); }
+      if (w.L) { g.moveTo(x * c, y * c); g.lineTo(x * c, y * c + c); }
+      if (w.R) { g.moveTo(x * c + c, y * c); g.lineTo(x * c + c, y * c + c); }
+      g.stroke();
+      if (x === M.ex && y === M.ey) { g.fillStyle = '#ff5a36'; g.fillRect(x * c + c * .25, y * c + c * .25, c * .5, c * .5); }
+    }
+    g.fillStyle = '#b6ff3b'; g.beginPath(); g.arc(M.px * c + c / 2, M.py * c + c / 2, c * .28, 0, Math.PI * 2); g.fill();
+    if (!RM && !M.done) { g.strokeStyle = 'rgba(182,255,59,.35)'; g.lineWidth = 2; g.beginPath(); g.arc(M.px * c + c / 2, M.py * c + c / 2, c * (R + .5), 0, Math.PI * 2); g.stroke(); }
+  }
+
+  $('start').onclick = startLevel; $('ref').onclick = ref; $('rep').onclick = cue;
+  ORDER.forEach((d) => { $('d' + d).onclick = () => move(d); });
+  const KEYS = { ArrowUp: 'U', ArrowDown: 'D', ArrowLeft: 'L', ArrowRight: 'R', w: 'U', s: 'D', a: 'L', d: 'R' };
+  document.addEventListener('keydown', (e) => {
+    const k = KEYS[e.key] || KEYS[e.key.toLowerCase()];
+    if (k) { e.preventDefault(); move(k); } else if (e.code === 'Space') { e.preventDefault(); M ? cue() : startLevel(); } else if (e.key === 'g' || e.key === 'G') ref();
+  });
+  let sw = null; const cv = $('cv');
+  cv.addEventListener('pointerdown', (e) => { sw = [e.clientX, e.clientY]; });
+  cv.addEventListener('pointerup', (e) => { if (!sw) return; const dx = e.clientX - sw[0], dy = e.clientY - sw[1]; sw = null; if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) { cue(); return; } move(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'R' : 'L') : (dy > 0 ? 'D' : 'U')); });
+  addEventListener('resize', draw);
+  $('lv').textContent = level; if (level > 1) $('start').textContent = 'Nivel ' + level;
+  draw();
+  window.__lab = { get M() { return M; }, move, bestDir, startLevel };
+})();
+</script>
