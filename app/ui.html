@@ -1,0 +1,424 @@
+<title>Nexsound Despiece</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: mesa de despiece — columna de entrada (tema + proceso) y banco de resultados (ficha, patrón, piezas). */
+:root {
+  --bg: #EEF1EC; --surface: #F8FAF6; --sunk: #E3E8E2; --ink: #18211C; --muted: #5E6C64; --line: #CDD5CF;
+  --accent: #0F7A62; --accent-ink: #FFFFFF; --signal: #B8661F; --danger: #A63A2B;
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #101513; --surface: #18201C; --sunk: #0B0F0D; --ink: #E4EBE6; --muted: #92A39A; --line: #2A3530;
+  --accent: #43C19F; --accent-ink: #06110C; --signal: #E0954F; --danger: #E07462; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #101513; --surface: #18201C; --sunk: #0B0F0D; --ink: #E4EBE6; --muted: #92A39A; --line: #2A3530;
+  --accent: #43C19F; --accent-ink: #06110C; --signal: #E0954F; --danger: #E07462; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-body); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 64px; display: grid; gap: 28px; }
+header { display: grid; gap: 6px; }
+.brand { font: 600 12px/1 var(--f-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 800 clamp(34px, 6vw, 56px)/0.95 var(--f-display); font-stretch: 118%; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+.lede { max-width: 66ch; color: var(--muted); margin: 4px 0 0; }
+.grid { display: grid; gap: 24px; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); align-items: start; }
+@media (max-width: 880px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.col { display: grid; gap: 20px; min-width: 0; }
+h2 { font: 700 13px/1.2 var(--f-display); font-stretch: 112%; letter-spacing: .08em; text-transform: uppercase; margin: 0; color: var(--muted); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 14px; min-width: 0; }
+
+/* entrada */
+.drop { border: 1.5px dashed var(--line); border-radius: var(--r); padding: 22px 16px; text-align: center; display: grid; gap: 10px; justify-items: center; background: var(--sunk); transition: border-color .15s, background .15s; }
+.drop.over { border-color: var(--accent); }
+.drop strong { font: 700 18px/1.2 var(--f-display); font-stretch: 110%; }
+.drop small { color: var(--muted); }
+.btn { font: 600 14px/1 var(--f-body); border-radius: var(--r); padding: 10px 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; display: inline-flex; gap: 8px; align-items: center; }
+.btn:hover { border-color: var(--accent); }
+.btn:focus-visible, .play:focus-visible, .dl:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn[disabled] { opacity: .5; cursor: default; }
+.file { font: 500 13px/1.4 var(--f-mono); color: var(--ink); word-break: break-all; }
+.tag { font: 500 11px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; padding: 4px 7px; border-radius: 3px; background: var(--sunk); color: var(--signal); border: 1px solid var(--line); justify-self: start; }
+
+/* proceso */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.steps li { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 13px; color: var(--muted); }
+.steps li.on { color: var(--ink); }
+.steps li.done { color: var(--ink); }
+.steps .bar { grid-column: 1 / -1; height: 4px; background: var(--sunk); border-radius: 2px; overflow: hidden; }
+.steps .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.steps .st { font: 500 11px/1.4 var(--f-mono); }
+.err { color: var(--danger); font-size: 14px; }
+
+/* ficha */
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+@media (max-width: 560px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.fact { background: var(--surface); padding: 12px 14px; display: grid; gap: 2px; min-width: 0; }
+.fact span { font: 500 11px/1.2 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.fact b { font: 700 24px/1.1 var(--f-display); font-stretch: 105%; font-variant-numeric: tabular-nums; }
+
+/* secuenciador */
+.seq { overflow-x: auto; }
+.seq table { border-collapse: separate; border-spacing: 3px; min-width: 520px; width: 100%; }
+.seq th { font: 500 11px/1 var(--f-mono); color: var(--muted); text-align: left; padding-right: 8px; white-space: nowrap; letter-spacing: .04em; }
+.seq th[scope="row"] { width: 84px; }
+.seq thead th { text-align: center; padding: 0 0 4px; font-size: 10px; }
+.seq td { height: 26px; border-radius: 3px; background: var(--sunk); position: relative; }
+.seq td.beat { box-shadow: inset 2px 0 0 var(--line); }
+.seq td i { position: absolute; inset: 0; border-radius: 3px; background: var(--accent); }
+.seq td.hit i { outline: 1.5px solid var(--signal); outline-offset: -1.5px; }
+.legend { font-size: 12px; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; }
+.legend em { font-style: normal; display: inline-flex; gap: 6px; align-items: center; }
+.legend em::before { content: ""; width: 12px; height: 12px; border-radius: 2px; background: var(--accent); }
+.legend em.hit::before { background: var(--accent); outline: 1.5px solid var(--signal); outline-offset: -1.5px; }
+.legend em.weak::before { background: var(--accent); opacity: .25; }
+
+/* acordes */
+.chords { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 6px; }
+.chord { flex: 0 0 auto; min-width: 52px; border: 1px solid var(--line); border-radius: 4px; padding: 5px 7px; display: grid; gap: 2px; background: var(--surface); }
+.chord span { font: 500 10px/1 var(--f-mono); color: var(--muted); }
+.chord b { font: 700 15px/1.1 var(--f-display); }
+.chord.rest b { color: var(--muted); font-weight: 500; }
+
+/* piezas */
+.section-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; }
+.section-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; max-width: 60ch; }
+.items { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.item { background: var(--surface); display: grid; grid-template-columns: 40px minmax(0, 1fr) minmax(0, 180px) auto; gap: 12px; align-items: center; padding: 10px 12px; }
+@media (max-width: 560px) { .item { grid-template-columns: 40px minmax(0, 1fr) auto; } .item canvas { display: none; } }
+.item .name { font-weight: 600; font-size: 14px; }
+.item .meta { font: 400 12px/1.4 var(--f-mono); color: var(--muted); }
+.item canvas { width: 100%; height: 34px; display: block; }
+.play { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; display: grid; place-items: center; }
+.play:hover { border-color: var(--accent); }
+.play.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.play svg { width: 14px; height: 14px; }
+.dl { font: 600 12px/1 var(--f-body); padding: 8px 10px; border-radius: var(--r); border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; white-space: nowrap; }
+.dl:hover { border-color: var(--accent); color: var(--accent); }
+.note { font-size: 13px; color: var(--muted); max-width: 70ch; }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 14px; border-radius: var(--r); font-size: 13px; max-width: calc(100% - 32px); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">Nexsound · Laboratorio</div>
+    <h1>Despiece</h1>
+    <p class="lede">Suelta un tema y la app lo desmonta pieza a pieza: stems alineados al compás, cada golpe de batería aislado, y todo regenerado desde cero (golpes, bajo, acordes y melodía) más su MIDI. Funciona entero en tu navegador; el audio no sale de tu equipo.</p>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section class="panel" aria-labelledby="in-h">
+        <h2 id="in-h">Tema</h2>
+        <label class="drop" id="drop" for="file-in">
+          <strong>Suelta aquí tu tema</strong>
+          <small>MP3, WAV, AIFF, M4A o FLAC</small>
+          <span class="btn primary">Elegir archivo</span>
+        </label>
+        <input type="file" id="file-in" accept="audio/*,.mp3,.wav,.aif,.aiff,.m4a,.flac" hidden>
+        <div class="file" id="file-name"></div>
+        <span class="tag" id="demo-tag" hidden>Ejemplo · pista de demostración</span>
+      </section>
+      <section class="panel" aria-labelledby="pr-h">
+        <h2 id="pr-h">Proceso</h2>
+        <ol class="steps" id="steps"></ol>
+        <div class="err" id="err" hidden></div>
+      </section>
+    </div>
+
+    <div class="col" id="results">
+      <section class="panel" aria-labelledby="fi-h">
+        <h2 id="fi-h">Ficha</h2>
+        <div class="facts">
+          <div class="fact"><span>Tempo</span><b id="f-bpm">—</b></div>
+          <div class="fact"><span>Tonalidad</span><b id="f-key">—</b></div>
+          <div class="fact"><span>Compases</span><b id="f-bars">—</b></div>
+          <div class="fact"><span>Duración</span><b id="f-dur">—</b></div>
+        </div>
+        <div class="seq" id="seq"></div>
+        <div class="legend"><em class="hit">golpe detectado en ese paso</em><em class="weak">energía sin golpe propio</em></div>
+        <div class="chords" id="chords" aria-label="Acordes por compás"></div>
+      </section>
+
+      <section class="col" aria-labelledby="dl-h">
+        <div class="section-head">
+          <div><h2 id="dl-h">Piezas</h2><p>Todo en WAV 24 bits a la frecuencia del original. Los stems y las pistas largas empiezan justo en una línea de compás.</p></div>
+          <button class="btn primary" id="dl-all" disabled>Descargar todo (ZIP)</button>
+        </div>
+        <div id="groups" class="col"></div>
+        <p class="note">Cómo sale cada pieza: los stems salen de máscaras espectrales que suman exactamente el original. Los golpes aislados son el promedio de todos los golpes iguales del tema, así que lo que no se repite (voz, acordes) se cancela. Las piezas regeneradas no copian audio: se sintetizan desde cero con lo medido (curva de tono y caída del bombo, espectro y envolvente de caja y hats, notas y timbre del bajo y la melodía). Una mezcla no se puede deshacer al 100 %: si hay restos, las versiones regeneradas son las limpias.</p>
+      </section>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script type="text/plain" id="engine-src">/*ENGINE*/</script>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const STAGES = ['Leyendo el audio', 'Separando los sonidos', 'Midiendo tempo y compases', 'Leyendo tonalidad y acordes', 'Aislando cada golpe de batería', 'Regenerando los golpes desde cero', 'Transcribiendo bajo y melodía', 'Componiendo las pistas regeneradas'];
+  let result = null, fileBase = 'tema', engineSrc = $('engine-src').textContent, E = null;
+  // el motor también se carga en esta página para exportar (WAV, MIDI, ZIP)
+  E = new Function(engineSrc + '\nreturn Engine;')();
+
+  // ---------- proceso
+  function renderSteps(active = -1, pct = 0, doneAll = false) {
+    $('steps').innerHTML = STAGES.map((s, i) => {
+      const done = doneAll || i < active, on = i === active;
+      const w = done ? 100 : on ? Math.round(pct * 100) : 0;
+      return `<li class="${done ? 'done' : on ? 'on' : ''}"><span>${s}</span><span class="st">${done ? 'hecho' : on ? (pct > 0 ? w + ' %' : '…') : ''}</span><span class="bar"><i style="width:${w}%"></i></span></li>`;
+    }).join('');
+  }
+  renderSteps();
+
+  let worker = null;
+  function analyze(L, R, sr) {
+    if (worker) worker.terminate();
+    const blob = new Blob([engineSrc + `
+self.onmessage = (e) => {
+  try {
+    const { L, R, sr } = e.data;
+    const r = Engine.run(L, R, sr, (stage, p) => self.postMessage({ type: 'progress', stage, p }));
+    const tr = [];
+    const add = (a) => { if (a && a.buffer && !tr.includes(a.buffer)) tr.push(a.buffer); };
+    for (const k in r.stems) r.stems[k].forEach(add);
+    for (const k in r.tracks) r.tracks[k].forEach(add);
+    r.mix.forEach(add);
+    for (const k in r.shots) { add(r.shots[k].L); add(r.shots[k].R); }
+    for (const k in r.regen) { add(r.regen[k].L); add(r.regen[k].R); }
+    self.postMessage({ type: 'done', r }, tr);
+  } catch (err) { self.postMessage({ type: 'error', message: String(err && err.message || err) }); }
+};`], { type: 'text/javascript' });
+    worker = new Worker(URL.createObjectURL(blob));
+    return new Promise((resolve, reject) => {
+      worker.onmessage = (e) => {
+        const d = e.data;
+        if (d.type === 'progress') { const i = STAGES.indexOf(d.stage); if (i >= 0) renderSteps(i, d.p); else if (d.stage === 'Listo') renderSteps(-1, 0, true); }
+        else if (d.type === 'done') { renderSteps(-1, 0, true); resolve(d.r); }
+        else if (d.type === 'error') reject(new Error(d.message));
+      };
+      worker.onerror = (e) => reject(new Error(e.message || 'El análisis se detuvo.'));
+      worker.postMessage({ L, R, sr }, [L.buffer, R.buffer]);
+    });
+  }
+
+  async function decode(buf) {
+    const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const ctx = new Ctx(2, 1, 44100);
+    const ab = await new Promise((res, rej) => { const p = ctx.decodeAudioData(buf, res, rej); if (p && p.then) p.then(res, rej); });
+    const L = new Float32Array(ab.getChannelData(0)), R = ab.numberOfChannels > 1 ? new Float32Array(ab.getChannelData(1)) : new Float32Array(L);
+    return { L, R, sr: ab.sampleRate };
+  }
+
+  async function processFile(file) {
+    stopAudio(); hideErr();
+    $('demo-tag').hidden = true;
+    fileBase = file.name.replace(/\.[^.]+$/, '').replace(/[^\w\-áéíóúñÁÉÍÓÚÑ ]+/g, '').trim() || 'tema';
+    $('file-name').textContent = file.name + ' · ' + (file.size / 1048576).toFixed(1) + ' MB';
+    renderSteps(0, 0); setBusy(true);
+    try {
+      const { L, R, sr } = await decode(await file.arrayBuffer());
+      if (L.length < sr * 4) throw new Error('El tema dura menos de 4 segundos; hace falta más audio para medir el tempo.');
+      const r = await analyze(L, R, sr);
+      show(r);
+    } catch (e) {
+      showErr(/decode|Decoding|EncodingError|Unable/i.test(String(e.message)) ? 'No se pudo leer el archivo. Prueba con MP3 o WAV.' : e.message);
+    } finally { setBusy(false); }
+  }
+  function setBusy(b) { $('dl-all').disabled = b || !result; $('file-in').disabled = b; }
+  function showErr(m) { $('err').textContent = m; $('err').hidden = false; }
+  function hideErr() { $('err').hidden = true; }
+
+  const drop = $('drop');
+  ['dragenter', 'dragover'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', (e) => { const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) processFile(f); });
+  $('file-in').addEventListener('change', (e) => { const f = e.target.files[0]; if (f) processFile(f); e.target.value = ''; });
+
+  // ---------- resultados
+  const NAMES = { kick: 'Bombo', caja: 'Caja / clap', hat: 'Hat' };
+  function fmtTime(s) { const m = Math.floor(s / 60), r = Math.round(s % 60); return m + ':' + String(r).padStart(2, '0'); }
+  function barAlign(arrs, r) {
+    // la muestra 0 cae en una línea de compás (se antepone silencio hasta el compás anterior)
+    const pre = r.grid.firstBar > 1e-4 ? Math.round((r.grid.bar - r.grid.firstBar) * r.sr) : 0;
+    if (!pre) return arrs;
+    return arrs.map((a) => { const o = new Float32Array(a.length + pre); o.set(a, pre); return o; });
+  }
+  function buildGroups(r) {
+    const st = r.stems, sh = r.shots, rg = r.regen, tk = r.tracks, kp = r.regenParams.kick;
+    const inst = [new Float32Array(r.length), new Float32Array(r.length)];
+    for (let c = 0; c < 2; c++) for (let i = 0; i < r.length; i++) inst[c][i] = st.bateria[c][i] + st.bajo[c][i] + st.musica[c][i];
+    const full = (pair) => ({ L: pair[0], R: pair[1], align: true });
+    const one = (s) => ({ L: s.L, R: s.R });
+    const sec = (n) => n.toFixed(n < 10 ? 2 : 1) + ' s';
+    return [
+      { id: 'stems', title: 'Stems', folder: '01_Stems', desc: 'Separados de la mezcla. Sumados dan el original exacto.', items: [
+        { key: 'bateria', name: 'Batería', meta: 'percusivo de toda la mezcla', ...full(st.bateria) },
+        { key: 'bajo', name: 'Bajo', meta: 'armónico por debajo de 140 Hz (incluye la cola grave del bombo)', ...full(st.bajo) },
+        { key: 'musica', name: 'Música', meta: 'acordes, melodías y sintes', ...full(st.musica) },
+        { key: 'voz', name: 'Voz', meta: 'lo central y armónico en la banda de la voz', ...full(st.voz) },
+        { key: 'instrumental', name: 'Instrumental', meta: 'todo menos la voz', ...full(inst) },
+      ] },
+      { id: 'shots', title: 'Golpes aislados', folder: '02_Golpes_aislados', desc: 'Cada golpe es el promedio de todos los golpes iguales del tema. Empiezan en la muestra 0 justo en el golpe.', items: ['kick', 'caja', 'hat'].map((k) => ({ key: k, name: NAMES[k], meta: sh[k].count ? `promedio de ${sh[k].count} golpes · ${sec(sh[k].L.length / r.sr)}` : 'no se encontró un golpe que se repita', ...one(sh[k]) })) },
+      { id: 'regen', title: 'Regenerados de cero', folder: '03_Regenerados_de_cero', desc: 'Sintetizados a partir de lo medido, sin copiar audio: limpios, sin restos de la mezcla.', items: [
+        { key: 'kick', name: 'Bombo regenerado', meta: `tono ${Math.round(kp.fStart)} → ${Math.round(kp.fEnd)} Hz · caída ${Math.round(kp.decay * 1000)} ms`, ...one(rg.kick) },
+        { key: 'caja', name: 'Caja / clap regenerada', meta: 'espectro y envolvente del golpe real', ...one(rg.caja) },
+        { key: 'hat', name: 'Hat regenerado', meta: 'espectro y envolvente del golpe real', ...one(rg.hat) },
+        { key: 'bateria', name: 'Batería regenerada', meta: `${r.midi.bateria.length} golpes en su sitio, con su intensidad`, ...full(tk.bateria) },
+        { key: 'bajo', name: 'Bajo regenerado', meta: `${r.midi.bajo.length} notas · timbre medido del bajo`, ...full(tk.bajo) },
+        { key: 'acordes', name: 'Acordes regenerados', meta: `${r.chords.filter((c) => c.name !== '—').length} compases con acorde`, ...full(tk.acordes) },
+        { key: 'melodia', name: 'Melodía regenerada', meta: `${r.midi.melodia.length} notas · timbre medido`, ...full(tk.melodia) },
+        { key: 'mezcla', name: 'Mezcla regenerada', meta: 'todo lo regenerado junto', ...full(r.mix) },
+      ] },
+    ];
+  }
+
+  let groups = [];
+  function show(r) {
+    result = r; groups = buildGroups(r);
+    $('f-bpm').textContent = (Math.round(r.grid.bpm * 100) / 100).toString().replace('.', ',');
+    $('f-key').textContent = r.key.name;
+    $('f-bars').textContent = r.grid.nBars;
+    $('f-dur').textContent = fmtTime(r.length / r.sr);
+    // secuenciador
+    const rows = [['kick', 'Bombo'], ['caja', 'Caja/clap'], ['hat', 'Hat']];
+    let h = '<table><thead><tr><th></th>' + Array.from({ length: 16 }, (_, q) => `<th scope="col">${q % 4 === 0 ? (q / 4 + 1) : '·'}</th>`).join('') + '</tr></thead><tbody>';
+    for (const [k, label] of rows) {
+      h += `<tr><th scope="row">${label}</th>` + r.pattern[k].map((db, q) => {
+        const on = r.slots[k].includes(q), a = Math.max(0.06, Math.min(1, (db + 24) / 24));
+        return `<td class="${q % 4 === 0 && q ? 'beat' : ''} ${on ? 'hit' : ''}" title="${label}, paso ${q + 1}: ${db.toFixed(0)} dB"><i style="opacity:${on ? Math.max(a, 0.55).toFixed(2) : (a * 0.35).toFixed(2)}"></i></td>`;
+      }).join('') + '</tr>';
+    }
+    $('seq').innerHTML = h + '</tbody></table>';
+    $('chords').innerHTML = r.chords.map((c) => `<div class="chord ${c.name === '—' ? 'rest' : ''}"><span>${c.bar + 1}</span><b>${c.name}</b></div>`).join('');
+    // piezas
+    $('groups').innerHTML = groups.map((g) => `<section class="col" aria-label="${g.title}"><div class="section-head"><div><h2>${g.title}</h2><p>${g.desc}</p></div><button class="dl" data-group="${g.id}">Descargar sección</button></div><div class="items">${g.items.map((it, i) => `
+      <div class="item"><button class="play" data-g="${g.id}" data-i="${i}" aria-label="Escuchar ${it.name}">${ICON_PLAY}</button>
+      <div><div class="name">${it.name}</div><div class="meta">${it.meta}</div></div>
+      <canvas data-g="${g.id}" data-i="${i}" aria-hidden="true"></canvas>
+      <button class="dl" data-g="${g.id}" data-i="${i}">Descargar</button></div>`).join('')}</div></section>`).join('')
+      + `<section class="col" aria-label="MIDI"><div class="section-head"><div><h2>MIDI</h2><p>Un archivo con cuatro pistas: batería (canal 10), bajo, acordes y melodía, al tempo del tema.</p></div><button class="dl" id="dl-midi">Descargar MIDI</button></div></section>`;
+    drawWaves();
+    $('dl-all').disabled = false;
+  }
+  const ICON_PLAY = '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9.5-5.5z" fill="currentColor"/></svg>';
+  const ICON_STOP = '<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="2.5" y="2.5" width="9" height="9" rx="1" fill="currentColor"/></svg>';
+
+  function drawWaves() {
+    const css = getComputedStyle(document.documentElement);
+    const col = css.getPropertyValue('--accent').trim(), base = css.getPropertyValue('--line').trim();
+    document.querySelectorAll('canvas[data-g]').forEach((cv) => {
+      const it = groups.find((g) => g.id === cv.dataset.g).items[+cv.dataset.i];
+      const w = cv.clientWidth || 180, h = cv.clientHeight || 34, dpr = window.devicePixelRatio || 1;
+      cv.width = w * dpr; cv.height = h * dpr; const x = cv.getContext('2d'); x.scale(dpr, dpr);
+      x.fillStyle = base; x.fillRect(0, h / 2, w, 1);
+      const n = it.L.length, step = Math.max(1, Math.floor(n / w)); let mx = 1e-9; const pk = [];
+      for (let p = 0; p < w; p++) { let m = 0; const a = p * step; for (let i = a; i < Math.min(n, a + step); i += Math.max(1, step >> 6)) m = Math.max(m, Math.abs(it.L[i]), Math.abs(it.R[i])); pk.push(m); mx = Math.max(mx, m); }
+      x.fillStyle = col;
+      pk.forEach((m, p) => { const hh = Math.max(1, (m / mx) * (h - 4)); x.fillRect(p, (h - hh) / 2, 1, hh); });
+    });
+  }
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => result && drawWaves());
+  new MutationObserver(() => result && drawWaves()).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  // ---------- escucha
+  let actx = null, src = null, playingBtn = null;
+  function stopAudio() { if (src) { try { src.stop(); } catch (e) {} src = null; } if (playingBtn) { playingBtn.classList.remove('on'); playingBtn.innerHTML = ICON_PLAY; playingBtn = null; } }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('.play'); if (!b) return;
+    if (playingBtn === b) { stopAudio(); return; }
+    stopAudio();
+    const it = groups.find((g) => g.id === b.dataset.g).items[+b.dataset.i];
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const buf = actx.createBuffer(2, it.L.length, result.sr); buf.copyToChannel(it.L, 0); buf.copyToChannel(it.R, 1);
+    src = actx.createBufferSource(); src.buffer = buf; src.connect(actx.destination); src.start();
+    b.classList.add('on'); b.innerHTML = ICON_STOP; playingBtn = b;
+    src.onended = () => { if (playingBtn === b) stopAudio(); };
+  });
+
+  // ---------- descargas (WAV 24 bits / MIDI; dentro de Claude se entregan en ZIP)
+  function wavOf(it) { let L = it.L, R = it.R; if (it.align) [L, R] = barAlign([L, R], result); return E.wav24(L, R, result.sr); }
+  const clean = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w\-]+/g, '_');
+  function fileName(g, it) { return `${clean(fileBase)}_${clean(it.name)}.wav`; }
+  function readme() {
+    const r = result, lines = [`NEXSOUND DESPIECE — ${fileBase}`, '', `Tempo: ${r.grid.bpm} BPM`, `Tonalidad: ${r.key.name}`, `Compases: ${r.grid.nBars} (el primero empieza en ${r.grid.firstBar.toFixed(4)} s del original)`,
+      'Los stems y pistas largas llevan silencio delante para que la muestra 0 sea una línea de compás.', '', 'Patrón de batería (16 semicorcheas, X = golpe):'];
+    for (const k of ['kick', 'caja', 'hat']) lines.push(`  ${NAMES[k].padEnd(12)} ` + Array.from({ length: 16 }, (_, q) => (r.slots[k].includes(q) ? 'X' : '.') + (q % 4 === 3 ? ' ' : '')).join(''));
+    lines.push('', 'Acordes por compás:');
+    for (let i = 0; i < r.chords.length; i += 8) lines.push('  ' + r.chords.slice(i, i + 8).map((c) => `${String(c.bar + 1).padStart(3)}:${c.name.padEnd(4)}`).join(' '));
+    return new TextEncoder().encode(lines.join('\n') + '\n');
+  }
+  function midiBytes() { return E.midiFile(result.midi, result.grid.bpm); }
+
+  let dlCap;
+  async function downloadsCap() { if (dlCap !== undefined) return dlCap; try { dlCap = window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch (e) { dlCap = null; } return dlCap; }
+  function toast(m) { const t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 3500); }
+  async function deliver(name, parts) {
+    // parts: [{name, data}] ; un archivo suelto fuera de Claude se baja tal cual
+    const cap = await downloadsCap();
+    if (!cap && parts.length === 1) return linkSave(parts[0].name, new Blob([parts[0].data]));
+    const blob = new Blob(E.zipParts(parts), { type: 'application/zip' });
+    if (cap) {
+      try { await cap.save({ filename: name, data: blob }); toast('Descarga lista: ' + name); }
+      catch (e) { if (e && e.code === 'declined') return; if (e && e.code === 'rate_limited') return toast('Ya hay una descarga esperando tu confirmación.'); return linkSave(name, blob); }
+    } else linkSave(name, blob);
+  }
+  function linkSave(name, blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); toast('Descargando ' + name); }
+
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest('.dl, #dl-all'); if (!b || !result) return;
+    b.disabled = true; const old = b.textContent; b.textContent = 'Preparando…';
+    await new Promise((r) => setTimeout(r, 30));
+    try {
+      if (b.id === 'dl-all') {
+        const parts = [{ name: 'LEEME.txt', data: readme() }, { name: '04_MIDI/' + clean(fileBase) + '.mid', data: midiBytes() }];
+        for (const g of groups) for (const it of g.items) parts.push({ name: `${g.folder}/${fileName(g, it)}`, data: wavOf(it) });
+        await deliver(`${clean(fileBase)}_despiece.zip`, parts);
+      } else if (b.id === 'dl-midi') {
+        await deliver(`${clean(fileBase)}_MIDI.zip`, [{ name: clean(fileBase) + '.mid', data: midiBytes() }]);
+      } else if (b.dataset.group) {
+        const g = groups.find((x) => x.id === b.dataset.group);
+        await deliver(`${clean(fileBase)}_${g.folder}.zip`, g.items.map((it) => ({ name: fileName(g, it), data: wavOf(it) })));
+      } else {
+        const g = groups.find((x) => x.id === b.dataset.g), it = g.items[+b.dataset.i], nm = fileName(g, it);
+        await deliver(nm.replace(/\.wav$/, '.zip'), [{ name: nm, data: wavOf(it) }]);
+      }
+    } catch (err) { toast('No se pudo preparar la descarga: ' + (err.message || err)); }
+    finally { b.disabled = false; b.textContent = old; }
+  });
+
+  // ---------- demostración: 8 compases generados aquí (bombo, clap, hats, bajo y acordes) para ver la app trabajando
+  function demoTrack() {
+    const sr = 44100, bpm = 124, beat = 60 / bpm, bars = 8, n = Math.round(bars * 4 * beat * sr) + sr;
+    const L = new Float32Array(n), R = new Float32Array(n); let seed = 3;
+    const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296) * 2 - 1;
+    const add = (t, fn, len, gl = 1, gr = 1) => { const a = Math.round(t * sr), m = Math.round(len * sr); for (let i = 0; i < m && a + i < n; i++) { const v = fn(i / sr); L[a + i] += v * gl; R[a + i] += v * gr; } };
+    const chords = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]], roots = [33, 29, 36, 31];
+    const f = (m) => 440 * Math.pow(2, (m - 69) / 12);
+    for (let b = 0; b < bars; b++) {
+      const t0 = b * 4 * beat, ch = chords[b % 4];
+      for (let q = 0; q < 4; q++) { let ph = 0; add(t0 + q * beat, (t) => { ph += 2 * Math.PI * (50 + 130 * Math.exp(-t / 0.03)) / sr; return Math.sin(ph) * Math.exp(-t / 0.18) * 0.9; }, 0.45); }
+      for (const q of [1, 3]) add(t0 + q * beat, (t) => rnd() * Math.exp(-t / 0.07) * 0.35 * (t < 0.02 ? 1.4 : 1), 0.3, 0.9, 1);
+      for (let s = 2; s < 16; s += 4) { let p = 0; add(t0 + s * beat / 4, (t) => { const x = rnd(); const hp = x - p; p = x; return hp * Math.exp(-t / 0.025) * 0.18; }, 0.1, 0.7, 1); }
+      for (let s = 2; s < 16; s += 4) add(t0 + s * beat / 4, (t) => (Math.sin(2 * Math.PI * f(roots[b % 4]) * t) + 0.3 * Math.sin(4 * Math.PI * f(roots[b % 4]) * t)) * Math.min(t / 0.005, 1) * Math.exp(-t / 0.2) * 0.45, beat * 0.45);
+      ch.forEach((m, i) => add(t0, (t) => { let v = 0; for (let h = 1; h <= 6; h++) v += Math.sin(2 * Math.PI * f(m) * h * t + h) / h; return v * Math.min(t / 0.08, 1) * 0.06; }, 4 * beat, i === 0 ? 1 : 0.6, i === 2 ? 1 : 0.6));
+    }
+    return { L, R, sr };
+  }
+  (async () => {
+    try {
+      $('demo-tag').hidden = false; $('file-name').textContent = 'demostracion_124bpm.wav · 8 compases';
+      fileBase = 'demostracion'; setBusy(true); renderSteps(1, 0);
+      const d = demoTrack(); const r = await analyze(d.L, d.R, d.sr);
+      if (fileBase === 'demostracion') show(r);
+    } catch (e) { showErr(e.message); } finally { setBusy(false); }
+  })();
+})();
+</script>

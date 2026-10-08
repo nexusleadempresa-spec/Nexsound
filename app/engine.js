@@ -1,0 +1,695 @@
+/* Nexsound Despiece — motor de análisis, separación y regeneración de sonido.
+   JavaScript puro (sin dependencias). Funciona en un Web Worker y en Node para pruebas. */
+const Engine = (function () {
+  'use strict';
+
+  // ---------------------------------------------------------------- FFT radix-2 (in-place, complejo)
+  const fftCache = new Map();
+  function fftPlan(n) {
+    if (fftCache.has(n)) return fftCache.get(n);
+    const levels = Math.log2(n) | 0;
+    const rev = new Uint32Array(n);
+    for (let i = 0; i < n; i++) { let r = 0, x = i; for (let j = 0; j < levels; j++) { r = (r << 1) | (x & 1); x >>= 1; } rev[i] = r; }
+    const cos = new Float64Array(n / 2), sin = new Float64Array(n / 2);
+    for (let i = 0; i < n / 2; i++) { cos[i] = Math.cos(2 * Math.PI * i / n); sin[i] = Math.sin(2 * Math.PI * i / n); }
+    const p = { n, rev, cos, sin }; fftCache.set(n, p); return p;
+  }
+  function fft(re, im, inverse) {
+    const n = re.length, p = fftPlan(n), rev = p.rev;
+    for (let i = 0; i < n; i++) { const j = rev[i]; if (j > i) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; } }
+    const sg = inverse ? 1 : -1;
+    for (let size = 2; size <= n; size <<= 1) {
+      const half = size >> 1, step = n / size;
+      for (let i = 0; i < n; i += size) {
+        for (let j = i, k = 0; j < i + half; j++, k += step) {
+          const c = p.cos[k], s = sg * p.sin[k];
+          const l = j + half, tr = re[l] * c - im[l] * s, ti = re[l] * s + im[l] * c;
+          re[l] = re[j] - tr; im[l] = im[j] - ti; re[j] += tr; im[j] += ti;
+        }
+      }
+    }
+    if (inverse) for (let i = 0; i < n; i++) { re[i] /= n; im[i] /= n; }
+  }
+  const nextPow2 = (v) => 1 << Math.ceil(Math.log2(Math.max(2, v)));
+  function hann(n) { const w = new Float64Array(n); for (let i = 0; i < n; i++) w[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / n); return w; }
+
+  // filtro de fase cero por FFT para señales cortas (golpes, notas)
+  function fftFilter(x, sr, lo, hi, order = 4) {
+    const N = nextPow2(x.length * 2), re = new Float64Array(N), im = new Float64Array(N);
+    re.set(x); fft(re, im, false);
+    for (let k = 0; k <= N / 2; k++) {
+      const f = k * sr / N; let g = 1;
+      if (lo) g /= Math.sqrt(1 + Math.pow(lo / Math.max(f, 1e-3), 2 * order));
+      if (hi) g /= Math.sqrt(1 + Math.pow(f / hi, 2 * order));
+      re[k] *= g; im[k] *= g; if (k > 0 && k < N / 2) { re[N - k] *= g; im[N - k] *= g; }
+    }
+    fft(re, im, true); return Float32Array.from(re.subarray(0, x.length));
+  }
+
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const NOTE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const NOTE_ES = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
+  const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+  // ---------------------------------------------------------------- 1) separación en stems (STFT + máscaras)
+  // voz = centro estéreo (en fase) × armónico × banda vocal; batería = percusivo; bajo = armónico < 140 Hz;
+  // música = el resto. Las máscaras suman 1, así que los stems suman exactamente el original.
+  function separate(L, R, sr, progress) {
+    const N = 4096, H = 1024, B = N / 2 + 1, K = 13, half = 6, pad = N;
+    const n = L.length, total = n + 2 * pad, frames = Math.floor((total - N) / H) + 1;
+    const w = hann(N), olaNorm = 1.5;
+    const out = { voz: [new Float32Array(total), new Float32Array(total)], bateria: [new Float32Array(total), new Float32Array(total)], bajo: [new Float32Array(total), new Float32Array(total)] };
+    const rLre = new Float32Array(K * B), rLim = new Float32Array(K * B), rRre = new Float32Array(K * B), rRim = new Float32Array(K * B), rM = new Float32Array(K * B);
+    const re = new Float64Array(N), im = new Float64Array(N);
+    const freqs = new Float64Array(B); for (let k = 0; k < B; k++) freqs[k] = k * sr / N;
+    const band = new Float64Array(B), low = new Float64Array(B);
+    for (let k = 0; k < B; k++) {
+      const f = freqs[k];
+      band[k] = clamp((f - 170) / 110, 0, 1) * (f < 7000 ? 1 : f < 12000 ? 1 - 0.5 * (f - 7000) / 5000 : 0.5);
+      low[k] = 1 / Math.sqrt(1 + Math.pow(f / 140, 8));
+    }
+    // rasgos por frame para el resto del análisis
+    const feat = { fps: sr / H, hop: H, offset: -pad + N / 2, flux: new Float32Array(frames), eLow: new Float32Array(frames), eMid: new Float32Array(frames), eHigh: new Float32Array(frames), eAll: new Float32Array(frames), chroma: new Float32Array(frames * 12), bassChroma: new Float32Array(frames * 12) };
+    const pcOf = new Int8Array(B).fill(-1);
+    for (let k = 1; k < B; k++) { const f = freqs[k]; if (f > 55 && f < 2100) pcOf[k] = ((Math.round(12 * Math.log2(f / 440)) + 9) % 12 + 12) % 12; }
+    let prevLog = new Float64Array(B);
+    const tmp = new Float64Array(K), win = new Float64Array(2 * half + 1), Hm = new Float64Array(B), Pm = new Float64Array(B);
+    const get = (arr, i) => (i >= pad && i < pad + n ? arr[i - pad] : 0);
+    function median(a, len) { // inserción (len pequeño)
+      for (let i = 1; i < len; i++) { const v = a[i]; let j = i - 1; while (j >= 0 && a[j] > v) { a[j + 1] = a[j]; j--; } a[j + 1] = v; }
+      return a[len >> 1];
+    }
+    for (let j = 0; j < frames + half; j++) {
+      if (j < frames) {
+        const a0 = j * H, slot = (j % K) * B;
+        for (let i = 0; i < N; i++) { re[i] = get(L, a0 + i) * w[i]; im[i] = get(R, a0 + i) * w[i]; }
+        fft(re, im, false);
+        let flux = 0;
+        for (let k = 0; k < B; k++) {
+          const nk = (N - k) % N;
+          const lr = (re[k] + re[nk]) / 2, li = (im[k] - im[nk]) / 2;   // L
+          const rr = (im[k] + im[nk]) / 2, ri = (re[nk] - re[k]) / 2;   // R
+          rLre[slot + k] = lr; rLim[slot + k] = li; rRre[slot + k] = rr; rRim[slot + k] = ri;
+          const m = (Math.hypot(lr, li) + Math.hypot(rr, ri)) / 2; rM[slot + k] = m;
+          const lg = Math.log1p(m * 10); if (freqs[k] < 8000) flux += Math.max(0, lg - prevLog[k]); prevLog[k] = lg;
+        }
+        feat.flux[j] = flux;
+      }
+      const t = j - half; if (t < 0) continue;
+      const slotT = (t % K) * B;
+      // medianas: en el tiempo (armónico) y en frecuencia (percusivo)
+      for (let k = 0; k < B; k++) {
+        for (let d = -half, c = 0; d <= half; d++, c++) { const tt = clamp(t + d, 0, frames - 1); tmp[c] = rM[(tt % K) * B + k]; }
+        Hm[k] = median(tmp, K);
+      }
+      for (let k = 0; k < B; k++) {
+        for (let d = -half, c = 0; d <= half; d++, c++) win[c] = rM[slotT + clamp(k + d, 0, B - 1)];
+        Pm[k] = median(win, 2 * half + 1);
+      }
+      // máscaras y reconstrucción de 3 stems (música = original − resto)
+      const masks = [new Float64Array(B), new Float64Array(B), new Float64Array(B)];
+      let eL = 0, eM = 0, eH = 0, eA = 0;
+      const ch = feat.chroma, bc = feat.bassChroma, cOff = t * 12;
+      for (let k = 0; k < B; k++) {
+        const lr = rLre[slotT + k], li = rLim[slotT + k], rr = rRre[slotT + k], ri = rRim[slotT + k];
+        const aL2 = lr * lr + li * li, aR2 = rr * rr + ri * ri;
+        const cross = lr * rr + li * ri;                           // Re(L·conj R): en fase = centro
+        const psi = 2 * cross / (aL2 + aR2 + 1e-12);
+        const aL = Math.sqrt(aL2), aR = Math.sqrt(aR2), delta = Math.abs(aL - aR) / (aL + aR + 1e-12);
+        const center = clamp((psi - 0.8) / 0.15, 0, 1) * clamp(1 - delta / 0.3, 0, 1);
+        const h2 = Hm[k] * Hm[k], p2 = Pm[k] * Pm[k], harm = h2 / (h2 + p2 + 1e-12);
+        const V = 0.97 * center * harm * band[k], rest = 1 - V;
+        masks[0][k] = V; masks[1][k] = rest * (1 - harm); masks[2][k] = rest * harm * low[k];
+        const m = rM[slotT + k], mp = m * rest * (1 - harm), mh = m * rest * harm, e2 = mp * mp;
+        const f = freqs[k];
+        if (f < 150) eL += (m * rest) ** 2; else if (f > 900 && f < 5000) eM += e2; else if (f > 6000) eH += e2;
+        eA += m * m;
+        const pc = pcOf[k];
+        if (pc >= 0) { const v = mh * mh; if (f < 170) bc[cOff + pc] += v; else ch[cOff + pc] += v; }
+      }
+      feat.eLow[t] = eL; feat.eMid[t] = eM; feat.eHigh[t] = eH; feat.eAll[t] = eA;
+      const stems = [out.voz, out.bateria, out.bajo], a0 = t * H;
+      for (let s = 0; s < 3; s++) {
+        const mk = masks[s];
+        for (let k = 0; k < B; k++) {
+          const g = mk[k];
+          const lr = rLre[slotT + k] * g, li = rLim[slotT + k] * g, rr = rRre[slotT + k] * g, ri = rRim[slotT + k] * g;
+          re[k] = lr - ri; im[k] = li + rr;                         // Z = L + iR
+          if (k > 0 && k < N / 2) { re[N - k] = lr + ri; im[N - k] = rr - li; }   // conj(L) + i conj(R)
+        }
+        fft(re, im, true);
+        const oL = stems[s][0], oR = stems[s][1];
+        for (let i = 0; i < N; i++) { oL[a0 + i] += re[i] * w[i] / olaNorm; oR[a0 + i] += im[i] * w[i] / olaNorm; }
+      }
+      if (progress && t % 150 === 0) progress(t / frames);
+    }
+    const res = {};
+    for (const s of Object.keys(out)) res[s] = [out[s][0].slice(pad, pad + n), out[s][1].slice(pad, pad + n)];
+    return { stems: res, feat };
+  }
+
+  // ---------------------------------------------------------------- 2) tempo y rejilla exacta
+  function findGrid(L, R, sr, feat, onsetSrc) {
+    // tempo aproximado por autocorrelación del flujo espectral
+    const fl = feat.flux, fps = feat.fps, nF = fl.length;
+    let mean = 0; for (let i = 0; i < nF; i++) mean += fl[i]; mean /= nF;
+    const f0 = new Float64Array(nF); for (let i = 0; i < nF; i++) f0[i] = fl[i] - mean;
+    let best = { s: -Infinity, bpm: 120 };
+    for (let bpm = 70; bpm <= 180; bpm += 0.25) {
+      const lag = 60 * fps / bpm, l0 = Math.floor(lag), fr = lag - l0; let s = 0;
+      for (let i = 0; i + l0 + 1 < nF; i++) s += f0[i] * (f0[i + l0] * (1 - fr) + f0[i + l0 + 1] * fr);
+      const pref = Math.exp(-0.5 * Math.pow(Math.log2(bpm / 120) / 0.6, 2));
+      s *= 0.6 + 0.4 * pref;
+      if (s > best.s) best = { s, bpm };
+    }
+    if (typeof DEBUG !== 'undefined') console.log('tempo aprox', best.bpm);
+    // envolvente de ataques a resolución de 1 ms
+    const step = Math.round(sr / 1000), nE = Math.floor(L.length / step);
+    const env = new Float32Array(nE);
+    // ataques de batería + bajo (el bombo marca el pulso); si no hay, la mezcla
+    // dos lecturas de los ataques de la batería: banda completa (precisión) y graves < 180 Hz (el bombo, no los hats)
+    const A = onsetSrc ? onsetSrc[0] : L, Bc = onsetSrc ? onsetSrc[1] : R;
+    const envL = new Float32Array(nE), a1 = Math.exp(-2 * Math.PI * 180 / sr); let y1 = 0, y2 = 0, y3 = 0;
+    for (let i = 0; i < nE; i++) {
+      let e = 0, el = 0;
+      for (let j = i * step, je = j + step; j < je; j++) { const v = (A[j] + Bc[j]) * 0.5; e += v * v; y1 = (1 - a1) * v + a1 * y1; y2 = (1 - a1) * y1 + a1 * y2; y3 = (1 - a1) * y2 + a1 * y3; el += y3 * y3; }
+      env[i] = Math.log(e / step + 1e-9); envL[i] = Math.log(el / step + 1e-9);
+    }
+    const oF = new Float32Array(nE), oL = new Float32Array(nE), on = new Float32Array(nE);
+    for (let i = 2; i < nE; i++) { oF[i] = Math.max(0, env[i] - env[i - 2]); oL[i] = Math.max(0, envL[i] - envL[i - 2]); }
+    let mF = 0, mL = 0; for (let i = 0; i < nE; i++) { mF += oF[i]; mL += oL[i]; } mF = mF / nE || 1; mL = mL / nE || 1;
+    const look = Math.round(0.025 / (step / sr));                 // el grave llega unos ms después del ataque
+    for (let i = 1; i < nE - 1; i++) {
+      let lo = 0; for (let k = 0; k <= look && i + k < nE; k++) lo = Math.max(lo, oL[i + k]);
+      on[i] = (oF[i - 1] * 0.5 + oF[i] + oF[i + 1] * 0.5) / mF + lo / mL;
+    }
+    const unit = step / sr;                                         // segundos por índice de la envolvente
+    const score = (bpm, off) => { const per = 60 / bpm / unit; let s = 0; for (let t = off; t < nE - 1; t += per) s += on[Math.round(t)]; return s; };
+    // candidatos: picos de la autocorrelación y sus relaciones de octava (×2, ×½, ×3/2, ×2/3).
+    // Se elige el tempo cuyos tiempos caen, de media, sobre los ataques más fuertes.
+    const cands = new Set();
+    for (const m of [1, 2, 0.5, 1.5, 2 / 3, 4 / 3, 0.75]) { const b = best.bpm * m; if (b >= 60 && b <= 190) cands.add(Math.round(b * 4) / 4); }
+    const meanScore = (bpm, off) => { const per = 60 / bpm / unit; let s = 0, k = 0; for (let t = off; t < nE - 1; t += per) { s += on[Math.round(t)]; k++; } return k ? s / k : 0; };
+    let fine = { s: -Infinity }; const found = [];
+    for (const b0 of cands) {
+      let loc = { s: -Infinity };
+      for (let bpm = Math.max(55, b0 - 1.5); bpm <= b0 + 1.5; bpm += 0.05) {
+        const per = 60 / bpm / unit;
+        for (let off = 0; off < per; off += 3) { const s = meanScore(bpm, off); if (s > loc.s) loc = { s, bpm, off }; }
+      }
+      found.push(loc);
+    }
+    // el más fuerte; y si el doble de rápido conserva al menos el 70 % de su fuerza, el doble (evita quedarse a medio tempo)
+    // se parte del tempo de la autocorrelación; una relación no de octava (3/2, 2/3, 4/3, 3/4) sólo gana si es claramente mejor
+    const base = found.find((f) => Math.abs(f.bpm / best.bpm - 1) < 0.03) || found[0];
+    fine = base;
+    for (const f of found) {
+      const r = f.bpm / base.bpm, octave = Math.abs(Math.log2(r) - Math.round(Math.log2(r))) < 0.03;
+      if (f.s > fine.s * (octave ? 1 : 1.25) && f.s > base.s * (octave ? 1 : 1.25)) fine = f;
+    }
+    for (;;) {
+      const dbl = found.find((f) => Math.abs(f.bpm / fine.bpm - 2) < 0.03 && f.s >= 0.7 * fine.s && f.bpm <= 180);
+      if (!dbl) break; fine = dbl;
+    }
+    {
+      const c0 = { ...fine };                                        // afinado a 0,005 BPM
+      for (let bpm = c0.bpm - 0.06; bpm <= c0.bpm + 0.06; bpm += 0.005) {
+        for (let off = c0.off - 6; off <= c0.off + 6; off += 0.5) { if (off < 0) continue; const s = meanScore(bpm, off); if (s > fine.s) fine = { ...fine, s, bpm, off }; }
+      }
+    }
+    // ¿pulso o contratiempo? el bombo es el golpe con más graves sostenidos: probamos la fase y sus desplazamientos de 1/4
+    {
+      const mixLow = new Float32Array(nE), b1 = Math.exp(-2 * Math.PI * 120 / sr); let z1 = 0, z2 = 0;
+      for (let i = 0; i < nE; i++) { let e = 0; for (let j = i * step, je = j + step; j < je; j++) { const v = (L[j] + R[j]) * 0.5; z1 = (1 - b1) * v + b1 * z1; z2 = (1 - b1) * z1 + b1 * z2; e += z2 * z2; } mixLow[i] = e; }
+      const perU = 60 / fine.bpm / unit, w60 = Math.round(0.06 / unit);
+      let bestK = 0, bestE = -1;
+      for (let k = 0; k < 4; k++) {
+        let e = 0; for (let t = fine.off + k * perU / 4; t < nE - w60; t += perU) { const a = Math.round(t); for (let i = a; i < a + w60; i++) e += mixLow[i]; }
+        if (e > bestE * 1.15 || bestE < 0) { if (k === 0 || e > bestE * 1.15) { bestE = e; bestK = k; } }
+      }
+      if (bestK) { fine.off += bestK * perU / 4; if (fine.off >= perU) fine.off -= perU; }
+    }
+    // ajuste de fase a 0,1 ms con la envolvente a resolución de muestra cerca de cada beat
+    const per = 60 / fine.bpm; let bestOff = fine.off * unit, bestS = -Infinity;
+    for (let d = -3; d <= 3; d += 0.1) { const o = fine.off + d; if (o < 0) continue; const s = score(fine.bpm, o); if (s > bestS) { bestS = s; bestOff = o * unit; } }
+    // primer tiempo fuerte (downbeat): el que más cambios de sección y más bombo concentra
+    const nBeats = Math.floor((L.length / sr - bestOff) / per);
+    const beatE = new Float64Array(nBeats), beatK = new Float64Array(nBeats);
+    for (let b = 0; b < nBeats; b++) {
+      const f0i = Math.floor(((bestOff + b * per) * sr - feat.offset) / feat.hop), f1i = Math.floor(((bestOff + (b + 1) * per) * sr - feat.offset) / feat.hop);
+      let e = 0, k = 0; for (let f = Math.max(0, f0i); f < Math.min(f1i, feat.eAll.length); f++) e += feat.eAll[f];
+      for (let f = Math.max(0, f0i); f < Math.min(f0i + 3, feat.eLow.length); f++) k += feat.eLow[f];
+      beatE[b] = 10 * Math.log10(e + 1e-9); beatK[b] = k;
+    }
+    let phase = 0, ps = -Infinity;
+    const avgE = (a, b) => { let s = 0, c = 0; for (let i = Math.max(0, a); i < Math.min(b, nBeats); i++) { s += beatE[i]; c++; } return c ? s / c : 0; };
+    for (let p = 0; p < 4; p++) {
+      let s = 0, c = 0;
+      for (let b = p; b < nBeats; b += 4) if (b >= 4 && b + 4 <= nBeats) { s += Math.abs(avgE(b, b + 4) - avgE(b - 4, b)) + 0.5 * Math.abs(beatE[b] - beatE[b - 1]); c++; }
+      if (s / Math.max(c, 1) > ps) { ps = s / Math.max(c, 1); phase = p; }
+    }
+    const bar = 4 * per; let down = bestOff + phase * per; down -= Math.floor(down / bar) * bar;
+    return { bpm: Math.round(fine.bpm * 1000) / 1000, beat: per, bar, firstBar: down, nBars: Math.floor((L.length / sr - down) / bar) };
+  }
+
+  // ---------------------------------------------------------------- 3) tonalidad y acordes por compás
+  const KMAJ = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
+  const KMIN = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+  function corr(a, b) { const n = a.length; let ma = 0, mb = 0; for (let i = 0; i < n; i++) { ma += a[i]; mb += b[i]; } ma /= n; mb /= n; let s = 0, sa = 0, sb = 0; for (let i = 0; i < n; i++) { const x = a[i] - ma, y = b[i] - mb; s += x * y; sa += x * x; sb += y * y; } return s / Math.sqrt(sa * sb + 1e-12); }
+  function harmony(feat, grid, sr) {
+    const nF = feat.eAll.length, tot = new Float64Array(12);
+    for (let f = 0; f < nF; f++) for (let c = 0; c < 12; c++) tot[c] += feat.chroma[f * 12 + c] + feat.bassChroma[f * 12 + c];
+    let key = { s: -2 };
+    for (let r = 0; r < 12; r++) {
+      const rot = (prof) => Array.from({ length: 12 }, (_, i) => prof[(i - r + 12) % 12]);
+      const sM = corr(tot, rot(KMAJ)), sm = corr(tot, rot(KMIN));
+      if (sM > key.s) key = { s: sM, root: r, mode: 'mayor' };
+      if (sm > key.s) key = { s: sm, root: r, mode: 'menor' };
+    }
+    const chords = [];
+    for (let b = 0; b < grid.nBars; b++) {
+      const t0 = grid.firstBar + b * grid.bar, t1 = t0 + grid.bar;
+      const f0 = Math.max(0, Math.floor((t0 * sr - feat.offset) / feat.hop)), f1 = Math.min(nF, Math.floor((t1 * sr - feat.offset) / feat.hop));
+      const c = new Float64Array(12), bc = new Float64Array(12); let e = 0;
+      for (let f = f0; f < f1; f++) for (let i = 0; i < 12; i++) { c[i] += feat.chroma[f * 12 + i]; bc[i] += feat.bassChroma[f * 12 + i]; e += feat.chroma[f * 12 + i]; }
+      let best = { s: -1, name: '—', root: -1, minor: false };
+      const mx = Math.max(...c) || 1;
+      for (let r = 0; r < 12; r++) for (const minor of [false, true]) {
+        const tones = [r, (r + (minor ? 3 : 4)) % 12, (r + 7) % 12];
+        let s = 0; for (let i = 0; i < 12; i++) s += (tones.includes(i) ? 1 : -0.25) * c[i] / mx;
+        s += 0.35 * bc[r] / (Math.max(...bc) || 1);
+        if (s > best.s) best = { s, root: r, minor, name: NOTE[r] + (minor ? 'm' : '') };
+      }
+      let bassPc = 0; for (let i = 1; i < 12; i++) if (bc[i] > bc[bassPc]) bassPc = i;
+      chords.push({ bar: b, t: t0, name: e > 0 ? best.name : '—', root: best.root, minor: best.minor, bass: bassPc, energy: e });
+    }
+    const eMax = Math.max(...chords.map((c) => c.energy)) || 1;
+    for (const c of chords) if (c.energy < 0.02 * eMax) { c.name = '—'; c.root = -1; }
+    return { key: { root: key.root, mode: key.mode, name: NOTE_ES[key.root] + ' ' + key.mode, short: NOTE[key.root] + (key.mode === 'menor' ? 'm' : '') }, chords };
+  }
+
+  // ---------------------------------------------------------------- 4) patrón de batería (semicorcheas) y golpes por promediado
+  // envolventes de energía por banda a ~1 ms: graves (batería+bajo), medios de caja/clap y agudos de hats
+  function bandEnvs(stems, sr) {
+    const step = Math.round(sr / 1000), n = stems.bateria[0].length, nE = Math.floor(n / step);
+    const low = new Float32Array(nE), mid = new Float32Array(nE), high = new Float32Array(nE);
+    const k = (f) => Math.exp(-2 * Math.PI * f / sr);
+    const a120 = k(120), a700 = k(700), a2500 = k(2500), a6000 = k(6000);
+    let l1 = 0, l2 = 0, m1 = 0, m2 = 0, h1 = 0;
+    for (let i = 0; i < nE; i++) {
+      let el = 0, em = 0, eh = 0;
+      for (let j = i * step, je = j + step; j < je; j++) {
+        const d = (stems.bateria[0][j] + stems.bateria[1][j]) * 0.5, b = (stems.bajo[0][j] + stems.bajo[1][j]) * 0.5;
+        l1 = (1 - a120) * (d + b) + a120 * l1; l2 = (1 - a120) * l1 + a120 * l2; el += l2 * l2;
+        m1 = (1 - a2500) * d + a2500 * m1; m2 = (1 - a700) * d + a700 * m2; const bp = m1 - m2; em += bp * bp;
+        h1 = (1 - a6000) * d + a6000 * h1; const hp = d - h1; eh += hp * hp;
+      }
+      low[i] = el / step; mid[i] = em / step; high[i] = eh / step;
+    }
+    return { unit: step / sr, low, mid, high };
+  }
+
+  // patrón: se promedia cada una de las 16 semicorcheas sobre todos los compases con batería. El promedio borra
+  // lo que no se repite y deja el golpe que cae ahí. Las semicorcheas con el mismo sonido se agrupan: cada grupo
+  // es un instrumento (bombo, caja/clap, hat, percusión), nombrado por dónde tiene la energía.
+  const BANDS = [30, 70, 150, 400, 1000, 2500, 6000, 12000, 20000];
+  function drumPattern(feat, grid, sr, envs, stems) {
+    const st = grid.beat / 4, U = envs.unit, nU = envs.low.length;
+    const barE = [];
+    for (let b = 0; b < grid.nBars; b++) {
+      let e = 0; const a = Math.round((grid.firstBar + b * grid.bar) / U), z = Math.round((grid.firstBar + (b + 1) * grid.bar) / U);
+      for (let i = Math.max(0, a); i < Math.min(z, nU); i++) e += envs.mid[i] + envs.high[i] + envs.low[i] * 0.05;
+      barE.push(e);
+    }
+    const sorted = [...barE].sort((a, b) => b - a), ref = sorted[Math.floor(sorted.length * 0.2)] || 0;
+    const active = barE.map((e, i) => (e > 0.3 * ref ? i : -1)).filter((i) => i >= 0);
+    const n = stems.bateria[0].length, D = new Float32Array(n);
+    for (let i = 0; i < n; i++) D[i] = (stems.bateria[0][i] + stems.bateria[1][i] + stems.bajo[0][i] + stems.bajo[1][i]) / 2;
+    const pre = Math.round(0.04 * sr), len = Math.round(0.09 * sr), Nf = 4096;
+    const slotsInfo = [];
+    for (let q = 0; q < 16; q++) {
+      const x = new Float32Array(pre + len); let k = 0;
+      for (const b of active) {
+        const a = Math.round((grid.firstBar + b * grid.bar + q * st) * sr) - pre; if (a < 0 || a + pre + len > n) continue;
+        for (let i = 0; i < pre + len; i++) x[i] += D[a + i]; k++;
+      }
+      if (k) for (let i = 0; i < x.length; i++) x[i] /= k;
+      const spec = (a, b) => { const re = new Float64Array(Nf), im = new Float64Array(Nf); for (let i = a; i < b; i++) re[i - a] = x[i] * (0.5 - 0.5 * Math.cos(2 * Math.PI * (i - a) / (b - a))); fft(re, im, false); const bands = new Float64Array(BANDS.length - 1); for (let k2 = 1; k2 < Nf / 2; k2++) { const f = k2 * sr / Nf; for (let j = 0; j < bands.length; j++) if (f >= BANDS[j] && f < BANDS[j + 1]) { bands[j] += re[k2] * re[k2] + im[k2] * im[k2]; break; } } return bands; };
+      const post = spec(pre, pre + len), before = spec(0, pre);
+      // lo nuevo que aparece en esta semicorchea (lo que suena antes se descuenta: colas del golpe anterior)
+      const fresh = post.map((v, j) => Math.max(0, v - before[j] * (len / pre)));
+      slotsInfo.push({ q, fresh, total: fresh.reduce((a, b) => a + b, 0) });
+    }
+    const maxTot = Math.max(...slotsInfo.map((s) => s.total)) || 1;
+    // por banda, ¿qué semicorcheas tienen golpe? (umbral relativo al máximo de esa banda)
+    const bandMax = BANDS.slice(1).map((_, j) => Math.max(...slotsInfo.map((s) => s.fresh[j])) || 1);
+    const shape = (s) => s.fresh.map((v, j) => (v / bandMax[j] > 0.12 ? Math.log10(v / bandMax[j] + 1e-6) : -1));
+    const live = slotsInfo.filter((s) => Math.max(...s.fresh.map((v, j) => v / bandMax[j])) > 0.15);
+    // agrupar semicorcheas con la misma "huella" espectral
+    const groups = [];
+    for (const s of live) {
+      const sh = shape(s); let best = null, bd = Infinity;
+      for (const g of groups) { let d = 0; for (let j = 0; j < sh.length; j++) d += (sh[j] - g.shape[j]) ** 2; d = Math.sqrt(d / sh.length); if (d < bd) { bd = d; best = g; } }
+      if (best && bd < 0.45) { best.slots.push(s.q); best.members.push(s); } else groups.push({ shape: sh, slots: [s.q], members: [s] });
+    }
+    for (const g of groups) {
+      // huella media del grupo (log10 respecto al máximo de cada banda): ¿dónde está su golpe más fuerte?
+      const sh = g.members.map(shape).reduce((acc, v) => acc.map((x, j) => x + v[j] / g.members.length), new Array(BANDS.length - 1).fill(0));
+      const Lw = Math.max(sh[0], sh[1], sh[2]), Mw = Math.max(sh[4], sh[5]), Hw = Math.max(sh[6], sh[7]);
+      g.kind = Lw >= -0.2 ? 'bombo' : Hw >= Mw ? 'hat' : Mw > -0.9 ? 'caja' : 'perc';
+      g.mid = Mw; g.energy = g.members.reduce((a, m) => a + m.total, 0);
+    }
+    groups.sort((a, b) => b.energy - a.energy);
+    if (typeof DEBUG !== 'undefined') for (const g of groups) console.log('grupo', g.kind, g.slots.join(','), g.shape.map((v) => v.toFixed(1)).join(' '));
+    // categorías principales (para el MIDI y la batería regenerada)
+    const pick = (kind) => groups.filter((g) => g.kind === kind).flatMap((g) => g.slots).sort((a, b) => a - b);
+    const kickSlots = pick('bombo'), hatSlots = pick('hat');
+    let cajaSlots = pick('caja'), cajaOnKick = false;
+    // caja que cae justo sobre el bombo: el grupo del bombo se parte en dos (con y sin caja)
+    const kGroups = groups.filter((g) => g.kind === 'bombo');
+    if (!cajaSlots.length && kGroups.length >= 2) {
+      const withMid = kGroups.filter((g) => g.mid > -0.35), noMid = kGroups.filter((g) => g.mid < -0.6);
+      if (withMid.length && noMid.length) { cajaSlots = withMid.flatMap((g) => g.slots).sort((a, b) => a - b); cajaOnKick = true; }
+    }
+    const pattern = {};
+    const bandSum = (s, js) => js.reduce((a, j) => a + s.fresh[j], 0);
+    const prof = (js) => { const v = slotsInfo.map((s) => bandSum(s, js)), mx = Math.max(...v) || 1; return v.map((x) => Math.max(-30, 10 * Math.log10(x / mx + 1e-9))); };
+    pattern.kick = prof([0, 1, 2]); pattern.caja = prof([4, 5]); pattern.hat = prof([6, 7]);
+    for (const k of Object.keys(pattern)) { const set = k === 'kick' ? kickSlots : k === 'caja' ? cajaSlots : hatSlots; pattern[k] = pattern[k].map((v, q) => (set.includes(q) ? Math.max(v, -12) : Math.min(v, -18))); }
+    // golpes concretos compás a compás
+    const bandEnv = { kick: envs.low, caja: envs.mid, hat: envs.high };
+    const hits = {};
+    for (const [name, slots] of [['kick', kickSlots], ['caja', cajaSlots], ['hat', hatSlots]]) {
+      const band = bandEnv[name];
+      const peakAt = (t) => { const c = Math.round(t / U); let pk = 0; for (let i = c; i < c + 40 && i < nU; i++) if (i >= 0) pk = Math.max(pk, band[i]); return pk; };
+      const typical = {}; for (const q of slots) { const arr = active.map((b) => peakAt(grid.firstBar + b * grid.bar + q * st)).sort((a, b) => a - b); typical[q] = arr[arr.length >> 1] || 1; }
+      const h = [];
+      for (let b = 0; b < grid.nBars; b++) for (const q of slots) {
+        const t = grid.firstBar + b * grid.bar + q * st, pk = peakAt(t);
+        if (pk > 0.25 * typical[q]) h.push({ t, vel: clamp(Math.sqrt(pk / typical[q]) * 0.85, 0.2, 1) });
+      }
+      hits[name] = { slots, list: h };
+    }
+    return { pattern, hits, activeBars: active, groups: groups.map((g) => ({ kind: g.kind, slots: g.slots })), cajaOnKick };
+  }
+
+  function avgHits(src, sr, grid, bars, slots, dur) {
+    const n = Math.round(dur * sr), outL = new Float32Array(n), outR = new Float32Array(n); let k = 0;
+    const st = grid.beat / 4;
+    for (const b of bars) for (const q of slots) {
+      const a = Math.round((grid.firstBar + b * grid.bar + q * st) * sr);
+      if (a < 0 || a + n > src[0].length) continue;
+      for (let i = 0; i < n; i++) { outL[i] += src[0][a + i]; outR[i] += src[1][a + i]; } k++;
+    }
+    if (k) for (let i = 0; i < n; i++) { outL[i] /= k; outR[i] /= k; }
+    return { L: outL, R: outR, count: k };
+  }
+  function fadeOut(x, sr, ms) { const m = Math.min(x.length, Math.round(sr * ms / 1000)); for (let i = 0; i < m; i++) { const g = (i / m) ** 2; x[x.length - 1 - i] *= g; } return x; }
+  function normalize(x, peak = 0.966) { let m = 0; for (const v of x) m = Math.max(m, Math.abs(v)); if (m > 0) for (let i = 0; i < x.length; i++) x[i] *= peak / m; return x; }
+  function normStereo(s, peak = 0.966) { let m = 0; for (const c of [s.L, s.R]) for (const v of c) m = Math.max(m, Math.abs(v)); if (m > 0) for (const c of [s.L, s.R]) for (let i = 0; i < c.length; i++) c[i] *= peak / m; return s; }
+
+  function extractOneShots(stems, mixLR, sr, grid, pat) {
+    const st = grid.beat / 4, bars = pat.activeBars;
+    const gapAfter = (slots, all) => { // hasta el siguiente golpe de cualquier tipo
+      let g = 16; for (const q of slots) for (const o of all) { let d = (o - q + 16) % 16; if (d === 0) d = 16; g = Math.min(g, d); } return g * st;
+    };
+    const allSlots = [...new Set([...pat.hits.kick.slots, ...pat.hits.caja.slots, ...pat.hits.hat.slots])];
+    const lowSrc = [new Float32Array(mixLR[0].length), new Float32Array(mixLR[0].length)];
+    for (let c = 0; c < 2; c++) for (let i = 0; i < lowSrc[c].length; i++) lowSrc[c][i] = stems.bateria[c][i] + stems.bajo[c][i];
+    const res = {};
+    const kSl = pat.hits.kick.slots.length ? pat.hits.kick.slots : [0, 4, 8, 12];
+    // bombo: completo hasta el siguiente golpe de cualquier tipo; desde ahí sólo sus graves (< 300 Hz) hasta el
+    // siguiente bombo, para conservar la cola sin arrastrar hats ni claps que caen en medio
+    const kLen = clamp(gapAfter(kSl, kSl) - 0.004, 0.12, 0.6), kCut = Math.round(clamp(gapAfter(kSl, allSlots) - 0.004, 0.03, kLen) * sr);
+    const kick = avgHits(lowSrc, sr, grid, bars, kSl, kLen);
+    for (const ch of ['L', 'R']) {
+      const lp = fftFilter(kick[ch], sr, null, 300, 4), xf = Math.round(0.01 * sr);
+      for (let i = Math.max(0, kCut - xf); i < kick[ch].length; i++) { const w = clamp((i - (kCut - xf)) / xf, 0, 1); kick[ch][i] = kick[ch][i] * (1 - w) + lp[i] * w; }
+    }
+    res.kick = { L: fadeOut(kick.L, sr, 25), R: fadeOut(kick.R, sr, 25), count: kick.count };
+    const cSl = pat.hits.caja.slots.length ? pat.hits.caja.slots : [4, 12];
+    let caja = avgHits(stems.bateria, sr, grid, bars, cSl, clamp(gapAfter(cSl, allSlots) - 0.004, 0.06, 0.5));
+    const shared = cSl.filter((q) => kSl.includes(q)).length === cSl.length;
+    if (shared) { // la caja cae sobre el bombo: restamos el bombo solo
+      const kOnly = kSl.filter((q) => !cSl.includes(q));
+      if (kOnly.length) { const ko = avgHits(stems.bateria, sr, grid, bars, kOnly, caja.L.length / sr); for (let i = 0; i < caja.L.length; i++) { caja.L[i] -= ko.L[i]; caja.R[i] -= ko.R[i]; } }
+    }
+    res.caja = { L: fadeOut(fftFilter(caja.L, sr, 180), sr, 20), R: fadeOut(fftFilter(caja.R, sr, 180), sr, 20), count: caja.count };
+    const hSl = pat.hits.hat.slots.length ? pat.hits.hat.slots : [2, 6, 10, 14];
+    const hat = avgHits(stems.bateria, sr, grid, bars, hSl, clamp(gapAfter(hSl, allSlots) - 0.003, 0.04, 0.3));
+    res.hat = { L: fadeOut(fftFilter(hat.L, sr, 4500), sr, 12), R: fadeOut(fftFilter(hat.R, sr, 4500), sr, 12), count: hat.count };
+    for (const k of Object.keys(res)) normStereo(res[k]);
+    return res;
+  }
+
+  // ---------------------------------------------------------------- 5) regeneración de golpes desde cero (síntesis a partir del análisis)
+  function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296 * 2 - 1; }; }
+  function envelope(x, sr, ms) { const k = Math.max(1, Math.round(sr * ms / 1000)), e = new Float32Array(x.length); let acc = 0; for (let i = 0; i < x.length; i++) { acc += x[i] * x[i]; if (i >= k) acc -= x[i - k] * x[i - k]; e[i] = Math.sqrt(Math.max(acc, 0) / k); } return e; }
+
+  function analyzeKick(s, sr) {
+    const m = new Float32Array(s.L.length); for (let i = 0; i < m.length; i++) m[i] = (s.L[i] + s.R[i]) / 2;
+    const lp = fftFilter(m, sr, null, 400, 4);
+    // curva de tono por cruces por cero en ventanas de 6 ms
+    const pts = []; const hop = Math.round(0.003 * sr), wl = Math.round(0.012 * sr);
+    for (let a = 0; a + wl < lp.length; a += hop) {
+      const z = []; for (let i = a + 1; i < a + wl; i++) if ((lp[i - 1] <= 0) !== (lp[i] <= 0)) z.push(i);
+      if (z.length >= 2) { const f = (z.length - 1) / 2 / ((z[z.length - 1] - z[0]) / sr); pts.push({ t: (a + wl / 2) / sr, f }); }
+    }
+    const late = pts.filter((p) => p.t > 0.05 && p.t < 0.12).map((p) => p.f).sort((a, b) => a - b);
+    const fEnd = clamp(late.length ? late[late.length >> 1] : 50, 35, 120);
+    const early = pts.filter((p) => p.t < 0.015).map((p) => p.f);
+    const fStart = clamp(early.length ? Math.max(...early) : fEnd * 4, fEnd * 1.5, 450);
+    let tau = 0.02; const mid = fEnd + (fStart - fEnd) * Math.exp(-1);
+    for (const p of pts) if (p.f <= mid) { tau = clamp(p.t, 0.005, 0.08); break; }
+    const env = envelope(lp, sr, 3); let pk = 0, ip = 0; for (let i = 0; i < env.length; i++) if (env[i] > pk) { pk = env[i]; ip = i; }
+    // caída: recta sobre el logaritmo de la envolvente desde el pico hasta el final (o hasta -40 dB)
+    let sx = 0, sy = 0, sxx = 0, sxy = 0, cnt = 0;
+    for (let i = ip; i < Math.min(env.length, ip + Math.round(0.15 * sr)); i += 32) { if (env[i] < pk * 0.01) break; const x = (i - ip) / sr, y = Math.log(env[i] / pk); sx += x; sy += y; sxx += x * x; sxy += x * y; cnt++; }
+    const slope = cnt > 3 ? (cnt * sxy - sx * sy) / (cnt * sxx - sx * sx) : -4;
+    const decay = clamp(slope < 0 ? -1 / slope : 1.5, 0.04, 1.5);
+    const hp = fftFilter(m, sr, 1500, null, 4); let ce = 0, te = 0; const c10 = Math.round(0.01 * sr);
+    for (let i = 0; i < m.length; i++) { te += m[i] * m[i]; if (i < c10) ce += hp[i] * hp[i]; }
+    // ataque: hasta el 70 % del pico (el pico de un bombo largo puede llegar tarde)
+    let ia = 0; while (ia < env.length && env[ia] < pk * 0.7) ia++;
+    return { fStart, fEnd, tauPitch: tau, attack: clamp(ia / sr, 0.0005, 0.02), decay, length: m.length / sr, click: clamp(Math.sqrt(ce / (te + 1e-12)) * 3, 0.05, 0.8) };
+  }
+  function synthKick(p, sr) {
+    const dur = clamp(Math.max(p.length, p.decay * 2.5), 0.2, 1.2), n = Math.round(dur * sr), y = new Float32Array(n), r = rng(7); let ph = 0;
+    const noise = new Float32Array(Math.round(0.02 * sr)); for (let i = 0; i < noise.length; i++) noise[i] = r();
+    const click = fftFilter(noise, sr, 1200, 9000, 2);
+    const tail = dur - 0.04;
+    for (let i = 0; i < n; i++) {
+      const t = i / sr, f = p.fEnd + (p.fStart - p.fEnd) * Math.exp(-t / p.tauPitch);
+      ph += 2 * Math.PI * f / sr;
+      const a = Math.min(t / p.attack, 1) * Math.exp(-Math.max(0, t - p.attack) / p.decay) * (t > tail ? Math.exp(-(t - tail) / 0.03) : 1);
+      let v = Math.sin(ph) * a;
+      if (i < click.length) v += click[i] * p.click * Math.exp(-t / 0.004);
+      y[i] = Math.tanh(1.5 * v);
+    }
+    return normalize(fadeOut(y, sr, 15));
+  }
+  // caja/clap/hat: ruido moldeado con el espectro y la envolvente medidos del golpe real
+  function analyzeNoiseHit(s, sr) {
+    const m = new Float32Array(s.L.length); for (let i = 0; i < m.length; i++) m[i] = (s.L[i] + s.R[i]) / 2;
+    const N = nextPow2(m.length), re = new Float64Array(N), im = new Float64Array(N); re.set(m); fft(re, im, false);
+    const mag = new Float64Array(N / 2 + 1); for (let k = 0; k <= N / 2; k++) mag[k] = Math.hypot(re[k], im[k]);
+    // suavizado en 1/6 de octava
+    const sm = new Float64Array(mag.length);
+    for (let k = 1; k < mag.length; k++) { const a = Math.max(1, Math.floor(k / 1.06)), b = Math.min(mag.length - 1, Math.ceil(k * 1.06)); let s2 = 0; for (let j = a; j <= b; j++) s2 += mag[j] * mag[j]; sm[k] = Math.sqrt(s2 / (b - a + 1)); }
+    const env = envelope(m, sr, 1.5); let pk = 0; for (const v of env) pk = Math.max(pk, v);
+    const width = (() => { let sL = 0, sR = 0, sC = 0; for (let i = 0; i < s.L.length; i++) { sL += s.L[i] * s.L[i]; sR += s.R[i] * s.R[i]; sC += s.L[i] * s.R[i]; } return clamp(1 - sC / Math.sqrt(sL * sR + 1e-12), 0, 1); })();
+    return { spec: sm, N, env: Float32Array.from(env, (v) => v / (pk || 1)), len: m.length, width };
+  }
+  function synthNoiseHit(p, sr, seed) {
+    const mk = (sd) => {
+      const r = rng(sd), N = p.N, re = new Float64Array(N), im = new Float64Array(N);
+      for (let k = 1; k < N / 2; k++) { const a = r() * Math.PI; re[k] = p.spec[k] * Math.cos(a); im[k] = p.spec[k] * Math.sin(a); re[N - k] = re[k]; im[N - k] = -im[k]; }
+      fft(re, im, true);
+      const y = new Float32Array(p.len); let e = 0; for (let i = 0; i < p.len; i++) e += re[i] * re[i];
+      const g = 1 / Math.sqrt(e / p.len + 1e-12);
+      for (let i = 0; i < p.len; i++) y[i] = re[i] * g * p.env[i];
+      return y;
+    };
+    const a = mk(seed), b = mk(seed + 101), L = new Float32Array(p.len), R = new Float32Array(p.len), w = p.width * 0.6;
+    for (let i = 0; i < p.len; i++) { L[i] = a[i] * (1 - w / 2) + b[i] * w / 2; R[i] = a[i] * (1 - w / 2) - b[i] * w / 2 + (b[i] - a[i]) * 0; }
+    const s = { L: fadeOut(L, sr, 10), R: fadeOut(R, sr, 10) }; return normStereo(s);
+  }
+
+  // ---------------------------------------------------------------- 6) transcripción de bajo y melodía + timbre
+  function pitchTrack(mono, sr, grid, lo, hi, nh, minDb) {
+    const st = grid.beat / 4, N = 8192, re = new Float64Array(N), im = new Float64Array(N);
+    const notes = [], slots = []; const nSl = grid.nBars * 16; let maxE = 0;
+    const prof = new Float64Array(nh + 1); let profN = 0;
+    for (let i = 0; i < nSl; i++) {
+      const t = grid.firstBar + i * st, a = Math.round((t + 0.012) * sr), len = Math.round(Math.min(st * 0.9, 0.12) * sr);
+      if (a + len >= mono.length) break;
+      re.fill(0); im.fill(0); let e = 0;
+      for (let j = 0; j < len; j++) { const w = 0.5 - 0.5 * Math.cos(2 * Math.PI * j / len); re[j] = mono[a + j] * w; e += mono[a + j] ** 2; }
+      fft(re, im, false);
+      const mag = (f) => { const k = f * N / sr, k0 = Math.floor(k), fr = k - k0; if (k0 + 1 > N / 2) return 0; return Math.hypot(re[k0], im[k0]) * (1 - fr) + Math.hypot(re[k0 + 1], im[k0 + 1]) * fr; };
+      let best = -1, bs = 0, tot = 0, cnt = 0;
+      for (let m = lo; m <= hi; m++) {
+        let s2 = 0; for (let h = 1; h <= nh; h++) s2 += mag(mtof(m) * h) / Math.sqrt(h);
+        s2 -= 0.5 * mag(mtof(m) / 2);                             // evita errores de octava
+        tot += s2; cnt++; if (s2 > bs) { bs = s2; best = m; }
+      }
+      const rmsv = Math.sqrt(e / len); maxE = Math.max(maxE, rmsv);
+      slots.push({ t, m: best, rms: rmsv, sal: bs / (tot / cnt + 1e-12) });
+    }
+    for (const s of slots) s.on = s.rms > maxE * Math.pow(10, minDb / 20) && s.sal > 1.8;
+    // fusionar semicorcheas iguales en notas
+    for (let i = 0; i < slots.length; i++) {
+      const s = slots[i]; if (!s.on) continue;
+      const prev = notes[notes.length - 1], prevSlot = slots[i - 1];
+      if (prev && prevSlot && prevSlot.on && prev.m === s.m && s.rms < prevSlot.rms * 1.3) { prev.dur += st; continue; }
+      notes.push({ t: s.t, dur: st, m: s.m, vel: s.rms });
+    }
+    for (const nt of notes) nt.vel = clamp(Math.sqrt(nt.vel / (maxE || 1)), 0.2, 1);
+    return notes;
+  }
+  function harmonicProfile(mono, sr, notes, nh) {
+    const N = 8192, re = new Float64Array(N), im = new Float64Array(N), prof = new Float64Array(nh); let c = 0;
+    for (const nt of notes.slice(0, 400)) {
+      const a = Math.round((nt.t + 0.015) * sr), len = Math.min(N, Math.round(Math.max(nt.dur - 0.02, 0.04) * sr));
+      if (a + len >= mono.length) continue;
+      re.fill(0); im.fill(0); for (let j = 0; j < len; j++) re[j] = mono[a + j] * (0.5 - 0.5 * Math.cos(2 * Math.PI * j / len));
+      fft(re, im, false); const f0 = mtof(nt.m); let n1 = 0;
+      const v = [];
+      for (let h = 1; h <= nh; h++) { const k = Math.round(f0 * h * N / sr); v.push(k < N / 2 ? Math.hypot(re[k], im[k]) : 0); }
+      n1 = Math.max(...v) || 1; for (let h = 0; h < nh; h++) prof[h] += v[h] / n1; c++;
+    }
+    if (!c) { for (let h = 0; h < nh; h++) prof[h] = 1 / (h + 1); return prof; }
+    for (let h = 0; h < nh; h++) prof[h] /= c; return prof;
+  }
+  function additive(buf, sr, t0, dur, m, vel, prof, env, pan = 0) {
+    const f = mtof(m), a = Math.round(t0 * sr), rel = env.r, n = Math.round((dur + rel) * sr);
+    const L = buf[0], R = buf[1], gl = Math.cos((pan + 1) * Math.PI / 4) * Math.SQRT2, gr = Math.sin((pan + 1) * Math.PI / 4) * Math.SQRT2;
+    const hs = []; for (let h = 1; h <= prof.length; h++) if (f * h < sr / 2 - 1000) hs.push([h, prof[h - 1]]);
+    let norm = 0; for (const [, p] of hs) norm += p; norm = 1 / Math.max(norm, 1);
+    for (let i = 0; i < n && a + i < L.length; i++) {
+      if (a + i < 0) continue;
+      const t = i / sr; let e = t < env.a ? t / env.a : t < env.a + env.d ? 1 - (1 - env.s) * (t - env.a) / env.d : env.s;
+      if (t > dur) e *= Math.exp(-(t - dur) / (rel / 4));
+      let v = 0; for (const [h, p] of hs) v += p * Math.sin(2 * Math.PI * f * h * t + h);
+      v *= e * vel * norm; L[a + i] += v * gl; R[a + i] += v * gr;
+    }
+  }
+
+  // ---------------------------------------------------------------- 7) todo junto
+  function run(L, R, sr, onProgress) {
+    const P = (stage, pct) => onProgress && onProgress(stage, pct);
+    P('Separando los sonidos', 0);
+    const { stems, feat } = separate(L, R, sr, (p) => P('Separando los sonidos', p));
+    const n = L.length;
+    stems.musica = [new Float32Array(n), new Float32Array(n)];
+    for (let c = 0; c < 2; c++) { const src = c ? R : L, m = stems.musica[c]; for (let i = 0; i < n; i++) m[i] = src[i] - stems.voz[c][i] - stems.bateria[c][i] - stems.bajo[c][i]; }
+    P('Midiendo tempo y compases', 0);
+    // la rejilla se ajusta con los ataques de la batería separada (golpes nítidos, sin notas de bajo)
+    const grid = findGrid(L, R, sr, feat, stems.bateria);
+    P('Leyendo tonalidad y acordes', 0);
+    const harm = harmony(feat, grid, sr);
+    P('Aislando cada golpe de batería', 0);
+    const envs = bandEnvs(stems, sr);
+    const pat = drumPattern(feat, grid, sr, envs, stems);
+    const shots = extractOneShots(stems, [L, R], sr, grid, pat);
+    P('Regenerando los golpes desde cero', 0);
+    const kp = analyzeKick(shots.kick, sr), cp = analyzeNoiseHit(shots.caja, sr), hp = analyzeNoiseHit(shots.hat, sr);
+    const kickMono = synthKick(kp, sr);
+    const hpf = (s, lo) => normStereo({ L: fftFilter(s.L, sr, lo), R: fftFilter(s.R, sr, lo) });
+    const regen = { kick: { L: kickMono, R: Float32Array.from(kickMono) }, caja: hpf(synthNoiseHit(cp, sr, 11), 180), hat: hpf(synthNoiseHit(hp, sr, 23), 4500) };
+    P('Transcribiendo bajo y melodía', 0);
+    const mono = (st) => { const m = new Float32Array(n); for (let i = 0; i < n; i++) m[i] = (st[0][i] + st[1][i]) / 2; return m; };
+    const bassMono = mono(stems.bajo);
+    const bassNotes = pitchTrack(bassMono, sr, grid, 28, 57, 4, -24);
+    const leadSrc = new Float32Array(n); for (let i = 0; i < n; i++) leadSrc[i] = (stems.musica[0][i] + stems.musica[1][i] + stems.voz[0][i] + stems.voz[1][i]) / 2;
+    const leadNotes = pitchTrack(leadSrc, sr, grid, 55, 88, 6, -20);
+    const bassProf = harmonicProfile(bassMono, sr, bassNotes, 10), leadProf = harmonicProfile(leadSrc, sr, leadNotes, 12);
+    P('Componiendo las pistas regeneradas', 0);
+    const mk = () => [new Float32Array(n), new Float32Array(n)];
+    const tracks = { bateria: mk(), bajo: mk(), acordes: mk(), melodia: mk() };
+    const place = (buf, s, t, g) => { const a = Math.round(t * sr); for (let i = 0; i < s.L.length && a + i < n; i++) if (a + i >= 0) { buf[0][a + i] += s.L[i] * g; buf[1][a + i] += s.R[i] * g; } };
+    const drumMidi = [];
+    for (const [name, gm, gain] of [['kick', 36, 1], ['caja', 39, 0.55], ['hat', 42, 0.35]])
+      for (const h of pat.hits[name].list) { place(tracks.bateria, regen[name], h.t, gain * h.vel); drumMidi.push({ t: h.t, dur: grid.beat / 4, m: gm, vel: h.vel }); }
+    for (const nt of bassNotes) additive(tracks.bajo, sr, nt.t, nt.dur * 0.95, nt.m, nt.vel * 0.8, bassProf, { a: 0.004, d: 0.08, s: 0.8, r: 0.04 });
+    const chordMidi = [];
+    for (const c of harm.chords) {
+      if (c.root < 0) continue;
+      const tones = [0, c.minor ? 3 : 4, 7].map((iv) => 60 + ((c.root + iv) % 12) - (((c.root + iv) % 12) > 7 ? 12 : 0));
+      for (const [i, m] of tones.entries()) { additive(tracks.acordes, sr, c.t, grid.bar * 0.98, m, 0.35, [1, 0.5, 0.33, 0.25, 0.2, 0.16, 0.12, 0.1], { a: 0.06, d: 0.3, s: 0.8, r: 0.25 }, (i - 1) * 0.4); chordMidi.push({ t: c.t, dur: grid.bar, m, vel: 0.6 }); }
+    }
+    for (const nt of leadNotes) additive(tracks.melodia, sr, nt.t, nt.dur * 0.92, nt.m, nt.vel * 0.6, leadProf, { a: 0.008, d: 0.12, s: 0.75, r: 0.08 });
+    const mix = mk(); const g = { bateria: 0.9, bajo: 0.8, acordes: 0.45, melodia: 0.6 };
+    for (const k of Object.keys(tracks)) for (let c = 0; c < 2; c++) for (let i = 0; i < n; i++) mix[c][i] += tracks[k][c][i] * g[k];
+    let pk = 0; for (const c of mix) for (const v of c) pk = Math.max(pk, Math.abs(v));
+    for (const c of mix) for (let i = 0; i < n; i++) c[i] *= 0.89 / (pk || 1);
+    for (const k of Object.keys(tracks)) { let p2 = 0; for (const c of tracks[k]) for (const v of c) p2 = Math.max(p2, Math.abs(v)); if (p2 > 0.99) for (const c of tracks[k]) for (let i = 0; i < n; i++) c[i] *= 0.95 / p2; }
+    P('Listo', 1);
+    return {
+      sr, length: n, grid, key: harm.key, chords: harm.chords.map(({ bar, t, name }) => ({ bar, t, name })),
+      pattern: pat.pattern, slots: { kick: pat.hits.kick.slots, caja: pat.hits.caja.slots, hat: pat.hits.hat.slots },
+      stems, shots, regen, regenParams: { kick: kp }, tracks, mix,
+      midi: { bateria: drumMidi, bajo: bassNotes, acordes: chordMidi, melodia: leadNotes },
+      counts: { kick: shots.kick.count, caja: shots.caja.count, hat: shots.hat.count, bajo: bassNotes.length, melodia: leadNotes.length },
+    };
+  }
+
+  // ---------------------------------------------------------------- exportación: WAV 24 bits, MIDI, ZIP
+  function wav24(L, R, sr) {
+    const n = L.length, data = 6 * n, buf = new ArrayBuffer(44 + data), v = new DataView(buf); let o = 0;
+    const str = (s) => { for (const ch of s) v.setUint8(o++, ch.charCodeAt(0)); };
+    str('RIFF'); v.setUint32(o, 36 + data, true); o += 4; str('WAVE'); str('fmt '); v.setUint32(o, 16, true); o += 4;
+    v.setUint16(o, 1, true); o += 2; v.setUint16(o, 2, true); o += 2; v.setUint32(o, sr, true); o += 4; v.setUint32(o, sr * 6, true); o += 4;
+    v.setUint16(o, 6, true); o += 2; v.setUint16(o, 24, true); o += 2; str('data'); v.setUint32(o, data, true); o += 4;
+    const u8 = new Uint8Array(buf);
+    for (let i = 0; i < n; i++) for (const ch of [L, R]) {
+      let s = Math.round(clamp(ch[i], -1, 1) * 8388607); if (s < 0) s += 16777216;
+      u8[o++] = s & 255; u8[o++] = (s >> 8) & 255; u8[o++] = (s >> 16) & 255;
+    }
+    return u8;
+  }
+  function midiFile(tracks, bpm) {
+    const tpq = 480, beat = 60 / bpm, bytes = [];
+    const u32 = (x) => [(x >>> 24) & 255, (x >>> 16) & 255, (x >>> 8) & 255, x & 255], u16 = (x) => [(x >> 8) & 255, x & 255];
+    const vlq = (x) => { const b = [x & 127]; x >>= 7; while (x) { b.unshift((x & 127) | 128); x >>= 7; } return b; };
+    const chunk = (data) => ['M', 'T', 'r', 'k'].map((c) => c.charCodeAt(0)).concat(u32(data.length), data);
+    const tempo = Math.round(60e6 / bpm);
+    const head = [0, 255, 81, 3, (tempo >> 16) & 255, (tempo >> 8) & 255, tempo & 255, 0, 255, 47, 0];
+    const chunks = [chunk(head)];
+    Object.entries(tracks).forEach(([name, notes], idx) => {
+      const ch = name === 'bateria' ? 9 : idx >= 9 ? idx + 1 : idx; const ev = [];
+      for (const nt of notes) { const a = Math.round(nt.t / beat * tpq), b = a + Math.max(1, Math.round(nt.dur / beat * tpq)), vel = clamp(Math.round(nt.vel * 127), 1, 127); ev.push([a, 1, 0x90 | ch, nt.m, vel], [b, 0, 0x80 | ch, nt.m, 0]); }
+      ev.sort((x, y) => x[0] - y[0] || x[1] - y[1]);
+      const nameB = Array.from(new TextEncoder().encode(name)); let data = [0, 255, 3, ...vlq(nameB.length), ...nameB], last = 0;
+      for (const [tk, , st, m, v] of ev) { data.push(...vlq(tk - last), st, m, v); last = tk; }
+      data.push(0, 255, 47, 0); chunks.push(chunk(data));
+    });
+    const hdr = ['M', 'T', 'h', 'd'].map((c) => c.charCodeAt(0)).concat(u32(6), u16(1), u16(chunks.length), u16(tpq));
+    return Uint8Array.from(hdr.concat(...chunks));
+  }
+  const CRC = (() => { const t = new Uint32Array(256); for (let i = 0; i < 256; i++) { let c = i; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[i] = c >>> 0; } return t; })();
+  function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  // ZIP sin compresión (los WAV casi no se comprimen); devuelve las partes para construir un Blob sin copiar
+  const DOS_DATE = (() => { const d = new Date(); return ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate(); })();
+  function zipParts(files) {
+    const parts = [], central = []; let off = 0;
+    for (const f of files) {
+      const name = new TextEncoder().encode(f.name), crc = crc32(f.data), sz = f.data.length;
+      const h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true); h.setUint16(12, DOS_DATE, true);
+      h.setUint32(14, crc, true); h.setUint32(18, sz, true); h.setUint32(22, sz, true); h.setUint16(26, name.length, true);
+      parts.push(new Uint8Array(h.buffer), name, f.data);
+      const c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(14, DOS_DATE, true);
+      c.setUint32(16, crc, true); c.setUint32(20, sz, true); c.setUint32(24, sz, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+      central.push(new Uint8Array(c.buffer), name);
+      off += 30 + name.length + sz;
+    }
+    const cSize = central.reduce((a, p) => a + p.length, 0), e = new DataView(new ArrayBuffer(22));
+    e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cSize, true); e.setUint32(16, off, true);
+    return parts.concat(central, [new Uint8Array(e.buffer)]);
+  }
+
+  return { run, wav24, midiFile, zipParts, crc32, NOTE, NOTE_ES, _t: { separate, findGrid, harmony, drumPattern, fft } };
+})();
+if (typeof module !== 'undefined') module.exports = Engine;
