@@ -1,0 +1,117 @@
+<title>Nexsound Samples</title>
+<!--HEAD-->
+<style>
+table.data td.name { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+table.data td.new { font-family: var(--f-mono); font-size: 12px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>Samples</h1>
+    <p class="lede">Suelta una carpeta de samples y la app los escucha uno a uno: qué es cada uno (bombo, caja, hat, bajo, sinte, loop…), en qué nota está afinado, a qué tempo va cada loop y en qué tono. Los renombra y los ordena por carpetas, y si quieres afina los golpes a la nota de tu tema.</p>
+  </header>
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2>Samples</h2>
+        <label class="drop" id="drop" for="in"><strong>Suelta tus samples</strong><small>WAV, AIFF, MP3… muchos a la vez (o una carpeta)</small></label><input type="file" id="in" accept="audio/*" multiple hidden>
+        <div class="progress" id="prog" hidden><i></i></div><div class="small muted" id="q"></div>
+      </section>
+      <section class="panel">
+        <h2>Nombres y carpetas</h2>
+        <label class="field"><span>Prefijo</span><input type="text" id="prefix" value="NX"></label>
+        <label class="field"><span>Formato del nombre</span><select id="pattern"><option value="tipo_nota_bpm_nombre">Tipo · nota · BPM · nombre</option><option value="nombre_nota_bpm">Nombre · nota · BPM</option><option value="tipo_numero_nota">Tipo · número · nota</option></select></label>
+        <label class="row small"><input type="checkbox" id="folders" checked> Ordenar por carpetas según el tipo</label>
+        <h2>Afinar golpes</h2>
+        <div class="two"><label class="field"><span>Afinar a la nota</span><select id="tune"><option value="">No afinar</option></select></label><label class="field"><span>Tipos</span><select id="tunewhat"><option value="melodicos">Bajos y sintes</option><option value="todos">Todos los one-shots</option><option value="bombos">Solo bombos</option></select></label></div>
+        <button class="btn primary" id="zip" disabled>Descargar todo ordenado (ZIP)</button><button class="btn" id="csv" disabled>Lista CSV</button>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel">
+        <div class="facts"><div class="fact"><span>Samples</span><b id="fn">0</b></div><div class="fact"><span>One-shots</span><b id="fo">0</b></div><div class="fact"><span>Loops</span><b id="fl">0</b></div><div class="fact"><span>Con nota</span><b id="fp">0</b></div></div>
+        <div class="tablewrap"><table class="data" id="tbl"><thead><tr><th></th><th>Archivo</th><th>Tipo</th><th>Nota</th><th class="num">BPM</th><th>Tono</th><th>Nombre nuevo</th></tr></thead><tbody><tr><td colspan="7" class="muted">Suelta samples para analizarlos.</td></tr></tbody></table></div>
+      </section>
+      <!--FOOT-->
+    </div>
+  </div>
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $, esc } = NX; const S = []; const queue = []; let busy = false;
+  const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  $('tune').innerHTML = '<option value="">No afinar</option>' + NOTES.map((n, i) => `<option value="${i}">${n}</option>`).join('');
+  NX.dropzone($('drop'), $('in'), (fs) => { fs.forEach((f) => queue.push(f)); pump(); });
+  async function pump() {
+    if (busy) return; busy = true; $('prog').hidden = false; let done = 0; const tot = queue.length;
+    while (queue.length) { const f = queue.shift(); $('q').textContent = `Escuchando «${f.name}»`; try { const a = await NX.decodeFile(f); S.push(await analyze(a, f)); } catch (e) { S.push({ file: f, name: f.name, type: 'ilegible', err: true }); } done++; $('prog').firstChild.style.width = Math.round(done / tot * 100) + '%'; render(); }
+    $('prog').hidden = true; busy = false; $('q').textContent = S.length + ' samples';
+  }
+  // nota: suma de armónicos sobre la parte sostenida
+  function pitch(a) {
+    const sr = a.sr, start = Math.min(a.L.length - 1, Math.round(0.03 * sr)), N = 16384, re = new Float64Array(N), im = new Float64Array(N), len = Math.min(N, a.L.length - start);
+    if (len < 2048) return null;
+    for (let i = 0; i < len; i++) re[i] = (a.L[start + i] + a.R[start + i]) * (0.5 - 0.5 * Math.cos(2 * Math.PI * i / len));
+    NX.E.fft(re, im, false); const mag = (f) => { const k = f * N / sr, k0 = Math.floor(k), fr = k - k0; return k0 + 1 < N / 2 ? Math.hypot(re[k0], im[k0]) * (1 - fr) + Math.hypot(re[k0 + 1], im[k0 + 1]) * fr : 0; };
+    let best = null, bs = 0, tot = 0;
+    for (let c = 24 * 4; c <= 96 * 4; c++) { const m = c / 4, f = 440 * Math.pow(2, (m - 69) / 12); let s = 0; for (let h = 1; h <= 6; h++) s += mag(f * h) / Math.sqrt(h); s -= 0.6 * mag(f / 2); tot += s; if (s > bs) { bs = s; best = m; } }
+    const clarity = bs / (tot / (72 * 4 + 1) + 1e-12);
+    return clarity > 4 ? { midi: best, note: NOTES[((Math.round(best) % 12) + 12) % 12] + (Math.floor(Math.round(best) / 12) - 1), cents: Math.round((best - Math.round(best)) * 100) } : null;
+  }
+  function kind(a, dur) {
+    const sp = NX.spectrum(a.L, a.R, a.sr), pw = sp.bands.map((b) => Math.pow(10, b.mid / 10)), tot = pw.reduce((s, v) => s + v, 0) || 1;
+    const low = sp.bands.reduce((s, b, i) => s + (b.fc < 150 ? pw[i] : 0), 0) / tot, high = sp.bands.reduce((s, b, i) => s + (b.fc > 5000 ? pw[i] : 0), 0) / tot;
+    const n = (s) => s.toLowerCase(); return { low, high };
+  }
+  async function analyze(a, f) {
+    const dur = a.L.length / a.sr, nm = f.name.toLowerCase(), r = { file: f, name: f.name, dur, audio: a };
+    // pistas en el nombre primero; si no, por el sonido
+    const byName = [['kick', 'bombo'], ['kik', 'bombo'], ['bd', 'bombo'], ['snare', 'caja'], ['snr', 'caja'], ['clap', 'clap'], ['hat', 'hat'], ['hh', 'hat'], ['ride', 'plato'], ['crash', 'plato'], ['cymbal', 'plato'], ['perc', 'perc'], ['tom', 'perc'], ['shaker', 'perc'], ['808', 'bajo'], ['bass', 'bajo'], ['sub', 'bajo'], ['vox', 'voz'], ['vocal', 'voz'], ['chord', 'sinte'], ['synth', 'sinte'], ['pad', 'sinte'], ['lead', 'sinte'], ['pluck', 'sinte'], ['fx', 'fx'], ['riser', 'fx'], ['impact', 'fx']].find(([k]) => new RegExp('(^|[^a-z])' + k).test(nm));
+    const k = kind(a, dur); r.loop = dur > 2.6 || /loop/.test(nm);
+    let type = byName ? byName[1] : null;
+    if (!type) type = r.loop ? (k.low > 0.5 ? 'loop graves' : k.high > 0.35 ? 'loop percusión' : 'loop') : dur < 0.6 ? (k.low > 0.55 ? 'bombo' : k.high > 0.45 ? 'hat' : 'caja') : k.low > 0.55 ? 'bajo' : 'sinte';
+    r.type = type;
+    if (!r.loop) { const p = pitch(a); if (p && !['hat', 'plato', 'caja', 'clap'].includes(type)) r.pitch = p; }
+    else { try { const an = await NX.engineWorker('analyzeLite', [new Float32Array(a.L), new Float32Array(a.R), a.sr]); let b = an.grid.bpm; const bars = dur / (240 / b); for (const m of [1, 2, 0.5]) { const bb = b * m, br = dur / (240 / bb); if (Math.abs(br - Math.round(br)) < 0.06 && bb >= 70 && bb <= 180) { b = bb; break; } } r.bpm = Math.round(b * 10) / 10; r.key = an.key.short; } catch (e) {} }
+    return r;
+  }
+  const counter = {};
+  function newName(r, i) {
+    const ext = (r.name.match(/\.[^.]+$/) || ['.wav'])[0], base = NX.cleanName(r.name), note = r.pitch ? r.pitch.note.replace('#', 's') : '', p = $('prefix').value.trim(), t = NX.cleanName(r.type);
+    const parts = { tipo_nota_bpm_nombre: [p, t, note, r.bpm ? Math.round(r.bpm) + 'bpm' : '', r.key || '', base], nombre_nota_bpm: [p, base, note, r.bpm ? Math.round(r.bpm) + 'bpm' : '', r.key || ''], tipo_numero_nota: [p, t, String(i + 1).padStart(3, '0'), note || r.key || ''] }[$('pattern').value];
+    return parts.filter(Boolean).join('_').replace(/_+/g, '_') + ext;
+  }
+  function render() {
+    $('fn').textContent = S.length; $('fo').textContent = S.filter((r) => !r.loop && !r.err).length; $('fl').textContent = S.filter((r) => r.loop).length; $('fp').textContent = S.filter((r) => r.pitch).length;
+    $('tbl').tBodies[0].innerHTML = S.map((r, i) => r.err ? `<tr><td></td><td class="name">${esc(r.name)}</td><td colspan="5" class="muted">No se pudo leer</td></tr>` : `<tr><td><button class="play" data-p="${i}" aria-label="Escuchar">${NX.ICON_PLAY}</button></td><td class="name" title="${esc(r.name)}">${esc(r.name)}</td><td>${esc(r.type)}</td><td>${r.pitch ? `${r.pitch.note}${Math.abs(r.pitch.cents) > 8 ? ` <span class="small muted">${r.pitch.cents > 0 ? '+' : ''}${r.pitch.cents}c</span>` : ''}` : '—'}</td><td class="num">${r.bpm ? String(r.bpm).replace('.', ',') : '—'}</td><td>${r.key || '—'}</td><td class="new" title="${esc(newName(r, i))}">${esc(newName(r, i))}</td></tr>`).join('');
+    $('zip').disabled = $('csv').disabled = !S.length;
+  }
+  ['prefix', 'pattern'].forEach((id) => $(id).addEventListener('input', render));
+  $('tbl').addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (!b) return; const r = S[+b.dataset.p]; NX.player.play(r.audio.L, r.audio.R, r.audio.sr, { id: 'smp' + b.dataset.p, onStop: () => { b.classList.remove('on'); b.innerHTML = NX.ICON_PLAY; } }); b.classList.add('on'); b.innerHTML = NX.ICON_STOP; });
+  function retune(r, target) { // remuestreo al semitono más cercano de la nota elegida
+    const cur = r.pitch.midi; let d = ((target - Math.round(cur)) % 12 + 12) % 12; if (d > 6) d -= 12; d += Math.round(cur) - cur; const ratio = Math.pow(2, d / 12), n = Math.floor(r.audio.L.length / ratio), L = new Float32Array(n), R = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const p = i * ratio, i0 = Math.floor(p), f = p - i0; L[i] = r.audio.L[i0] * (1 - f) + (r.audio.L[i0 + 1] || 0) * f; R[i] = r.audio.R[i0] * (1 - f) + (r.audio.R[i0 + 1] || 0) * f; }
+    return NX.wav(L, R, r.audio.sr);
+  }
+  $('zip').addEventListener('click', async () => {
+    const files = [], tgt = $('tune').value, what = $('tunewhat').value;
+    for (const [i, r] of S.entries()) { if (r.err) continue; const folder = $('folders').checked ? NX.cleanName(r.loop ? 'Loops' : r.type) + '/' : ''; files.push({ name: folder + newName(r, i), data: new Uint8Array(await r.file.arrayBuffer()) });
+      if (tgt !== '' && r.pitch && !r.loop && (what === 'todos' || (what === 'bombos' && r.type === 'bombo') || (what === 'melodicos' && ['bajo', 'sinte', 'voz'].includes(r.type)))) files.push({ name: 'Afinados_' + NOTES[+tgt].replace('#', 's') + '/' + newName(r, i).replace(/\.[^.]+$/, '') + '_a_' + NOTES[+tgt].replace('#', 's') + '.wav', data: retune(r, +tgt + 60) }); }
+    files.push({ name: 'lista.csv', data: '﻿' + csv() }); NX.save('samples_ordenados.zip', NX.zip(files));
+  });
+  const csv = () => 'original;nuevo;tipo;nota;cents;bpm;tono;duracion\n' + S.filter((r) => !r.err).map((r, i) => `"${r.name}";"${newName(r, i)}";${r.type};${r.pitch ? r.pitch.note : ''};${r.pitch ? r.pitch.cents : ''};${r.bpm || ''};${r.key || ''};${r.dur.toFixed(2)}`).join('\n');
+  $('csv').addEventListener('click', () => NX.save('samples.csv', '﻿' + csv()));
+  // ejemplo: tres one-shots y un loop generados aquí
+  (async () => {
+    const sr = 44100, mk = (n, fn) => { const L = new Float32Array(Math.round(n * sr)); for (let i = 0; i < L.length; i++) L[i] = fn(i / sr); return { L, R: L, sr }; };
+    let ph = 0; const kick = mk(0.4, (t) => { ph += 2 * Math.PI * (55 + 120 * Math.exp(-t / 0.03)) / sr; return Math.sin(ph) * Math.exp(-t / 0.15); });
+    const bass = mk(1.2, (t) => (Math.sin(2 * Math.PI * 73.42 * t) + 0.5 * Math.sin(4 * Math.PI * 73.42 * t) + 0.3 * Math.sin(6 * Math.PI * 73.42 * t)) * Math.exp(-t / 0.8) * 0.5);
+    const synth = mk(1.5, (t) => { let v = 0; for (let h = 1; h < 8; h++) v += Math.sin(2 * Math.PI * 329.6 * 1.01 * h * t) / h; return v * Math.exp(-t / 0.7) * 0.3; });
+    let seed = 1; const loop = mk(240 / 124, (t) => { const b = (t * 124 / 60) % 1; return Math.sin(2 * Math.PI * 55 * b * 0.4) * Math.exp(-b / 0.25) * 0.8 + (((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296) - 0.5) * 0.1 * Math.exp(-((b + 0.5) % 1) / 0.05); });
+    for (const [a, nm] of [[kick, 'ejemplo_kick.wav'], [bass, 'ejemplo_bass_re.wav'], [synth, 'ejemplo_pluck.wav'], [loop, 'ejemplo_drum_loop.wav']]) { const blob = new Blob([NX.wav(a.L, a.R, a.sr)]); const f = new File([blob], nm); S.push(await analyze(a, f)); }
+    render(); $('q').textContent = 'Ejemplo: 4 samples. Suelta los tuyos.';
+  })();
+})();
+</script>

@@ -1,0 +1,102 @@
+<title>Nexsound Orden de set</title>
+<!--HEAD-->
+<style>
+.curve { width: 100%; height: 170px; display: block; }
+table.data td.name { max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+.cam { font: 700 12px/1 var(--f-mono); padding: 3px 6px; border-radius: 4px; background: var(--sunk); }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>Orden de set</h1>
+    <p class="lede">Suelta los temas que quieres pinchar y te propone el orden: que cada mezcla case en tonalidad, que el tempo no dé saltos y que la energía siga la curva que buscas (subida progresiva, olas o pico final). Expórtalo como lista M3U para tu software de DJ.</p>
+  </header>
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2>Temas</h2>
+        <label class="drop" id="drop" for="in"><strong>Suelta tus temas</strong><small>Todos a la vez (hasta 60)</small></label><input type="file" id="in" accept="audio/*" multiple hidden>
+        <div class="progress" id="prog" hidden><i></i></div><div class="small muted" id="q"></div>
+      </section>
+      <section class="panel">
+        <h2>Cómo quieres el set</h2>
+        <label class="field"><span>Curva de energía</span><select id="shape"><option value="sube">Subida progresiva</option><option value="pico">Calentar, pico y cierre</option><option value="olas">Olas (subidas y respiros)</option><option value="plano">Arriba todo el rato</option></select></label>
+        <label class="field"><span>Salto de tempo máximo entre temas <output id="o-jump"></output></span><input type="range" id="jump" min="1" max="12" value="4"></label>
+        <label class="field"><span>Peso de la tonalidad <output id="o-key"></output></span><input type="range" id="key" min="0" max="10" value="7"></label>
+        <label class="field"><span>Empezar por</span><select id="first"><option value="auto">El más tranquilo</option></select></label>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel">
+        <div class="facts"><div class="fact"><span>Temas</span><b id="fn">0</b><small id="fd"></small></div><div class="fact"><span>Casan en tono</span><b id="fk">—</b><small>de las mezclas</small></div><div class="fact"><span>Tempo</span><b id="fb">—</b><small>del primero al último</small></div><div class="fact"><span>Saltos grandes</span><b id="fj">—</b><small>de tempo</small></div></div>
+        <canvas class="curve" id="curve" aria-label="Energía y tempo a lo largo del set"></canvas>
+        <div class="tablewrap"><table class="data" id="tbl"><thead><tr><th class="num">#</th><th></th><th>Tema</th><th class="num">BPM</th><th>Tono</th><th class="num">Energía</th><th>Mezcla</th></tr></thead><tbody></tbody></table></div>
+        <div class="row"><button class="btn primary" id="m3u" disabled>Lista M3U</button><button class="btn" id="csv" disabled>CSV</button><button class="btn" id="txt" disabled>Texto</button></div>
+      </section>
+      <!--FOOT-->
+    </div>
+  </div>
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $, esc } = NX; const T = []; let order = [], busy = false; const queue = [];
+  const bind = (id, f) => { const u = () => ($('o-' + id).textContent = f(+$(id).value)); $(id).addEventListener('input', () => { u(); plan(); }); u(); };
+  bind('jump', (v) => v + ' %'); bind('key', (v) => v);
+  ['shape', 'first'].forEach((id) => $(id).addEventListener('change', plan));
+  NX.dropzone($('drop'), $('in'), (fs) => { fs.slice(0, 60 - T.length).forEach((f) => queue.push(f)); pump(); });
+  async function pump() {
+    if (busy) return; busy = true; $('prog').hidden = false;
+    while (queue.length) { const f = queue.shift(); $('q').textContent = `Analizando «${f.name}»` + (queue.length ? ` · quedan ${queue.length}` : ''); try { const a = await NX.decodeFile(f); await add(a, f.name, f.name); } catch (e) { NX.toast(e.message); } }
+    $('prog').hidden = true; busy = false; $('q').textContent = T.length + ' temas';
+  }
+  async function add(a, name, path, demo) {
+    const lo = NX.loudness(a.L, a.R, a.sr), an = await NX.engineWorker('analyzeLite', [new Float32Array(a.L), new Float32Array(a.R), a.sr], (s, p) => ($('prog').firstChild.style.width = Math.round((p || 0) * 100) + '%'));
+    const db = [...an.barDb].sort((x, y) => x - y), hi = db[Math.floor(db.length * 0.8)] || 0;
+    let bpm = an.grid.bpm; if (bpm > 150) bpm /= 2;
+    T.push({ id: T.length, name, path, demo, bpm, key: an.key, cam: NX.camelot(an.key.root, an.key.mode), lufs: lo.I, hi, dur: a.L.length / a.sr, audio: a });
+    const e = T.map((t) => t.hi), mn = Math.min(...e), mx = Math.max(...e); T.forEach((t) => (t.energy = mx > mn ? (t.hi - mn) / (mx - mn) : 0.5));
+    $('first').innerHTML = '<option value="auto">El más tranquilo</option>' + T.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+    plan();
+  }
+  function target(p, shape) { return shape === 'sube' ? 0.15 + 0.85 * p : shape === 'pico' ? (p < 0.7 ? 0.2 + p / 0.7 * 0.8 : 1 - (p - 0.7) / 0.3 * 0.5) : shape === 'olas' ? 0.55 + 0.4 * Math.sin(p * Math.PI * 3 - Math.PI / 2) * (0.5 + p / 2) : 0.85; }
+  // búsqueda por haz: mantiene las mejores secuencias parciales
+  function plan() {
+    if (!T.length) return; const n = T.length, shape = $('shape').value, maxJ = +$('jump').value / 100, kw = +$('key').value;
+    const cost = (prev, t, pos) => { let c = Math.abs(t.energy - target(pos / Math.max(1, n - 1), shape)) * 4; if (prev) { const j = Math.abs(t.bpm - prev.bpm) / prev.bpm; c += j > maxJ ? 6 + j * 40 : j * 20; c += NX.camelotCompatible(prev.cam, t.cam) ? 0 : kw * 0.6; } return c; };
+    const first = $('first').value; let beams = [];
+    const starts = first === 'auto' ? [...T].sort((a, b) => a.energy - b.energy).slice(0, Math.min(3, n)) : [T[+first]];
+    for (const s of starts) beams.push({ seq: [s], used: new Set([s.id]), c: cost(null, s, 0) });
+    for (let pos = 1; pos < n; pos++) {
+      const next = []; for (const b of beams) for (const t of T) if (!b.used.has(t.id)) next.push({ seq: [...b.seq, t], used: new Set([...b.used, t.id]), c: b.c + cost(b.seq[b.seq.length - 1], t, pos) });
+      next.sort((x, y) => x.c - y.c); beams = next.slice(0, 40);
+    }
+    order = beams[0].seq; render();
+  }
+  function render() {
+    const comp = order.filter((t, i) => i && NX.camelotCompatible(order[i - 1].cam, t.cam)).length, jumps = order.filter((t, i) => i && Math.abs(t.bpm - order[i - 1].bpm) / order[i - 1].bpm > +$('jump').value / 100).length;
+    $('fn').textContent = order.length; $('fd').textContent = NX.fmtTime(order.reduce((s, t) => s + t.dur, 0)) + ' en total';
+    $('fk').textContent = order.length > 1 ? `${comp}/${order.length - 1}` : '—'; $('fb').textContent = order.length ? `${Math.round(order[0].bpm)} → ${Math.round(order[order.length - 1].bpm)}` : '—'; $('fj').textContent = jumps;
+    $('tbl').tBodies[0].innerHTML = order.map((t, i) => { const p = order[i - 1], ok = p && NX.camelotCompatible(p.cam, t.cam), dj = p ? (t.bpm - p.bpm) / p.bpm * 100 : 0; return `<tr><td class="num">${i + 1}</td><td><button class="play" data-p="${t.id}" aria-label="Escuchar">${NX.ICON_PLAY}</button></td><td class="name" title="${esc(t.name)}">${esc(t.name)}${t.demo ? ' <span class="tag">ejemplo</span>' : ''}</td><td class="num">${t.bpm.toFixed(1).replace('.', ',')}</td><td><span class="cam">${t.cam}</span> ${t.key.short}</td><td class="num">${Math.round(t.energy * 100)}</td><td>${!p ? '' : (ok ? '<span class="pill good">casa</span>' : '<span class="pill warn">salto de tono</span>') + (Math.abs(dj) > 0.5 ? ` <span class="small muted">${dj > 0 ? '+' : ''}${dj.toFixed(1).replace('.', ',')} %</span>` : '')}</td></tr>`; }).join('');
+    ['m3u', 'csv', 'txt'].forEach((id) => ($(id).disabled = !order.length)); draw();
+  }
+  $('tbl').addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (!b) return; const t = T[+b.dataset.p]; if (NX.player.current() === t.id) return NX.player.stop(); NX.player.play(t.audio.L, t.audio.R, t.audio.sr, { id: t.id, offset: t.dur * 0.4, duration: 25, onStop: () => { b.classList.remove('on'); b.innerHTML = NX.ICON_PLAY; } }); b.classList.add('on'); b.innerHTML = NX.ICON_STOP; });
+  function draw() {
+    const { x, w, h } = NX.setupCanvas($('curve')), n = order.length; x.clearRect(0, 0, w, h); if (!n) return; const X = (i) => 30 + (n > 1 ? i / (n - 1) : 0.5) * (w - 60), Y = (v) => h - 22 - v * (h - 40);
+    x.setLineDash([5, 4]); x.strokeStyle = NX.css('--line'); x.lineWidth = 2; x.beginPath(); for (let i = 0; i <= 60; i++) { const p = i / 60; i ? x.lineTo(30 + p * (w - 60), Y(target(p, $('shape').value))) : x.moveTo(30, Y(target(0, $('shape').value))); } x.stroke(); x.setLineDash([]);
+    x.strokeStyle = NX.css('--accent'); x.lineWidth = 3; x.beginPath(); order.forEach((t, i) => (i ? x.lineTo(X(i), Y(t.energy)) : x.moveTo(X(i), Y(t.energy)))); x.stroke();
+    const bmin = Math.min(...order.map((t) => t.bpm)) - 2, bmax = Math.max(...order.map((t) => t.bpm)) + 2;
+    x.fillStyle = NX.css('--signal'); order.forEach((t, i) => { x.beginPath(); x.arc(X(i), Y((t.bpm - bmin) / (bmax - bmin)), 4, 0, Math.PI * 2); x.fill(); });
+    x.fillStyle = NX.css('--muted'); x.font = '11px ' + NX.css('--f-mono'); x.fillText('energía', 4, 12); x.fillStyle = NX.css('--signal'); x.fillText('● tempo', 70, 12); x.fillStyle = NX.css('--muted'); x.fillText('- - curva buscada', 140, 12);
+  }
+  addEventListener('resize', draw);
+  $('m3u').addEventListener('click', () => NX.save('nexsound_set.m3u8', '#EXTM3U\n' + order.map((t) => `#EXTINF:${Math.round(t.dur)},${t.name.replace(/\.[^.]+$/, '')}\n${t.path}`).join('\n') + '\n'));
+  $('csv').addEventListener('click', () => NX.save('nexsound_set.csv', '﻿orden;tema;bpm;tono;camelot;energia;lufs\n' + order.map((t, i) => `${i + 1};"${t.name}";${t.bpm.toFixed(2)};${t.key.name};${t.cam};${Math.round(t.energy * 100)};${t.lufs.toFixed(1)}`).join('\n')));
+  $('txt').addEventListener('click', () => NX.save('nexsound_set.txt', order.map((t, i) => `${String(i + 1).padStart(2, '0')}. ${t.name.replace(/\.[^.]+$/, '')}  (${Math.round(t.bpm)} BPM · ${t.cam})`).join('\n') + '\n'));
+  // ejemplo: cuatro loops con tempos, tonos y energías distintos
+  (async () => {
+    const mk = (bpm, chord, loud, name) => { const sr = 44100, beat = 60 / bpm, n = Math.round(32 * beat * sr), L = new Float32Array(n), f = (m) => 440 * Math.pow(2, (m - 69) / 12); for (let k = 0; k * beat * sr < n; k++) { const t0 = Math.round(k * beat * sr); let ph = 0; for (let i = 0; i < 0.3 * sr && t0 + i < n; i++) { const t = i / sr; ph += 2 * Math.PI * (52 + 110 * Math.exp(-t / 0.03)) / sr; L[t0 + i] += Math.sin(ph) * Math.exp(-t / 0.15) * 0.6 * loud; } for (let i = 0; i < beat * sr && t0 + i < n; i++) { const t = i / sr; let v = 0; for (const m of chord) v += Math.sin(2 * Math.PI * f(m) * t); L[t0 + i] += v * 0.04 * loud; } } return [{ L, R: L, sr }, name]; };
+    $('prog').hidden = false; for (const [a, nm] of [mk(126, [57, 60, 64], 1, 'pico_126.wav'), mk(120, [48, 52, 55], 0.4, 'calentamiento_120.wav'), mk(122, [55, 59, 62], 0.6, 'groove_122.wav'), mk(124, [52, 55, 59], 0.8, 'subida_124.wav')]) await add(a, nm, nm, true); $('prog').hidden = true; $('q').textContent = 'Ejemplo: 4 loops. Suelta tus temas.';
+  })();
+})();
+</script>

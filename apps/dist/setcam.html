@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style><title>Nexsound Reparto</title>
+<title>Nexsound Set Cam</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"><style>/* Nexsound · estilo común. Layout: mesa de trabajo — cabecera de herramienta, columna de entrada y banco de resultados. */
 :root {
   --bg: #EEF1EC; --surface: #F8FAF6; --sunk: #E3E8E2; --ink: #18211C; --muted: #5E6C64; --line: #CDD5CF;
@@ -109,78 +109,76 @@ table.data tr:last-child td { border-bottom: 0; }
 footer.nx { font-size: 12px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 14px; }
 footer.nx a { color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-</style></head><body>
+</style>
 <style>
-table.data td input, table.data td select { padding: 7px 8px; font-size: 13px; }
-table.data td.pct input { width: 76px; text-align: right; }
-table.data td.money { font-family: var(--f-mono); text-align: right; font-variant-numeric: tabular-nums; }
-.sum { font: 700 13px/1 var(--f-mono); }
-.sum.ok { color: var(--good); } .sum.bad { color: var(--danger); }
-.bars { display: grid; gap: 6px; }
-.barrow { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13px; }
-.stack { display: flex; height: 22px; border-radius: 4px; overflow: hidden; background: var(--sunk); }
-.stack i { display: block; height: 100%; }
-.keys { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
-.keys span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; background: var(--c); vertical-align: -1px; }
+.cams { display: grid; gap: 8px; }
+.cam { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: var(--r); padding: 8px; background: var(--surface); }
+.cam video { width: 96px; height: 54px; object-fit: cover; border-radius: 4px; background: #000; }
+.cam .meta { font: 400 12px/1.4 var(--f-mono); color: var(--muted); }
+.stage { display: grid; place-items: center; background: #000; border-radius: var(--r); overflow: hidden; }
+.stage canvas { max-width: 100%; max-height: 62vh; height: auto; display: block; }
+.edl { width: 100%; height: 64px; display: block; cursor: pointer; }
+.hidden-videos { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
 .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-@media (max-width: 560px) { .two { grid-template-columns: minmax(0, 1fr); } }
 </style>
 <div class="wrap">
   <div class="top"><a class="brand" href="index.html"><b>Nexsound</b> · Herramientas</a><a class="btn small" href="index.html">Todas las herramientas</a></div>
   <header class="tool">
-    <h1>Reparto</h1>
-    <p class="lede">Deja claro quién se lleva qué antes de publicar. Apunta a cada colaborador con su parte de autoría (composición y letra) y su parte del máster (la grabación). Calcula lo que genera el tema por plataforma y descarga la hoja de reparto lista para firmar.</p>
+    <h1>Set Cam</h1>
+    <p class="lede">Monta solo el vídeo de tu sesión de DJ grabada con varias GoPro o móviles. Sincroniza las cámaras por el sonido, pone el audio limpio de la mesa, corta de cámara al ritmo (planos largos en los breaks y cortes rápidos en los drops), corrige el ojo de pez y el color, y saca el set completo y los mejores momentos en vertical.</p>
   </header>
   <div class="grid wide-left">
     <div class="col">
       <section class="panel">
-        <div class="row" style="justify-content:space-between"><h2>Tema</h2><span class="tag" id="example-tag">Ejemplo · cámbialo por el tuyo</span></div>
-        <div class="two">
-          <label class="field"><span>Título</span><input type="text" id="title"></label>
-          <label class="field"><span>Artista principal</span><input type="text" id="artist"></label>
-          <label class="field"><span>ISRC (si lo tienes)</span><input type="text" id="isrc" placeholder="ES-XXX-26-00001"></label>
-          <label class="field"><span>Fecha del acuerdo</span><input type="text" id="date"></label>
-        </div>
+        <h2>1 · Cámaras</h2>
+        <label class="drop" id="drop-v" for="in-v"><strong>Suelta los vídeos</strong><small>De 1 a 6 cámaras: GoPro, móvil, cámara (MP4, MOV, WebM)</small></label><input type="file" id="in-v" accept="video/*" multiple hidden>
+        <div class="cams" id="cams"></div>
       </section>
       <section class="panel">
-        <h2>Ingresos estimados</h2>
-        <div class="tablewrap"><table class="data" id="plat"><thead><tr><th>Plataforma</th><th class="num">Reproducciones</th><th class="num">€ por reproducción</th><th class="num">Bruto</th></tr></thead><tbody></tbody></table></div>
+        <h2>2 · Audio de la mesa (recomendado)</h2>
+        <label class="drop" id="drop-a" for="in-a"><strong>Suelta la grabación de la mesa</strong><small>WAV o MP3 sacado del mixer o del software. Si no hay, se usa el sonido de la cámara 1</small></label><input type="file" id="in-a" accept="audio/*,video/*" hidden>
+        <div class="file" id="name-a"></div>
+        <button class="btn primary" id="sync" disabled>Sincronizar y analizar</button>
+        <div class="progress" id="prog" hidden><i></i></div>
+        <div class="small muted" id="status"></div>
+      </section>
+      <section class="panel">
+        <h2>3 · Montaje</h2>
+        <label class="field"><span>Ritmo de cortes</span><div class="seg" id="pace" role="group" aria-label="Ritmo de cortes"><button data-v="calma" aria-pressed="false">Tranquilo</button><button data-v="normal" aria-pressed="true">Normal</button><button data-v="locura" aria-pressed="false">A tope</button></div></label>
+        <label class="field"><span>Formato</span><div class="seg" id="fmt" role="group" aria-label="Formato"><button data-v="16:9" aria-pressed="true">16:9 · YouTube</button><button data-v="9:16" aria-pressed="false">9:16 · Reels/TikTok</button><button data-v="1:1" aria-pressed="false">1:1</button></div></label>
+        <label class="field"><span>Corrección de ojo de pez (GoPro) <output id="o-fish"></output></span><input type="range" id="fish" min="0" max="100" value="0"></label>
+        <label class="row small"><input type="checkbox" id="colormatch" checked> Igualar el color entre cámaras</label>
+        <label class="row small"><input type="checkbox" id="flash" checked> Destello en cada drop</label>
         <div class="two">
-          <label class="field"><span>Comisión de la distribuidora <output id="o-fee"></output></span><input type="range" id="fee" min="0" max="30" value="10"></label>
-          <label class="field"><span>Derechos de autor sobre el bruto <output id="o-pub"></output></span><input type="range" id="pub" min="0" max="30" value="15"></label>
+          <label class="field"><span>Desde <output id="o-from"></output></span><input type="range" id="from" min="0" max="100" value="0" step="1"></label>
+          <label class="field"><span>Duración <output id="o-len"></output></span><input type="range" id="len" min="10" max="600" value="60" step="5"></label>
         </div>
-        <p class="note">Las tarifas por reproducción son medias aproximadas y cambian por país, tipo de cuenta y mes: ajústalas con lo que ves en tu distribuidora. Los derechos de autor los cobra la entidad de gestión (SGAE u otra) y se reparten según la autoría.</p>
+        <label class="field"><span>Texto en pantalla</span><input type="text" id="title" placeholder="Nombre del DJ · sala · fecha"></label>
       </section>
     </div>
     <div class="col">
       <section class="panel">
-        <div class="row" style="justify-content:space-between"><h2>Colaboradores</h2>
-          <div class="row"><button class="btn small" id="eq-pub">Autoría a partes iguales</button><button class="btn small" id="eq-mas">Máster a partes iguales</button></div></div>
-        <div class="tablewrap"><table class="data" id="people"><thead><tr><th>Nombre</th><th>Rol</th><th class="num">Autoría %</th><th class="num">Máster %</th><th class="num">Le toca</th><th></th></tr></thead><tbody></tbody>
-          <tfoot><tr><td><button class="btn small" id="add">Añadir colaborador</button></td><td class="muted small">Suma</td><td class="num"><span class="sum" id="sum-pub"></span></td><td class="num"><span class="sum" id="sum-mas"></span></td><td class="money" id="sum-money"></td><td></td></tr></tfoot></table></div>
-        <div class="bars"><div class="barrow"><span>Autoría</span><div class="stack" id="bar-pub"></div></div><div class="barrow"><span>Máster</span><div class="stack" id="bar-mas"></div></div></div>
-        <div class="keys" id="keys"></div>
+        <div class="row" style="justify-content:space-between"><h2>Vista previa</h2>
+          <div class="row"><button class="play" id="play" aria-label="Ver el montaje" disabled></button><button class="btn primary" id="rec" disabled>Grabar vídeo</button></div></div>
+        <div class="stage"><canvas id="cv" width="1280" height="720" aria-label="Vista previa del montaje"></canvas></div>
+        <canvas class="edl" id="edl" aria-label="Cortes por cámara a lo largo del set; toca para saltar"></canvas>
+        <div class="progress" id="rprog" hidden><i></i></div>
+        <p class="note">El vídeo se graba en tiempo real (un minuto tarda un minuto) en WebM con el audio de la mesa. Para sets de varias horas, graba por tramos o usa la lista de cortes en tu editor.</p>
       </section>
       <section class="panel">
-        <h2>Resumen</h2>
-        <div class="facts three">
-          <div class="fact"><span>Bruto total</span><b id="t-gross"></b><small id="t-streams"></small></div>
-          <div class="fact"><span>Para el máster</span><b id="t-master"></b><small>tras comisión y autoría</small></div>
-          <div class="fact"><span>Derechos de autor</span><b id="t-pub"></b><small>estimados</small></div>
-        </div>
-        <div class="row">
-          <button class="btn primary" id="pdf">Hoja de reparto (PDF)</button>
-          <button class="btn" id="csv">CSV</button>
-          <button class="btn" id="json">Guardar archivo</button>
-          <label class="btn" for="load">Abrir archivo</label><input type="file" id="load" accept=".json,application/json" hidden>
-        </div>
-        <div class="err" id="err" hidden></div>
-        <p class="note">Esta hoja documenta el acuerdo entre las partes y no sustituye el consejo de un abogado. Se guarda sola en este navegador mientras la editas.</p>
+        <div class="row" style="justify-content:space-between"><h2>Mejores momentos</h2><span class="small muted">drops y subidas de energía</span></div>
+        <div class="items" id="moments"><div class="item"><span></span><span class="muted">Sincroniza para encontrar los momentos.</span></div></div>
+      </section>
+      <section class="panel">
+        <h2>Para tu editor</h2>
+        <div class="row"><button class="btn" id="csv" disabled>Lista de cortes (CSV)</button><button class="btn" id="chap" disabled>Capítulos de YouTube</button><button class="btn" id="audio" disabled>Audio del tramo (WAV)</button></div>
+        <p class="note">La lista de cortes trae, por cada plano, la cámara, el segundo de entrada en ese archivo y el momento del set: sirve para rehacer el montaje en Premiere, DaVinci o Final Cut con la máxima calidad.</p>
       </section>
       <footer class="nx"><span>Nexsound · todo se procesa en tu navegador</span><a href="despiece.html">Despiece</a> <a href="master.html">Master</a> <a href="samplelab.html">Sample Lab</a> <a href="bpm.html">BPM y Tono</a> <a href="afinador.html">Afinador de voz</a> <a href="ritmos.html">Ritmos</a> <a href="comparador.html">Comparador</a> <a href="clips.html">Clips</a> <a href="visualizador.html">Visualizador</a> <a href="splits.html">Reparto</a> <a href="radar.html">Radar</a> <a href="setcam.html">Set Cam</a> <a href="obs.html">Directo OBS</a> <a href="tracklist.html">Tracklist</a> <a href="transiciones.html">Transiciones</a> <a href="ordenset.html">Orden de set</a> <a href="sistemas.html">Prueba de sistemas</a> <a href="portadas.html">Portadas</a> <a href="lanzamiento.html">Lanzamiento</a> <a href="epk.html">EPK</a> <a href="rider.html">Rider y contrato</a> <a href="cache.html">Caché y gira</a> <a href="samples.html">Samples</a> <a href="practica.html">Práctica</a></footer>
     </div>
   </div>
 </div>
+<div class="hidden-videos" id="vids"></div>
 <script type="text/plain" id="engine-src">/* Nexsound Despiece — motor de análisis, separación y regeneración de sonido.
    JavaScript puro (sin dependencias). Funciona en un Web Worker y en Node para pruebas. */
 const Engine = (function () {
@@ -2472,78 +2470,178 @@ self.onmessage = async (e) => { try {
 </script>
 <script>
 (() => {
-  const { $, esc } = NX; const KEY = 'nexsound-reparto-v1';
-  const ROLES = ['Compositor/a', 'Letrista', 'Productor/a', 'Intérprete', 'Mezcla y máster', 'Sello', 'Otro'];
-  const COLS = ['#0F7A62', '#B8661F', '#3B6FB6', '#8A4FA8', '#A63A2B', '#4E8F3A', '#6B6B6B', '#C49A1B'];
-  const money = (v) => v.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: v < 100 ? 2 : 0 });
-  const EXAMPLE = { title: 'Conéctate', artist: 'Nexsound', isrc: '', date: new Date().toLocaleDateString('es-ES'), fee: 10, pub: 15, example: true,
-    people: [{ name: 'Nexsound', role: 'Productor/a', pub: 40, mas: 60 }, { name: 'Colaborador/a voz', role: 'Intérprete', pub: 30, mas: 25 }, { name: 'Letrista invitado/a', role: 'Letrista', pub: 30, mas: 15 }],
-    plat: [['Spotify', 250000, 0.0035], ['Apple Music', 40000, 0.007], ['YouTube', 300000, 0.0012], ['Amazon Music', 20000, 0.004], ['Deezer', 15000, 0.0035], ['TIDAL', 5000, 0.0125]] };
-  let S;
-  try { S = JSON.parse(localStorage.getItem(KEY)) || null; } catch (e) { S = null; }
-  if (!S || !S.people) S = JSON.parse(JSON.stringify(EXAMPLE));
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
-  function bindTop() {
-    for (const k of ['title', 'artist', 'isrc', 'date']) { $(k).value = S[k] || ''; $(k).oninput = () => { S[k] = $(k).value; S.example = false; save(); $('example-tag').hidden = true; }; }
-    $('fee').value = S.fee; $('pub').value = S.pub; $('example-tag').hidden = !S.example;
-    $('fee').oninput = () => { S.fee = +$('fee').value; calc(); }; $('pub').oninput = () => { S.pub = +$('pub').value; calc(); };
+  const { $, esc } = NX; const cams = []; let master = null, an = null, edl = [], moments = [], pace = 'normal', fmt = '16:9';
+  const COL = ['#43C19F', '#E0954F', '#8EA2FF', '#FF6FB5', '#E2B04F', '#6FCB7E'];
+  // ---------- archivos
+  NX.dropzone($('drop-v'), $('in-v'), async (files) => {
+    for (const f of files.slice(0, 6 - cams.length)) {
+      const url = URL.createObjectURL(f), v = document.createElement('video'); v.src = url; v.muted = true; v.playsInline = true; v.preload = 'auto'; v.crossOrigin = 'anonymous';
+      $('vids').appendChild(v); await new Promise((r) => { v.onloadedmetadata = r; v.onerror = r; });
+      if (!isFinite(v.duration) || !v.videoWidth) { NX.toast(`Este navegador no puede abrir «${f.name}». Prueba en Chrome o conviértelo a MP4 (H.264).`); v.remove(); continue; }
+      const cam = { file: f, name: f.name, v, dur: v.duration, offset: 0, gain: [1, 1, 1], audio: null };
+      try { cam.audio = await NX.decodeFile(f); } catch (e) { cam.audio = null; }
+      cams.push(cam);
+    }
+    renderCams(); $('sync').disabled = !cams.length;
+  });
+  NX.dropzone($('drop-a'), $('in-a'), async (f) => { try { master = await NX.decodeFile(f[0]); master.name = f[0].name; $('name-a').textContent = f[0].name + ' · ' + NX.fmtTime(master.duration); } catch (e) { NX.toast(e.message); } });
+  function renderCams() {
+    $('cams').innerHTML = cams.map((c, i) => `<div class="cam"><video src="${c.v.src}" muted playsinline preload="metadata"></video><div><div class="name" style="border-left:4px solid ${COL[i]};padding-left:6px">Cámara ${i + 1} · ${esc(c.name)}</div><div class="meta">${NX.fmtTime(c.dur)} · ${c.v.videoWidth}×${c.v.videoHeight}${c.audio ? '' : ' · sin audio legible'}${an ? ` · desfase ${c.offset >= 0 ? '+' : ''}${c.offset.toFixed(3).replace('.', ',')} s` : ''}</div></div></div>`).join('');
   }
-  function renderPeople() {
-    $('people').tBodies[0].innerHTML = S.people.map((p, i) => `<tr data-i="${i}"><td><input type="text" data-k="name" value="${esc(p.name)}" aria-label="Nombre" style="border-left:4px solid ${COLS[i % COLS.length]}"></td>
-      <td><select data-k="role" aria-label="Rol">${ROLES.map((r) => `<option ${r === p.role ? 'selected' : ''}>${r}</option>`).join('')}</select></td>
-      <td class="pct"><input type="number" data-k="pub" min="0" max="100" step="0.5" value="${p.pub}" aria-label="Autoría %"></td>
-      <td class="pct"><input type="number" data-k="mas" min="0" max="100" step="0.5" value="${p.mas}" aria-label="Máster %"></td>
-      <td class="money" data-money="${i}"></td><td><button class="dl" data-del="${i}" aria-label="Quitar">Quitar</button></td></tr>`).join('');
-    calc();
+  // ---------- sincronización por correlación de envolventes (resolución 1 ms, luego afinado por muestra)
+  function envelope(a, rate = 1000) { const step = Math.round(a.sr / rate), n = Math.floor(a.L.length / step), e = new Float32Array(n); let prev = 0; for (let i = 0; i < n; i++) { let s = 0; for (let j = i * step; j < i * step + step; j++) { const v = (a.L[j] + a.R[j]) * 0.5; s += v * v; } const l = Math.log(s / step + 1e-9); e[i] = Math.max(0, l - prev); prev = l; } return e; }
+  function xcorr(a, b, maxLag) { // devuelve lag (en muestras de la envolvente) con b desplazado respecto a a
+    const N = NX.E.nextPow2(Math.max(a.length, b.length) * 2), ar = new Float64Array(N), ai = new Float64Array(N), br = new Float64Array(N), bi = new Float64Array(N);
+    const m = (x) => x.reduce((s, v) => s + v, 0) / x.length, ma = m(a), mb = m(b); a.forEach((v, i) => (ar[i] = v - ma)); b.forEach((v, i) => (br[i] = v - mb));
+    NX.E.fft(ar, ai, false); NX.E.fft(br, bi, false);
+    for (let k = 0; k < N; k++) { const r = ar[k] * br[k] + ai[k] * bi[k], i2 = ai[k] * br[k] - ar[k] * bi[k]; ar[k] = r; ai[k] = i2; }
+    NX.E.fft(ar, ai, true); let best = 0, bv = -Infinity;
+    for (let l = -maxLag; l <= maxLag; l++) { const v = ar[(l + N) % N]; if (v > bv) { bv = v; best = l; } }
+    return best;
   }
-  function renderPlat() {
-    $('plat').tBodies[0].innerHTML = S.plat.map((r, i) => `<tr data-p="${i}"><td>${esc(r[0])}</td><td class="pct"><input type="number" data-pk="1" min="0" step="1000" value="${r[1]}" aria-label="Reproducciones en ${esc(r[0])}" style="width:120px"></td><td class="pct"><input type="number" data-pk="2" min="0" step="0.0001" value="${r[2]}" aria-label="Euros por reproducción en ${esc(r[0])}" style="width:100px"></td><td class="money" data-gross="${i}"></td></tr>`).join('');
+  $('sync').addEventListener('click', async () => {
+    const ref = master || cams[0].audio; if (!ref) return NX.toast('No hay audio para sincronizar: añade la grabación de la mesa.');
+    $('sync').disabled = true; $('prog').hidden = false; $('status').textContent = 'Sincronizando cámaras…';
+    try {
+      const er = envelope(ref);
+      cams.forEach((c, i) => { if (!c.audio) return; const ec = envelope(c.audio), lag = xcorr(er, ec, Math.min(er.length, ec.length) - 1); c.offset = -lag / 1000; /* tiempo del set = tiempo de cámara + offset */ });
+      // el audio de la cámara se mide al revés: si la cámara empezó a grabar después, su offset es positivo
+      cams.forEach((c) => (c.offset = -c.offset));
+      // afinado fino: correlación de la señal (a 11 kHz) en ±80 ms alrededor del desfase, sobre 20 s centrales
+      cams.forEach((c) => {
+        if (!c.audio) return; const sr = ref.sr, dec = 4, rs = sr / dec, mid = Math.min(c.audio.L.length / sr, ref.L.length / sr - c.offset) / 2, len = Math.min(20, mid);
+        const take = (a, t0) => { const n = Math.floor(len * rs), o = new Float32Array(n), s0 = Math.round(t0 * sr); for (let i = 0; i < n; i++) { const j = s0 + i * dec; o[i] = j >= 0 && j < a.L.length ? a.L[j] + a.R[j] : 0; } return o; };
+        const ca = take(c.audio, mid - len / 2), ra = take(ref, mid - len / 2 + c.offset), W = Math.round(0.08 * rs); let best = 0, bv = -Infinity;
+        for (let l = -W; l <= W; l++) { let s = 0; for (let i = W; i < ca.length - W; i += 2) s += ca[i] * ra[i + l]; if (s > bv) { bv = s; best = l; } }
+        c.offset += best / rs;
+      });
+      $('status').textContent = 'Analizando tempo, compases y drops…';
+      // análisis del audio de referencia (hasta 60 min para no agotar memoria)
+      const lim = Math.min(ref.L.length, ref.sr * 3600);
+      an = await NX.engineWorker('analyzeLite', [ref.L.slice(0, lim), ref.R.slice(0, lim), ref.sr], (s, p) => ($('prog').firstChild.style.width = Math.round((p || 0) * 100) + '%'));
+      master = master || { ...cams[0].audio, name: cams[0].name };
+      if ($('colormatch').checked) await colorMatch();
+      $('from').max = Math.max(0, Math.floor(master.L.length / master.sr) - 10); $('len').max = Math.max(10, Math.min(3600, Math.floor(master.L.length / master.sr)));
+      $('len').value = Math.min(+$('len').value, +$('len').max); outs();
+      build(); renderCams(); ['play', 'rec', 'csv', 'chap', 'audio'].forEach((id) => ($(id).disabled = false));
+      $('status').textContent = `${an.grid.bpm} BPM · ${an.key.name} · ${an.grid.nBars} compases · ${moments.length} momentos fuertes`;
+    } catch (e) { $('status').textContent = e.message; } finally { $('prog').hidden = true; $('sync').disabled = false; }
+  });
+  // color: ganancias por canal para que todas las cámaras tengan el mismo blanco medio (mundo gris)
+  async function colorMatch() {
+    const cv = document.createElement('canvas'); cv.width = 64; cv.height = 36; const x = cv.getContext('2d', { willReadFrequently: true });
+    const means = [];
+    for (const c of cams) {
+      const acc = [0, 0, 0]; let n = 0;
+      for (const fr of [0.2, 0.5, 0.8]) { await seek(c.v, c.dur * fr); x.drawImage(c.v, 0, 0, 64, 36); const d = x.getImageData(0, 0, 64, 36).data; for (let i = 0; i < d.length; i += 4) { acc[0] += d[i]; acc[1] += d[i + 1]; acc[2] += d[i + 2]; n++; } }
+      means.push(acc.map((v) => v / n));
+    }
+    const tgt = [0, 1, 2].map((k) => means.reduce((s, m) => s + m[k], 0) / means.length);
+    cams.forEach((c, i) => (c.gain = tgt.map((t, k) => NX.clamp(t / (means[i][k] || 1), 0.7, 1.4))));
   }
-  $('people').addEventListener('input', (e) => { const tr = e.target.closest('tr[data-i]'); if (!tr) return; const p = S.people[+tr.dataset.i], k = e.target.dataset.k; p[k] = k === 'pub' || k === 'mas' ? Math.max(0, +e.target.value || 0) : e.target.value; S.example = false; $('example-tag').hidden = true; calc(); });
-  $('people').addEventListener('change', (e) => { if (e.target.dataset.k === 'role') { const tr = e.target.closest('tr[data-i]'); S.people[+tr.dataset.i].role = e.target.value; save(); } });
-  $('people').addEventListener('click', (e) => { const d = e.target.closest('[data-del]'); if (d) { S.people.splice(+d.dataset.del, 1); renderPeople(); } });
-  $('plat').addEventListener('input', (e) => { const tr = e.target.closest('tr[data-p]'); if (!tr) return; S.plat[+tr.dataset.p][+e.target.dataset.pk] = Math.max(0, +e.target.value || 0); calc(); });
-  $('add').addEventListener('click', () => { S.people.push({ name: '', role: 'Compositor/a', pub: 0, mas: 0 }); renderPeople(); const ins = $('people').querySelectorAll('input[data-k="name"]'); ins[ins.length - 1].focus(); });
-  const equal = (k) => { const n = S.people.length; if (!n) return; const v = Math.floor(10000 / n) / 100; S.people.forEach((p, i) => (p[k] = i === n - 1 ? Math.round((100 - v * (n - 1)) * 100) / 100 : v)); renderPeople(); };
-  $('eq-pub').addEventListener('click', () => equal('pub')); $('eq-mas').addEventListener('click', () => equal('mas'));
-  function totals() {
-    const gross = S.plat.reduce((s, r) => s + r[1] * r[2], 0), streams = S.plat.reduce((s, r) => s + r[1], 0);
-    const pubPool = gross * S.pub / 100, masterPool = (gross - pubPool) * (1 - S.fee / 100);
-    return { gross, streams, pubPool, masterPool };
+  const seek = (v, t) => new Promise((r) => { const done = () => { v.removeEventListener('seeked', done); r(); }; v.addEventListener('seeked', done); v.currentTime = Math.max(0, Math.min(v.duration - 0.05, t)); setTimeout(done, 1500); });
+  // ---------- decisión de cortes: compás a compás según la energía
+  function build() {
+    const g = an.grid, db = an.barDb, N = g.nBars, mean = db.reduce((s, v) => s + v, 0) / N, sd = Math.sqrt(db.reduce((s, v) => s + (v - mean) ** 2, 0) / N) || 1;
+    const z = db.map((v) => (v - mean) / sd), P = { calma: [16, 8, 4], normal: [8, 4, 1], locura: [4, 1, 0.5] }[pace];
+    // momentos: subidas bruscas de energía (drops) y compases más altos
+    moments = []; for (let b = 2; b < N; b++) { const jump = db[b] - Math.max(db[b - 1], db[b - 2]); if (jump > 3 && z[b] > 0.3) moments.push({ t: g.firstBar + b * g.bar, b, score: jump + z[b] * 2 }); }
+    moments.sort((a, b) => b.score - a.score); moments = moments.filter((m, i, arr) => arr.findIndex((o) => Math.abs(o.b - m.b) < 16) === i).slice(0, 8).sort((a, b) => a.t - b.t);
+    const dropBars = new Set(moments.map((m) => m.b));
+    edl = []; let b = 0, last = -1; const avail = (t) => cams.map((c, i) => i).filter((i) => t - cams[i].offset >= 0 && t - cams[i].offset < cams[i].dur - 0.2);
+    if (g.firstBar > 0.05) { const a0 = avail(0); edl.push({ t: 0, cam: a0[0] ?? 0, drop: false }); last = a0[0] ?? 0; }
+    while (b < N) {
+      const t = g.firstBar + b * g.bar, lvl = z[b] > 0.6 ? 2 : z[b] > -0.4 ? 1 : 0, len = P[2 - lvl] * (lvl === 2 ? 1 : 1);
+      const options = avail(t + 0.01).filter((i) => i !== last); const pick = options.length ? options[(b * 7 + edl.length * 3) % options.length] : (avail(t)[0] ?? 0);
+      edl.push({ t, cam: pick, drop: dropBars.has(b) }); last = pick;
+      if (len < 1) { const half = t + g.bar / 2, o2 = avail(half).filter((i) => i !== pick); if (o2.length) { edl.push({ t: half, cam: o2[edl.length % o2.length], drop: false }); last = edl[edl.length - 1].cam; } b += 1; }
+      else b += Math.max(1, Math.round(len));
+      if (dropBars.has(b) === false) for (let k = 1; k < len; k++) if (dropBars.has(b - k)) { b = b - k; break; }
+    }
+    edl.sort((a, b2) => a.t - b2.t); drawEdl(); renderMoments(); drawFrame(+$('from').value);
   }
-  function calc() {
-    const sp = S.people.reduce((s, p) => s + (+p.pub || 0), 0), sm = S.people.reduce((s, p) => s + (+p.mas || 0), 0), t = totals();
-    $('sum-pub').textContent = sp.toFixed(1).replace('.', ',') + ' %'; $('sum-pub').className = 'sum ' + (Math.abs(sp - 100) < 0.01 ? 'ok' : 'bad');
-    $('sum-mas').textContent = sm.toFixed(1).replace('.', ',') + ' %'; $('sum-mas').className = 'sum ' + (Math.abs(sm - 100) < 0.01 ? 'ok' : 'bad');
-    S.people.forEach((p, i) => { const el = document.querySelector(`[data-money="${i}"]`); if (el) el.textContent = money(t.pubPool * p.pub / 100 + t.masterPool * p.mas / 100); });
-    $('sum-money').textContent = money(t.pubPool * sp / 100 + t.masterPool * sm / 100);
-    S.plat.forEach((r, i) => { const el = document.querySelector(`[data-gross="${i}"]`); if (el) el.textContent = money(r[1] * r[2]); });
-    $('t-gross').textContent = money(t.gross); $('t-streams').textContent = t.streams.toLocaleString('es-ES') + ' reproducciones'; $('t-master').textContent = money(t.masterPool); $('t-pub').textContent = money(t.pubPool);
-    $('o-fee').textContent = S.fee + ' %'; $('o-pub').textContent = S.pub + ' %';
-    const bar = (k) => S.people.map((p, i) => `<i style="width:${Math.max(0, p[k])}%;background:${COLS[i % COLS.length]}" title="${esc(p.name || 'Sin nombre')}: ${p[k]} %"></i>`).join('');
-    $('bar-pub').innerHTML = bar('pub'); $('bar-mas').innerHTML = bar('mas');
-    $('keys').innerHTML = S.people.map((p, i) => `<span style="--c:${COLS[i % COLS.length]}">${esc(p.name || 'Sin nombre')}</span>`).join('');
-    const okAll = Math.abs(sp - 100) < 0.01 && Math.abs(sm - 100) < 0.01 && S.people.every((p) => p.name.trim());
-    $('err').hidden = okAll; $('err').textContent = !S.people.every((p) => p.name.trim()) ? 'Falta el nombre de algún colaborador.' : 'La autoría y el máster tienen que sumar 100 % cada uno antes de firmar.';
-    save();
+  $('pace').addEventListener('click', (e) => { const bt = e.target.closest('button'); if (!bt) return; pace = bt.dataset.v; [...$('pace').children].forEach((x) => x.setAttribute('aria-pressed', x === bt)); if (an) build(); });
+  $('fmt').addEventListener('click', (e) => { const bt = e.target.closest('button'); if (!bt) return; fmt = bt.dataset.v; [...$('fmt').children].forEach((x) => x.setAttribute('aria-pressed', x === bt)); const [w, h] = fmt === '16:9' ? [1280, 720] : fmt === '9:16' ? [720, 1280] : [1080, 1080]; $('cv').width = w; $('cv').height = h; if (an) drawFrame(+$('from').value); });
+  const outs = () => { $('o-fish').textContent = $('fish').value + ' %'; $('o-from').textContent = NX.fmtTime(+$('from').value); $('o-len').textContent = NX.fmtTime(+$('len').value); };
+  ['fish', 'from', 'len'].forEach((id) => $(id).addEventListener('input', () => { outs(); if (an) { drawEdl(); if (id !== 'len') { const t = +$('from').value; prepare(t).then(() => drawFrame(t)); } } })); outs();
+  const camAt = (t) => { let c = edl[0]; for (const e of edl) { if (e.t <= t) c = e; else break; } return c; };
+  function drawEdl() {
+    const { x, w, h } = NX.setupCanvas($('edl')), dur = master.L.length / master.sr; x.clearRect(0, 0, w, h);
+    edl.forEach((e, i) => { const e2 = edl[i + 1], a = e.t / dur * w, b = (e2 ? e2.t : dur) / dur * w; x.fillStyle = COL[e.cam]; x.fillRect(a, 10, Math.max(1, b - a), h - 26); });
+    moments.forEach((m) => { x.fillStyle = NX.css('--ink'); x.fillRect(m.t / dur * w - 1, 0, 2, h - 14); });
+    const f = +$('from').value / dur * w, l = +$('len').value / dur * w; x.strokeStyle = NX.css('--ink'); x.lineWidth = 2; x.strokeRect(f, 8, l, h - 22);
+    x.fillStyle = NX.css('--muted'); x.font = '10px ' + NX.css('--f-mono'); for (let s = 0; s < dur; s += Math.max(60, Math.ceil(dur / 8 / 60) * 60)) x.fillText(NX.fmtTime(s), s / dur * w + 2, h - 2);
   }
-  // exportar
-  function lines() {
-    const t = totals(), L = ['# HOJA DE REPARTO', `Tema: ${S.title || '—'}`, `Artista principal: ${S.artist || '—'}`, `ISRC: ${S.isrc || '—'}`, `Fecha del acuerdo: ${S.date || '—'}`, '',
-      'Las partes acuerdan el siguiente reparto de la obra (autoría: música y letra) y de la grabación (máster):', '', '# Reparto'];
-    S.people.forEach((p) => L.push(`${(p.name || '—').padEnd(32).slice(0, 32)}  ${p.role.padEnd(16)}  Autoría ${String(p.pub).padStart(5)} %   Máster ${String(p.mas).padStart(5)} %`));
-    L.push('', `Total autoría: ${S.people.reduce((s, p) => s + +p.pub, 0)} %   Total máster: ${S.people.reduce((s, p) => s + +p.mas, 0)} %`, '', '# Estimación de ingresos (orientativa)');
-    S.plat.forEach((r) => L.push(`${r[0].padEnd(14)} ${String(r[1].toLocaleString('es-ES')).padStart(12)} reproducciones x ${r[2]} € = ${money(r[1] * r[2])}`));
-    L.push(`Bruto: ${money(t.gross)} · Derechos de autor (${S.pub} %): ${money(t.pubPool)} · Máster tras comisión (${S.fee} %): ${money(t.masterPool)}`, '', '# Firmas');
-    S.people.forEach((p) => L.push('', `${p.name || '—'} (${p.role})`, 'Firma: ______________________________   DNI/NIE: ________________'));
-    return L;
+  $('edl').addEventListener('click', (e) => { if (!an) return; const r = e.currentTarget.getBoundingClientRect(), t = (e.clientX - r.left) / r.width * master.L.length / master.sr; $('from').value = Math.max(0, Math.floor(t)); outs(); drawEdl(); prepare(t).then(() => drawFrame(t)); });
+  function renderMoments() {
+    $('moments').innerHTML = moments.map((m, i) => `<div class="item"><button class="play" data-m="${i}" aria-label="Ver momento">${NX.ICON_PLAY}</button><div><div class="name">${NX.fmtTime(m.t)} · ${i === 0 ? 'drop' : 'subidón'}</div><div class="meta">compás ${m.b + 1} · +${(m.score).toFixed(1).replace('.', ',')}</div></div><span></span><button class="dl" data-mrec="${i}">Clip vertical 15 s</button></div>`).join('') || '<div class="item"><span></span><span class="muted">No se encontraron drops claros.</span></div>';
   }
-  const base = () => 'reparto_' + NX.cleanName(S.title || 'tema');
-  $('pdf').addEventListener('click', () => NX.save(base() + '.pdf', NX.textPdf(lines(), 'Hoja de reparto · ' + (S.title || ''))));
-  $('csv').addEventListener('click', () => NX.save(base() + '.csv', '﻿' + ['nombre;rol;autoria_pct;master_pct', ...S.people.map((p) => `"${p.name.replace(/"/g, '""')}";${p.role};${p.pub};${p.mas}`)].join('\n')));
-  $('json').addEventListener('click', () => NX.save(base() + '.json', JSON.stringify(S, null, 1)));
-  $('load').addEventListener('change', async (e) => { const f = e.target.files[0]; if (!f) return; try { const d = JSON.parse(await f.text()); if (!Array.isArray(d.people)) throw 0; S = d; bindTop(); renderPlat(); renderPeople(); NX.toast('Reparto cargado: ' + (S.title || f.name)); } catch (err) { NX.toast('Ese archivo no es un reparto de Nexsound.'); } e.target.value = ''; });
-  bindTop(); renderPlat(); renderPeople();
+  $('moments').addEventListener('click', (e) => {
+    const p = e.target.closest('[data-m]'), r = e.target.closest('[data-mrec]');
+    if (p) { const m = moments[+p.dataset.m]; $('from').value = Math.max(0, Math.floor(m.t - 4)); $('len').value = 15; outs(); drawEdl(); startPreview(); }
+    if (r) { const m = moments[+r.dataset.mrec]; $('from').value = Math.max(0, Math.floor(m.t - 4)); $('len').value = 15; $('fmt').children[1].click(); outs(); drawEdl(); record(); }
+  });
+  // ---------- dibujo de un fotograma: cámara activa + ojo de pez + color + recorte al formato
+  const glc = document.createElement('canvas'), gl = glc.getContext('webgl', { preserveDrawingBuffer: true });
+  let prog = null, tex = null;
+  if (gl) {
+    const vs = 'attribute vec2 p;varying vec2 uv;void main(){uv=(p+1.0)/2.0;uv.y=1.0-uv.y;gl_Position=vec4(p,0,1);}';
+    const fs = 'precision mediump float;varying vec2 uv;uniform sampler2D t;uniform float k;uniform vec3 g;uniform vec4 crop;void main(){vec2 c=uv*2.0-1.0;float r2=dot(c,c);vec2 d=c*(1.0-k*r2)/(1.0-k*0.6);vec2 s=(d+1.0)/2.0;s=crop.xy+s*crop.zw;if(s.x<0.0||s.x>1.0||s.y<0.0||s.y>1.0){gl_FragColor=vec4(0,0,0,1);return;}vec3 col=texture2D(t,s).rgb*g;gl_FragColor=vec4(col,1.0);}';
+    const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+    prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog); gl.useProgram(prog);
+    const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex); [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach((p) => gl.texParameteri(gl.TEXTURE_2D, p, gl.CLAMP_TO_EDGE)); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  }
+  function drawFrame(t, flashA = 0) {
+    const cv = $('cv'), x = cv.getContext('2d'), W = cv.width, H = cv.height; x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+    if (!edl.length) return; const e = camAt(t), c = cams[e.cam]; if (!c || !c.v.videoWidth) return;
+    const vw = c.v.videoWidth, vh = c.v.videoHeight, ar = W / H, var_ = vw / vh;
+    let cw = 1, ch = 1; if (var_ > ar) cw = ar / var_; else ch = var_ / ar; const crop = [(1 - cw) / 2, (1 - ch) / 2, cw, ch];
+    if (gl) {
+      glc.width = W; glc.height = H; gl.viewport(0, 0, W, H); gl.bindTexture(gl.TEXTURE_2D, tex);
+      try { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, c.v); } catch (err) { return; }
+      gl.uniform1f(gl.getUniformLocation(prog, 'k'), +$('fish').value / 100 * 0.35); gl.uniform3fv(gl.getUniformLocation(prog, 'g'), $('colormatch').checked ? c.gain : [1, 1, 1]); gl.uniform4fv(gl.getUniformLocation(prog, 'crop'), crop);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); x.drawImage(glc, 0, 0);
+    } else x.drawImage(c.v, crop[0] * vw, crop[1] * vh, cw * vw, ch * vh, 0, 0, W, H);
+    if (flashA > 0) { x.fillStyle = `rgba(255,255,255,${flashA})`; x.fillRect(0, 0, W, H); }
+    const title = $('title').value.trim(), u = Math.min(W, H) / 720;
+    if (title) { x.font = `700 ${Math.round(30 * u)}px Archivo, Arial, sans-serif`; x.textAlign = 'left'; x.fillStyle = 'rgba(0,0,0,.45)'; const tw = x.measureText(title).width; x.fillRect(24 * u, H - 74 * u, tw + 32 * u, 50 * u); x.fillStyle = '#fff'; x.fillText(title, 40 * u, H - 40 * u); }
+    x.font = `600 ${Math.round(16 * u)}px "IBM Plex Mono", monospace`; x.textAlign = 'right'; x.fillStyle = 'rgba(255,255,255,.7)'; x.fillText('nexsound.es', W - 20 * u, 32 * u);
+  }
+  // reproducción sincronizada de todas las cámaras siguiendo al audio
+  async function prepare(t) { await Promise.all(cams.map((c) => seek(c.v, t - c.offset))); }
+  let running = false, raf = null;
+  function runLoop(t0, dur, onFrame) {
+    const ctx = NX.player.ctx(); const startAt = ctx.currentTime;
+    cams.forEach((c) => { c.v.currentTime = Math.max(0, t0 - c.offset); c.v.play().catch(() => {}); });
+    let lastE = null, flashT = -1;
+    const loop = () => {
+      if (!running) return; const t = t0 + (ctx.currentTime - startAt);
+      if (t > t0 + dur) { stopAll(); return; }
+      if (Math.floor(t * 2) !== Math.floor((t - 0.016) * 2)) cams.forEach((c) => { const want = t - c.offset; if (want > 0 && want < c.dur && Math.abs(c.v.currentTime - want) > 0.12) c.v.currentTime = want; });
+      const e = camAt(t); if (e !== lastE) { if (e.drop && $('flash').checked) flashT = t; lastE = e; }
+      const fa = flashT >= 0 ? Math.max(0, 0.8 - (t - flashT) * 3) : 0; drawFrame(t, fa); onFrame && onFrame((t - t0) / dur); raf = requestAnimationFrame(loop);
+    };
+    running = true; loop();
+  }
+  function stopAll() { running = false; cancelAnimationFrame(raf); cams.forEach((c) => c.v.pause()); NX.player.stop(); $('play').classList.remove('on'); $('play').innerHTML = NX.ICON_PLAY; }
+  function seg() { const a = Math.round(+$('from').value * master.sr), b = Math.min(master.L.length, a + Math.round(+$('len').value * master.sr)); return { L: master.L.slice(a, b), R: master.R.slice(a, b), sr: master.sr }; }
+  async function startPreview() { stopAll(); const t0 = +$('from').value, s = seg(); await prepare(t0); NX.player.play(s.L, s.R, s.sr, { id: 'set', onStop: () => running && stopAll() }); $('play').classList.add('on'); $('play').innerHTML = NX.ICON_STOP; runLoop(t0, s.L.length / s.sr); }
+  $('play').innerHTML = NX.ICON_PLAY; $('play').addEventListener('click', () => (running ? stopAll() : startPreview()));
+  async function record() {
+    stopAll(); const btn = $('rec'); btn.disabled = true; btn.textContent = 'Grabando…'; $('rprog').hidden = false;
+    try {
+      const t0 = +$('from').value, s = seg(), dur = s.L.length / s.sr; await prepare(t0);
+      const cv = $('cv'); let started = false;
+      const blob = await NX.recordCanvas(cv, s, 30, () => { if (!started) { started = true; runLoop(t0, dur, (p) => ($('rprog').firstChild.style.width = Math.round(p * 100) + '%')); } }, null);
+      stopAll(); await NX.save(`set_${NX.cleanName($('title').value || 'nexsound')}_${NX.fmtTime(t0).replace(':', 'm')}_${fmt.replace(':', 'x')}.webm`, blob);
+    } catch (e) { NX.toast(e.message); } finally { btn.disabled = false; btn.textContent = 'Grabar vídeo'; $('rprog').hidden = true; }
+  }
+  $('rec').addEventListener('click', record);
+  // ---------- exportes para editores
+  $('csv').addEventListener('click', () => { const rows = ['inicio_set;fin_set;camara;archivo;entrada_en_archivo;drop']; edl.forEach((e, i) => { const end = edl[i + 1] ? edl[i + 1].t : master.L.length / master.sr; rows.push([e.t.toFixed(3), end.toFixed(3), e.cam + 1, '"' + cams[e.cam].name + '"', (e.t - cams[e.cam].offset).toFixed(3), e.drop ? 'si' : ''].join(';')); }); NX.save('set_cortes.csv', '﻿' + rows.join('\n')); });
+  $('chap').addEventListener('click', () => { const lines = ['0:00 Intro']; moments.forEach((m, i) => lines.push(`${NX.fmtTime(m.t)} ${i === 0 ? 'Drop' : 'Subidón ' + i}`)); NX.save('capitulos_youtube.txt', lines.join('\n') + '\n'); });
+  $('audio').addEventListener('click', () => { const s = seg(); NX.save('set_audio_' + NX.fmtTime(+$('from').value).replace(':', 'm') + '.wav', NX.wav(s.L, s.R, s.sr)); });
 })();
 </script>
-</body></html>

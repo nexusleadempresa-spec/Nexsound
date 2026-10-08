@@ -15,6 +15,19 @@ TOOLS = [  # slug, nombre, descripción corta
     ('visualizador', 'Visualizador', 'Vídeo con tu portada y el audio animado'),
     ('splits', 'Reparto', 'Porcentajes, royalties y hoja de reparto'),
     ('radar', 'Radar', 'A qué se parece tu tema y dónde encaja'),
+    ('setcam', 'Set Cam', 'Monta solo tu sesión de DJ grabada con varias cámaras'),
+    ('obs', 'Directo OBS', 'Cambia de cámara al ritmo en tus directos'),
+    ('tracklist', 'Tracklist', 'Capítulos y tracklist de tu set'),
+    ('transiciones', 'Transiciones', 'Une dos temas al compás, como un DJ'),
+    ('ordenset', 'Orden de set', 'El orden ideal de tus temas por tono, tempo y energía'),
+    ('sistemas', 'Prueba de sistemas', 'Cómo suena tu tema en móvil, coche, Bluetooth y club'),
+    ('portadas', 'Portadas', 'Portada de 3000 × 3000 para distribuidoras'),
+    ('lanzamiento', 'Lanzamiento', 'Plan día a día para sacar tu tema'),
+    ('epk', 'EPK', 'Kit de prensa en una página'),
+    ('rider', 'Rider y contrato', 'Rider técnico y contrato de bolo en PDF'),
+    ('cache', 'Caché y gira', 'Cuánto cobrar y cuánto te queda de cada bolo'),
+    ('samples', 'Samples', 'Nota, tempo y nombre de cada sample, ordenados'),
+    ('practica', 'Práctica', 'Nota para tus mezclas: cuadre, tempo y transiciones'),
 ]
 FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
          '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">')

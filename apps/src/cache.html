@@ -1,0 +1,85 @@
+<title>Nexsound Caché y gira</title>
+<!--HEAD-->
+<style>
+table.data td input { padding: 6px 8px; font-size: 13px; }
+table.data td input[type="number"] { width: 90px; text-align: right; }
+table.data td.money { font-family: var(--f-mono); text-align: right; font-variant-numeric: tabular-nums; }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.bar { height: 22px; display: flex; border-radius: 4px; overflow: hidden; background: var(--sunk); }
+.bar i { display: block; height: 100%; }
+.keys { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.keys span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; background: var(--c); }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>Caché y gira</h1>
+    <p class="lede">Calcula cuánto cobrar por un bolo para que te salga a cuenta: viaje, horas de trabajo, comisión de la agencia, impuestos y el margen que quieres ganar. Y planifica una gira entera: fechas, cachés, gastos y beneficio de cada parada.</p>
+  </header>
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2>Un bolo</h2>
+        <div class="two">
+          <label class="field"><span>Kilómetros (ida y vuelta)</span><input type="number" id="km" value="400"></label>
+          <label class="field"><span>€ por km (coche)</span><input type="number" id="ekm" value="0.26" step="0.01"></label>
+          <label class="field"><span>Vuelos / tren (€)</span><input type="number" id="tickets" value="0"></label>
+          <label class="field"><span>Hotel (€)</span><input type="number" id="hotel" value="0"></label>
+          <label class="field"><span>Dietas (€)</span><input type="number" id="meals" value="40"></label>
+          <label class="field"><span>Otros (€)</span><input type="number" id="other" value="0"></label>
+          <label class="field"><span>Horas de trabajo totales</span><input type="number" id="hours" value="12"></label>
+          <label class="field"><span>Tu precio por hora (€)</span><input type="number" id="rate" value="25"></label>
+          <label class="field"><span>Comisión agencia (%)</span><input type="number" id="agency" value="15"></label>
+          <label class="field"><span>Retención / impuestos (%)</span><input type="number" id="tax" value="15"></label>
+        </div>
+        <label class="field"><span>Margen que quieres ganar <output id="o-margin"></output></span><input type="range" id="margin" min="0" max="100" value="30"></label>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel">
+        <h2>Lo que deberías cobrar</h2>
+        <div class="facts three"><div class="fact"><span>Caché mínimo</span><b id="min">—</b><small>cubre gastos y tu tiempo</small></div><div class="fact"><span>Caché recomendado</span><b id="rec">—</b><small>con tu margen</small></div><div class="fact"><span>Te queda limpio</span><b id="net">—</b><small id="neth"></small></div></div>
+        <div class="bar" id="bar"></div><div class="keys" id="keys"></div>
+      </section>
+      <section class="panel">
+        <div class="row" style="justify-content:space-between"><h2>Gira</h2><button class="btn small" id="add">Añadir fecha</button></div>
+        <div class="tablewrap"><table class="data" id="tour"><thead><tr><th>Fecha</th><th>Ciudad / sala</th><th class="num">Caché</th><th class="num">Gastos</th><th class="num">Beneficio</th><th></th></tr></thead><tbody></tbody><tfoot><tr><td colspan="2"><b>Total</b></td><td class="money" id="tf"></td><td class="money" id="te"></td><td class="money" id="tp"></td><td></td></tr></tfoot></table></div>
+        <div class="row"><button class="btn" id="csv">CSV de la gira</button></div>
+        <p class="note">El beneficio de cada fecha descuenta la comisión de la agencia y la retención. Las cifras de ejemplo son orientativas: pon las tuyas. Se guarda en este navegador.</p>
+      </section>
+      <!--FOOT-->
+    </div>
+  </div>
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $, esc } = NX; const KEY = 'nexsound-cache-v1'; const money = (v) => Math.round(v).toLocaleString('es-ES') + ' €';
+  const IDS = ['km', 'ekm', 'tickets', 'hotel', 'meals', 'other', 'hours', 'rate', 'agency', 'tax', 'margin'];
+  let S = {}; try { S = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
+  IDS.forEach((id) => { if (S[id] != null) $(id).value = S[id]; $(id).addEventListener('input', () => { S[id] = $(id).value; save(); calc(); }); });
+  S.tour = S.tour || [{ date: '', place: 'Madrid · sala ejemplo', fee: 900, cost: 60 }, { date: '', place: 'Valencia · festival ejemplo', fee: 1500, cost: 220 }, { date: '', place: 'Barcelona · club ejemplo', fee: 1100, cost: 280 }];
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+  const n = (id) => +$(id).value || 0;
+  function calc() {
+    $('o-margin').textContent = n('margin') + ' %';
+    const costs = n('km') * n('ekm') + n('tickets') + n('hotel') + n('meals') + n('other'), time = n('hours') * n('rate'), keep = (1 - n('agency') / 100) * (1 - n('tax') / 100);
+    const minFee = (costs + time) / Math.max(0.05, keep), recFee = minFee * (1 + n('margin') / 100), net = recFee * keep - costs;
+    $('min').textContent = money(minFee); $('rec').textContent = money(recFee); $('net').textContent = money(net); $('neth').textContent = n('hours') ? `${money(net / n('hours'))} por hora trabajada` : '';
+    const parts = [['Gastos', costs, 'var(--signal)'], ['Tu tiempo', time, 'var(--accent)'], ['Agencia', recFee * n('agency') / 100, '#3B6FB6'], ['Impuestos', recFee * (1 - n('agency') / 100) * n('tax') / 100, 'var(--muted)'], ['Margen', Math.max(0, recFee - costs - time - recFee * n('agency') / 100 - recFee * (1 - n('agency') / 100) * n('tax') / 100), 'var(--good)']];
+    $('bar').innerHTML = parts.map(([l, v, c]) => `<i style="width:${Math.max(0, v / recFee * 100)}%;background:${c}" title="${l}: ${money(v)}"></i>`).join('');
+    $('keys').innerHTML = parts.map(([l, v, c]) => `<span style="--c:${c}">${l} ${money(v)}</span>`).join('');
+    tour();
+  }
+  function tour() {
+    const keep = (1 - n('agency') / 100) * (1 - n('tax') / 100); let F = 0, Cc = 0, P = 0;
+    $('tour').tBodies[0].innerHTML = S.tour.map((t, i) => { const p = t.fee * keep - t.cost; F += +t.fee; Cc += +t.cost; P += p; return `<tr data-i="${i}"><td><input type="date" data-k="date" value="${esc(t.date)}" aria-label="Fecha"></td><td><input type="text" data-k="place" value="${esc(t.place)}" aria-label="Ciudad o sala"></td><td class="num"><input type="number" data-k="fee" value="${t.fee}" aria-label="Caché"></td><td class="num"><input type="number" data-k="cost" value="${t.cost}" aria-label="Gastos"></td><td class="money" style="color:${p < 0 ? 'var(--danger)' : 'var(--good)'}">${money(p)}</td><td><button class="dl" data-del="${i}">Quitar</button></td></tr>`; }).join('');
+    $('tf').textContent = money(F); $('te').textContent = money(Cc); $('tp').textContent = money(P);
+  }
+  $('tour').addEventListener('change', (e) => { const tr = e.target.closest('tr[data-i]'); if (!tr) return; const k = e.target.dataset.k; S.tour[+tr.dataset.i][k] = k === 'fee' || k === 'cost' ? +e.target.value || 0 : e.target.value; save(); tour(); });
+  $('tour').addEventListener('click', (e) => { const d = e.target.closest('[data-del]'); if (d) { S.tour.splice(+d.dataset.del, 1); save(); tour(); } });
+  $('add').addEventListener('click', () => { S.tour.push({ date: '', place: '', fee: Math.round(+$('rec').textContent.replace(/\D/g, '') || 0), cost: 0 }); save(); tour(); });
+  $('csv').addEventListener('click', () => { const keep = (1 - n('agency') / 100) * (1 - n('tax') / 100); NX.save('gira.csv', '﻿fecha;lugar;cache;gastos;beneficio\n' + S.tour.map((t) => `${t.date};"${t.place}";${t.fee};${t.cost};${Math.round(t.fee * keep - t.cost)}`).join('\n')); });
+  calc();
+})();
+</script>

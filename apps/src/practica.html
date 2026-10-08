@@ -1,0 +1,113 @@
+<title>Nexsound Práctica</title>
+<!--HEAD-->
+<style>
+.score { font: 900 clamp(64px, 14vw, 120px)/0.9 var(--f-display); font-stretch: 112%; font-variant-numeric: tabular-nums; }
+.tl { width: 100%; height: 190px; display: block; cursor: pointer; }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>Práctica</h1>
+    <p class="lede">Graba tu mezcla de práctica y súbela: la app escucha si los bombos de los dos temas van juntos o se pisan (el temido «galope»), si el tempo se mantiene estable y cómo de limpias son tus transiciones. Te da una nota y te marca los minutos que tienes que repasar.</p>
+  </header>
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2>Tu mezcla</h2>
+        <label class="drop" id="drop" for="in"><strong>Suelta la grabación</strong><small>Sale de REC de la mesa o del software (MP3, WAV…)</small></label><input type="file" id="in" accept="audio/*" hidden>
+        <div class="file" id="name"></div><div class="progress" id="prog" hidden><i></i></div>
+      </section>
+      <section class="panel">
+        <div class="score" id="score">—</div><div class="muted" id="verdict">sobre 100</div>
+        <div class="facts three"><div class="fact"><span>Cuadre</span><b id="f1">—</b><small>golpes sin galope</small></div><div class="fact"><span>Tempo</span><b id="f2">—</b><small>estabilidad</small></div><div class="fact"><span>Transiciones</span><b id="f3">—</b><small>limpias</small></div></div>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel">
+        <div class="row" style="justify-content:space-between"><h2>A lo largo de la mezcla</h2><button class="play" id="play" aria-label="Escuchar desde el punto marcado"></button></div>
+        <canvas class="tl" id="tl" aria-label="Tempo y galopes a lo largo de la mezcla; toca para escuchar"></canvas>
+        <p class="note">Línea: tempo minuto a minuto. Barras rojas: tramos donde dos bombos se pisan. Toca para escuchar ese punto.</p>
+      </section>
+      <section class="panel"><h2>Para repasar</h2><ul class="advice" id="adv"></ul></section>
+      <!--FOOT-->
+    </div>
+  </div>
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $, esc } = NX; let A = null, R = null, at = 0;
+  // análisis: envolvente grave a 2 ms, ataques, tempo local por ventanas y detección de galope (dos ataques graves a 15–90 ms)
+  function study(L, Rr, sr, progress) {
+    const step = Math.round(sr / 500), nE = Math.floor(L.length / step), env = new Float32Array(nE), a1 = Math.exp(-2 * Math.PI * 150 / sr); let y1 = 0, y2 = 0;
+    for (let i = 0; i < nE; i++) { let s = 0; for (let j = i * step; j < i * step + step; j++) { const v = (L[j] + Rr[j]) / 2; y1 = (1 - a1) * v + a1 * y1; y2 = (1 - a1) * y1 + a1 * y2; s += y2 * y2; } env[i] = Math.log(s / step + 1e-10); if (i % 50000 === 0) progress(0.4 * i / nE); }
+    const on = new Float32Array(nE); for (let i = 2; i < nE; i++) on[i] = Math.max(0, env[i] - env[i - 2]);
+    // picos de ataque
+    const peaks = []; const W = 8; for (let i = W; i < nE - W; i++) { if (on[i] < 0.6) continue; let mx = true; for (let k = -W; k <= W; k++) if (on[i + k] > on[i]) { mx = false; break; } if (mx) peaks.push({ i, v: on[i] }); }
+    // ventanas de 10 s: tempo local (autocorrelación) y proporción de galopes
+    const win = 10 * 500, hop = 5 * 500, rows = [];
+    for (let s = 0; s + win < nE; s += hop) {
+      let bestL = 0, bv = -Infinity; for (let lag = 160; lag <= 375; lag++) { let c = 0; for (let i = s; i < s + win - lag; i += 2) c += on[i] * on[i + lag]; if (c > bv) { bv = c; bestL = lag; } }
+      // refinamiento parabólico
+      const pk = peaks.filter((p) => p.i >= s && p.i < s + win); let flams = 0, beats = 0;
+      for (let k = 0; k < pk.length; k++) { const p = pk[k]; if (p.v < 1) continue; beats++; const nxt = pk[k + 1]; if (nxt && nxt.i - p.i >= 14 && nxt.i - p.i <= 45 && nxt.v > p.v * 0.6) { flams++; k++; } }
+      rows.push({ t: s / 500, bpm: 60 / (bestL / 500), flam: beats ? flams / beats : 0, beats, energy: env.slice(s, s + win).reduce((x, v) => x + v, 0) / win });
+      progress(0.4 + 0.6 * s / nE);
+    }
+    return { rows };
+  }
+  async function run(a, name) {
+    A = a; $('name').textContent = name; $('prog').hidden = false;
+    try {
+      const mono = new Float32Array(a.L.length); for (let i = 0; i < mono.length; i++) mono[i] = (a.L[i] + a.R[i]) / 2;
+      R = await NX.task(study, [mono, new Float32Array(mono), a.sr], (p) => ($('prog').firstChild.style.width = Math.round(p * 100) + '%'));
+      report();
+    } catch (e) { NX.toast(e.message); } finally { $('prog').hidden = true; }
+  }
+  function report() {
+    const rows = R.rows.filter((r) => r.beats > 6); if (!rows.length) { $('verdict').textContent = 'No se oyen bombos claros: graba la salida de la mesa.'; return; }
+    // tempo: normaliza a una octava común y mide los saltos bruscos entre ventanas
+    const bp = rows.map((r) => { let b = r.bpm; while (b < 90) b *= 2; while (b > 180) b /= 2; return b; }); rows.forEach((r, i) => (r.b = bp[i]));
+    const jumps = rows.filter((r, i) => i && Math.abs(r.b - rows[i - 1].b) > 1.2 && Math.abs(r.b - rows[i - 1].b) < 12).length;
+    // el sonido de cada bombo puede dar un segundo ataque propio: se toma como base lo habitual en la mezcla
+    const fl = rows.map((r) => r.flam).sort((a, b) => a - b), base = fl[Math.floor(fl.length * 0.3)] || 0;
+    rows.forEach((r) => (r.flam = Math.max(0, (r.flam - base) / (1 - base + 1e-9))));
+    const bad = rows.filter((r) => r.flam > 0.25);
+    const flamRate0 = 0, flamRate = rows.reduce((s, r) => s + r.flam * r.beats, 0) / rows.reduce((s, r) => s + r.beats, 0);
+    // transiciones: ventanas donde el tempo cambia o hay galope (suelen ser las mezclas)
+    const trans = rows.filter((r, i) => i && (Math.abs(r.b - rows[i - 1].b) > 0.6 || r.flam > 0.12)), cleanT = trans.length ? trans.filter((r) => r.flam < 0.25).length / trans.length : 1;
+    const sAlign = Math.round(100 * (1 - Math.min(1, flamRate * 3))), sTempo = Math.round(100 * Math.max(0, 1 - jumps / Math.max(4, rows.length / 6))), sTrans = Math.round(100 * cleanT);
+    const total = Math.round(sAlign * 0.5 + sTempo * 0.2 + sTrans * 0.3);
+    $('score').textContent = total; $('verdict').textContent = total > 85 ? 'sobre 100 · mezclas muy limpias' : total > 65 ? 'sobre 100 · bien, con algún tramo que pulir' : 'sobre 100 · hay que repasar el cuadre';
+    $('f1').textContent = sAlign; $('f2').textContent = sTempo; $('f3').textContent = sTrans;
+    const adv = []; const groups = []; bad.forEach((r) => { const g = groups[groups.length - 1]; if (g && r.t - g.end <= 6) g.end = r.t + 10; else groups.push({ start: r.t, end: r.t + 10, worst: r.flam }); });
+    groups.slice(0, 8).forEach((g) => adv.push(['bad', g.start, `${NX.fmtTime(g.start)}–${NX.fmtTime(g.end)}: los bombos se pisan (galope). Ajusta el pitch o empuja el plato hasta que suenen como uno solo antes de subir el volumen.`]));
+    rows.forEach((r, i) => { if (i && Math.abs(r.b - rows[i - 1].b) > 3 && Math.abs(r.b - rows[i - 1].b) < 12) adv.push(['warn', r.t, `${NX.fmtTime(r.t)}: el tempo salta de ${rows[i - 1].b.toFixed(1).replace('.', ',')} a ${r.b.toFixed(1).replace('.', ',')} BPM. Cambia el tempo poco a poco o aprovecha un break.`]); });
+    if (!adv.length) adv.push(['good', 0, 'No hay galopes ni saltos de tempo: tus mezclas suenan cuadradas.']);
+    const lbl = { good: 'bien', warn: 'tempo', bad: 'cuadre' };
+    $('adv').innerHTML = adv.slice(0, 12).map(([l, t, txt]) => `<li data-t="${t}" style="cursor:pointer"><span class="pill ${l}">${lbl[l]}</span><span>${esc(txt)}</span></li>`).join('');
+    draw();
+  }
+  $('adv').addEventListener('click', (e) => { const li = e.target.closest('[data-t]'); if (li) { at = +li.dataset.t; play(); } });
+  function draw() {
+    if (!R) return; const { x, w, h } = NX.setupCanvas($('tl')), rows = R.rows.filter((r) => r.b), D = A.L.length / A.sr; x.clearRect(0, 0, w, h);
+    const bs = rows.map((r) => r.b), mn = Math.min(...bs) - 2, mx = Math.max(...bs) + 2, Y = (b) => 14 + (mx - b) / (mx - mn) * (h - 44);
+    rows.forEach((r) => { if (r.flam > 0.12) { x.fillStyle = NX.css('--danger'); x.globalAlpha = Math.min(1, r.flam * 2); x.fillRect(r.t / D * w, h - 26, Math.max(2, 10 / D * w), 20); x.globalAlpha = 1; } });
+    x.strokeStyle = NX.css('--accent'); x.lineWidth = 2; x.beginPath(); rows.forEach((r, i) => (i ? x.lineTo((r.t + 5) / D * w, Y(r.b)) : x.moveTo((r.t + 5) / D * w, Y(r.b)))); x.stroke();
+    x.fillStyle = NX.css('--muted'); x.font = '10px ' + NX.css('--f-mono'); x.fillText(mx.toFixed(0) + ' BPM', 2, 12); x.fillText(mn.toFixed(0), 2, h - 32); for (let s = 0; s < D; s += 300) x.fillText(NX.fmtTime(s), s / D * w + 2, h - 2);
+    x.fillStyle = NX.css('--signal'); x.fillRect(at / D * w, 0, 2, h - 26);
+  }
+  $('tl').addEventListener('click', (e) => { if (!A) return; const r = e.currentTarget.getBoundingClientRect(); at = (e.clientX - r.left) / r.width * A.L.length / A.sr; draw(); play(); });
+  function play() { const a = Math.round(Math.max(0, at - 2) * A.sr), b = Math.min(A.L.length, a + 25 * A.sr), btn = $('play'); NX.player.play(A.L.subarray(a, b), A.R.subarray(a, b), A.sr, { id: 'pr', onStop: () => { btn.classList.remove('on'); btn.innerHTML = NX.ICON_PLAY; } }); btn.classList.add('on'); btn.innerHTML = NX.ICON_STOP; draw(); }
+  $('play').innerHTML = NX.ICON_PLAY; $('play').addEventListener('click', () => (NX.player.playing() ? NX.player.stop() : A && play()));
+  addEventListener('resize', draw);
+  NX.dropzone($('drop'), $('in'), async (f) => { try { const a = await NX.decodeFile(f[0]); run(a, f[0].name); } catch (e) { NX.toast(e.message); } });
+  // ejemplo: dos "temas" con una mezcla que galopa a mitad
+  (() => {
+    const sr = 44100, n = sr * 90, L = new Float32Array(n), kick = (t0, g) => { const a = Math.round(t0 * sr); let ph = 0; for (let i = 0; i < 0.3 * sr && a + i < n; i++) { const t = i / sr; ph += 2 * Math.PI * (52 + 120 * Math.exp(-t / 0.03)) / sr; L[a + i] += Math.sin(ph) * Math.exp(-t / 0.13) * g; } };
+    for (let t = 0; t < 50; t += 60 / 124) kick(t, 0.7);
+    for (let t = 38; t < 90; t += 60 / 124) kick(t + (t < 48 ? 0.045 : 0), 0.6);
+    run({ L, R: L, sr }, 'Ejemplo: mezcla de 1:30 que galopa entre 0:38 y 0:48');
+  })();
+})();
+</script>

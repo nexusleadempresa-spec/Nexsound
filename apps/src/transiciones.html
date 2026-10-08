@@ -1,0 +1,133 @@
+<title>Nexsound Transiciones</title>
+<!--HEAD-->
+<style>
+.mixmap { width: 100%; height: 130px; display: block; }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 560px) { .two { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>Transiciones</h1>
+    <p class="lede">Une dos temas como lo haría un DJ: iguala el tempo del segundo al primero sin cambiarle el tono, los cuadra compás con compás, hace el cambio de graves a mitad de mezcla y te dice si las tonalidades casan. Escucha la transición y llévate el mashup o el tramo de mezcla.</p>
+  </header>
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2>Temas</h2>
+        <label class="drop" id="drop-a" for="in-a"><strong>Tema A (sale)</strong><small>MP3, WAV…</small></label><input type="file" id="in-a" accept="audio/*" hidden><div class="file" id="name-a"></div>
+        <label class="drop" id="drop-b" for="in-b"><strong>Tema B (entra)</strong><small>MP3, WAV…</small></label><input type="file" id="in-b" accept="audio/*" hidden><div class="file" id="name-b"></div>
+        <div class="progress" id="prog" hidden><i></i></div>
+      </section>
+      <section class="panel">
+        <h2>Mezcla</h2>
+        <label class="field"><span>Largo de la mezcla</span><div class="seg" id="len" role="group" aria-label="Compases de mezcla"><button data-v="8" aria-pressed="false">8 compases</button><button data-v="16" aria-pressed="true">16</button><button data-v="32" aria-pressed="false">32</button></div></label>
+        <label class="field"><span>A termina en el compás <output id="o-out"></output></span><input type="range" id="out" min="8" max="100" value="64" step="4"></label>
+        <label class="field"><span>B entra desde su compás <output id="o-in"></output></span><input type="range" id="inb" min="0" max="64" value="0" step="4"></label>
+        <label class="field"><span>Estilo</span><select id="style"><option value="bass">Cambio de graves (clásico)</option><option value="fade">Fundido largo</option><option value="cut">Corte en el compás</option><option value="echo">Salida con eco</option></select></label>
+        <label class="field"><span>Transponer B <output id="o-tr"></output></span><input type="range" id="tr" min="-3" max="3" value="0"></label>
+        <button class="btn primary" id="go" disabled>Hacer la transición</button>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel">
+        <div class="facts"><div class="fact"><span>Tema A</span><b id="fa">—</b><small id="fa2"></small></div><div class="fact"><span>Tema B</span><b id="fb">—</b><small id="fb2"></small></div><div class="fact"><span>Tonalidad</span><b id="fk">—</b><small id="fk2"></small></div><div class="fact"><span>Ajuste de tempo</span><b id="ft">—</b><small>a B, sin cambiar el tono</small></div></div>
+        <canvas class="mixmap" id="map" aria-label="Mapa de la mezcla: volumen de A y B y cambio de graves"></canvas>
+        <div class="row"><button class="play" id="play" aria-label="Escuchar la transición" disabled></button><span class="small muted">Suena desde 8 compases antes de que entre B</span></div>
+        <div class="row"><button class="btn primary" id="dl-mix" disabled>Tramo de mezcla (WAV)</button><button class="btn" id="dl-full" disabled>Mashup completo A → B (WAV)</button></div>
+      </section>
+      <!--FOOT-->
+    </div>
+  </div>
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $ } = NX; const S = { A: null, B: null }, AN = { A: null, B: null }; let mixLen = 16, result = null;
+  async function load(k, f) { $('prog').hidden = false; try { const a = await NX.decodeFile(f[0]); a.name = f[0].name; S[k] = a; $('name-' + k.toLowerCase()).textContent = f[0].name; AN[k] = await NX.engineWorker('analyzeLite', [new Float32Array(a.L), new Float32Array(a.R), a.sr], (s, p) => ($('prog').firstChild.style.width = Math.round((p || 0) * 100) + '%')); facts(); } catch (e) { NX.toast(e.message); } finally { $('prog').hidden = true; } }
+  NX.dropzone($('drop-a'), $('in-a'), (f) => load('A', f)); NX.dropzone($('drop-b'), $('in-b'), (f) => load('B', f));
+  const f1 = (v) => v.toFixed(1).replace('.', ',');
+  function facts() {
+    const a = AN.A, b = AN.B;
+    if (a) { $('fa').textContent = f1(a.grid.bpm) + ' BPM'; $('fa2').textContent = a.key.name + ' · ' + NX.camelot(a.key.root, a.key.mode); $('out').max = a.grid.nBars; if (+$('out').value > a.grid.nBars) $('out').value = a.grid.nBars; }
+    if (b) { $('fb').textContent = f1(b.grid.bpm) + ' BPM'; $('fb2').textContent = b.key.name + ' · ' + NX.camelot(b.key.root, b.key.mode); $('inb').max = Math.max(0, b.grid.nBars - 32); }
+    if (a && b) {
+      const ratio = a.grid.bpm / b.grid.bpm, ok = Math.abs(ratio - 1) < 0.12; $('ft').textContent = (ratio > 1 ? '+' : '') + f1((ratio - 1) * 100) + ' %';
+      const tr = +$('tr').value, root = (b.key.root + tr + 12) % 12, cb = NX.camelot(root, b.key.mode), ca = NX.camelot(a.key.root, a.key.mode), comp = NX.camelotCompatible(ca, cb);
+      $('fk').innerHTML = comp ? '<span class="pill good">casan</span>' : '<span class="pill warn">chocan</span>'; $('fk2').textContent = comp ? `${ca} → ${cb}` : `${ca} → ${cb}: prueba a transponer B o un corte`;
+      if (!ok) NX.toast('Los tempos están muy lejos (más de un 12 %): sonará forzado.'); $('go').disabled = false;
+      // salida por defecto: el inicio del último tramo fuerte de A, en múltiplo de 8
+      const db = a.barDb, N = db.length; let outB = N - 8; for (let i = N - 16; i > N / 2; i -= 8) { const m1 = db.slice(i - 8, i).reduce((s, v) => s + v, 0) / 8, m2 = db.slice(i, i + 8).reduce((s, v) => s + v, 0) / 8; if (m1 - m2 > 3) { outB = i; break; } } $('out').value = Math.max(mixLen, Math.round(outB / 4) * 4);
+    }
+    outs(); drawMap();
+  }
+  const outs = () => { $('o-out').textContent = $('out').value; $('o-in').textContent = $('inb').value; $('o-tr').textContent = (+$('tr').value > 0 ? '+' : '') + $('tr').value + ' st'; };
+  ['out', 'inb'].forEach((id) => $(id).addEventListener('input', () => { outs(); drawMap(); })); $('tr').addEventListener('input', () => { outs(); if (AN.A && AN.B) facts(); });
+  $('len').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; mixLen = +b.dataset.v; [...$('len').children].forEach((x) => x.setAttribute('aria-pressed', x === b)); drawMap(); });
+
+  // WSOLA: cambia la duración sin cambiar el tono; transposición por remuestreo después
+  function process(a, b, opt, progress) {
+    const sr = a.sr, s = opt.tempo / Math.pow(2, opt.semis / 12); // velocidad de WSOLA: tras remuestrear al tono nuevo queda al tempo de A
+    const Wn = 2048, Ho = 512, Hi = Ho * s, tol = 384, n = b.L.length, outN = Math.floor(n / s) + Wn;
+    const w = new Float32Array(Wn); for (let i = 0; i < Wn; i++) w[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / Wn);
+    const L = new Float32Array(outN), R = new Float32Array(outN), ws = new Float32Array(outN); let prevPos = 0;
+    for (let o = 0, k = 0; o + Wn < outN; o += Ho, k++) {
+      const nominal = Math.round(k * Hi); let best = nominal;
+      if (k > 0) { let bv = -Infinity; const ref = prevPos + Ho; for (let d = -tol; d <= tol; d += 4) { const p = nominal + d; if (p < 0 || p + Wn >= n) continue; let c = 0; for (let i = 0; i < Wn; i += 16) c += (b.L[ref + i] + b.R[ref + i]) * (b.L[p + i] + b.R[p + i]); if (c > bv) { bv = c; best = p; } } }
+      if (best + Wn >= n) break; prevPos = best;
+      for (let i = 0; i < Wn; i++) { L[o + i] += b.L[best + i] * w[i]; R[o + i] += b.R[best + i] * w[i]; ws[o + i] += w[i]; }
+      if (k % 400 === 0) progress(0.5 * o / outN);
+    }
+    for (let i = 0; i < outN; i++) if (ws[i] > 1e-3) { L[i] /= ws[i]; R[i] /= ws[i]; }
+    let BL = L, BR = R;
+    if (opt.semis) { const r = Math.pow(2, opt.semis / 12), m = Math.floor(outN / r); BL = new Float32Array(m); BR = new Float32Array(m); for (let i = 0; i < m; i++) { const p = i * r, i0 = Math.floor(p), f = p - i0; BL[i] = L[i0] * (1 - f) + (L[i0 + 1] || 0) * f; BR[i] = R[i0] * (1 - f) + (R[i0 + 1] || 0) * f; } }
+    progress(0.6);
+    // montaje: B empieza (mezcla) compases antes del final de A
+    const aOut = Math.round((opt.aFirst + opt.outBar * opt.aBar) * sr), mixN = Math.round(opt.mixBars * opt.aBar * sr), aStart = aOut - mixN;
+    const bStart0 = Math.round(((opt.bFirst + opt.inBar * opt.bBar) / opt.tempo) * sr);
+    const total = aStart + (BL.length - bStart0), ML = new Float32Array(total), MR = new Float32Array(total);
+    const lp = (x) => NX.filt(NX.filt(x, NX.biquad('lowpass', 180, sr, 0.7)), NX.biquad('lowpass', 180, sr, 0.7));
+    const aSegL = a.L.subarray(aStart, aOut), aSegR = a.R.subarray(aStart, aOut), bSegL = BL.subarray(bStart0, bStart0 + mixN), bSegR = BR.subarray(bStart0, bStart0 + mixN);
+    const aLowL = lp(aSegL), aLowR = lp(aSegR), bLowL = lp(bSegL), bLowR = lp(bSegR);
+    for (let i = 0; i < aStart; i++) { ML[i] = a.L[i]; MR[i] = a.R[i]; }
+    for (let i = 0; i < mixN && aStart + i < total; i++) {
+      const p = i / mixN; let ga = 1, gb = 1, aLowKeep = 1, bLowKeep = 1;
+      if (opt.style === 'bass') { ga = p < 0.75 ? 1 : 1 - (p - 0.75) / 0.25; gb = p < 0.25 ? p / 0.25 : 1; const sw = NX.clamp((p - 0.5) / 0.03 + 0.5, 0, 1); aLowKeep = 1 - sw; bLowKeep = sw; }
+      else if (opt.style === 'fade') { ga = Math.cos(p * Math.PI / 2); gb = Math.sin(p * Math.PI / 2); }
+      else if (opt.style === 'cut') { ga = p < 1 - 1 / opt.mixBars ? 1 : 0; gb = p < 1 - 1 / opt.mixBars ? 0 : 1; }
+      else if (opt.style === 'echo') { ga = p < 0.5 ? 1 : 0; gb = p < 0.5 ? 0 : 1; }
+      const al = aSegL[i] - aLowL[i] * (1 - aLowKeep), ar = aSegR[i] - aLowR[i] * (1 - aLowKeep), bl = (bSegL[i] || 0) - (bLowL[i] || 0) * (1 - bLowKeep), br = (bSegR[i] || 0) - (bLowR[i] || 0) * (1 - bLowKeep);
+      ML[aStart + i] = al * ga + bl * gb; MR[aStart + i] = ar * ga + br * gb;
+    }
+    if (opt.style === 'echo') { const d = Math.round(opt.aBar / 4 * 3 * sr), half = aStart + Math.floor(mixN / 2); for (let r = 1; r <= 6; r++) for (let i = 0; i < opt.aBar * sr; i++) { const src = half - Math.round(opt.aBar * sr) + i, dst = half + r * d + i - Math.round(opt.aBar * sr); if (dst < total && src >= 0) { const g = Math.pow(0.55, r) * (1 - i / (opt.aBar * sr)); ML[dst] += a.L[src] * g * (r % 2 ? 1 : 0.5); MR[dst] += a.R[src] * g * (r % 2 ? 0.5 : 1); } } }
+    for (let i = aStart + mixN; i < total; i++) { const j = bStart0 + (i - aStart); ML[i] = BL[j] || 0; MR[i] = BR[j] || 0; }
+    progress(0.9); const lim = NX.limit(ML, MR, sr, -1, 80, 5);
+    return { L: lim.L, R: lim.R, sr, aStart, mixN };
+  }
+  $('go').addEventListener('click', async () => {
+    const a = AN.A, b = AN.B; $('go').disabled = true; $('prog').hidden = false;
+    try {
+      const opt = { tempo: a.grid.bpm / b.grid.bpm, semis: +$('tr').value, mixBars: mixLen, outBar: +$('out').value, inBar: +$('inb').value, aBar: a.grid.bar, bBar: b.grid.bar, aFirst: a.grid.firstBar, bFirst: b.grid.firstBar, style: $('style').value };
+      result = await NX.task(process, [{ L: new Float32Array(S.A.L), R: new Float32Array(S.A.R), sr: S.A.sr }, { L: new Float32Array(S.B.L), R: new Float32Array(S.B.R), sr: S.B.sr }, opt], (p) => ($('prog').firstChild.style.width = Math.round(p * 100) + '%'));
+      ['play', 'dl-mix', 'dl-full'].forEach((id) => ($(id).disabled = false)); drawMap(); play();
+    } catch (e) { NX.toast(e.message); } finally { $('go').disabled = false; $('prog').hidden = true; }
+  });
+  function drawMap() {
+    const { x, w, h } = NX.setupCanvas($('map')); x.clearRect(0, 0, w, h); if (!AN.A) return;
+    const pad = 20, X = (p) => pad + p * (w - 2 * pad), st = $('style').value;
+    x.fillStyle = NX.css('--muted'); x.font = '11px ' + NX.css('--f-mono'); x.fillText('A', 4, 30); x.fillText('B', 4, 80);
+    const curve = (fn, y0, col) => { x.strokeStyle = col; x.lineWidth = 3; x.beginPath(); for (let i = 0; i <= 100; i++) { const p = i / 100, v = fn(p); i ? x.lineTo(X(p), y0 - v * 36) : x.moveTo(X(p), y0 - v * 36); } x.stroke(); };
+    curve((p) => (st === 'bass' ? (p < 0.75 ? 1 : 1 - (p - 0.75) / 0.25) : st === 'fade' ? Math.cos(p * Math.PI / 2) : p < (st === 'echo' ? 0.5 : 0.94) ? 1 : 0), 46, NX.css('--accent'));
+    curve((p) => (st === 'bass' ? (p < 0.25 ? p / 0.25 : 1) : st === 'fade' ? Math.sin(p * Math.PI / 2) : p < (st === 'echo' ? 0.5 : 0.94) ? 0 : 1), 96, NX.css('--signal'));
+    if (st === 'bass') { x.setLineDash([4, 3]); x.strokeStyle = NX.css('--ink'); x.beginPath(); x.moveTo(X(0.5), 6); x.lineTo(X(0.5), 100); x.stroke(); x.setLineDash([]); x.fillStyle = NX.css('--ink'); x.fillText('cambio de graves', X(0.5) + 4, 14); }
+    x.fillStyle = NX.css('--muted'); x.fillText(`${mixLen} compases · A sale en el ${$('out').value} · B entra desde su ${$('inb').value}`, pad, h - 6);
+  }
+  $('style').addEventListener('change', drawMap);
+  function play() { if (!result) return; const a = Math.max(0, result.aStart - Math.round(8 * AN.A.grid.bar * result.sr)), b = Math.min(result.L.length, result.aStart + result.mixN + Math.round(8 * AN.A.grid.bar * result.sr)), btn = $('play'); NX.player.play(result.L.subarray(a, b), result.R.subarray(a, b), result.sr, { id: 'tr', onStop: () => { btn.classList.remove('on'); btn.innerHTML = NX.ICON_PLAY; } }); btn.classList.add('on'); btn.innerHTML = NX.ICON_STOP; }
+  $('play').innerHTML = NX.ICON_PLAY; $('play').addEventListener('click', () => (NX.player.playing() ? NX.player.stop() : play()));
+  const base = () => NX.cleanName(S.A.name) + '_a_' + NX.cleanName(S.B.name);
+  $('dl-mix').addEventListener('click', () => { const pre = Math.round(8 * AN.A.grid.bar * result.sr), a = Math.max(0, result.aStart - pre), b = Math.min(result.L.length, result.aStart + result.mixN + pre); NX.save(base() + '_transicion.wav', NX.wav(result.L.slice(a, b), result.R.slice(a, b), result.sr)); });
+  $('dl-full').addEventListener('click', () => NX.save(base() + '_mashup.wav', NX.wav(result.L, result.R, result.sr)));
+  drawMap(); addEventListener('resize', drawMap);
+})();
+</script>

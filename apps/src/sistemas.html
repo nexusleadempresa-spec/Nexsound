@@ -1,0 +1,115 @@
+<title>Nexsound Prueba de sistemas</title>
+<!--HEAD-->
+<style>
+.systems { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.sys { text-align: left; padding: 12px; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; display: grid; gap: 4px; font: 600 15px/1.2 var(--f-body); }
+.sys small { font: 400 12px/1.3 var(--f-body); color: var(--muted); }
+.sys b { font: 700 13px/1 var(--f-mono); }
+.sys[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.wave { width: 100%; height: 60px; display: block; cursor: pointer; }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>Prueba de sistemas</h1>
+    <p class="lede">Escucha cómo sonará tu tema en un móvil, en el coche, en un altavoz Bluetooth, en auriculares de botón o en un club, cambiando al momento mientras suena. Y te dice qué se pierde en cada sitio: graves que desaparecen en el móvil, partes que se anulan en mono o graves abiertos que fallan en la pista.</p>
+  </header>
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2>Tema</h2>
+        <label class="drop" id="drop" for="in"><strong>Suelta tu tema</strong><small>MP3, WAV…</small></label><input type="file" id="in" accept="audio/*" hidden>
+        <div class="file" id="name"></div>
+      </section>
+      <section class="panel">
+        <h2>Escuchar</h2>
+        <div class="row"><button class="play" id="play" aria-label="Reproducir"></button><span class="small muted">Cambia de sistema mientras suena</span></div>
+        <canvas class="wave" id="wave" aria-label="Forma de onda; toca para saltar"></canvas>
+        <label class="row small"><input type="checkbox" id="match" checked> Igualar volumen entre sistemas</label>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel"><h2>Sistema</h2><div class="systems" id="systems"></div></section>
+      <section class="panel"><h2>Qué pasa en cada sitio</h2><ul class="advice" id="report"></ul></section>
+      <!--FOOT-->
+    </div>
+  </div>
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $, esc } = NX; let A = null, sys = 'estudio';
+  // cadenas de filtros que imitan cada sistema (respuesta típica, no de un modelo concreto)
+  const SYS = {
+    estudio: { n: 'Estudio', d: 'Respuesta plana', f: [], mono: false },
+    movil: { n: 'Móvil', d: 'Altavoz pequeño: sin graves, medios marcados, mono', f: [['highpass', 380, 1.2], ['highpass', 380, 0.8], ['peak', 2500, 1, 5], ['lowpass', 12000, 0.7]], mono: true, comp: true },
+    botón: { n: 'Auriculares de botón', d: 'Graves algo inflados y agudos brillantes', f: [['lowshelf', 90, 0.7, 4], ['peak', 3000, 1, -2], ['highshelf', 8000, 0.7, 3]], mono: false },
+    bluetooth: { n: 'Altavoz Bluetooth', d: 'Graves recortados a 90 Hz y mucha compresión', f: [['highpass', 90, 1.1], ['peak', 140, 1.2, 4], ['lowpass', 14000, 0.7]], mono: true, comp: true },
+    coche: { n: 'Coche', d: 'Graves reforzados por el habitáculo y ruido de carretera', f: [['lowshelf', 70, 0.7, 6], ['peak', 120, 1.4, 3], ['highshelf', 7000, 0.7, -3]], mono: false, noise: 0.012 },
+    club: { n: 'Club', d: 'Subgrave potente, graves en mono y sala', f: [['lowshelf', 60, 0.7, 5], ['highshelf', 10000, 0.7, -2]], mono: 'bass', room: true },
+    portatil: { n: 'Portátil', d: 'Sin nada por debajo de 200 Hz', f: [['highpass', 220, 1], ['peak', 1200, 1, 2]], mono: false, comp: true },
+  };
+  $('systems').innerHTML = Object.entries(SYS).map(([k, s]) => `<button class="sys" data-s="${k}" aria-pressed="${k === sys}">${s.n}<small>${s.d}</small><b id="score-${k}"></b></button>`).join('');
+  $('systems').addEventListener('click', (e) => { const b = e.target.closest('.sys'); if (!b) return; sys = b.dataset.s; [...$('systems').children].forEach((x) => x.setAttribute('aria-pressed', x === b)); if (NX.player.playing()) start(NX.player.position()); });
+  // ---------- escucha con la cadena del sistema elegido (Web Audio)
+  let chainOut = null;
+  function buildChain(ctx) {
+    const S = SYS[sys], input = ctx.createGain(); let node = input;
+    if (S.mono === true) { const sp = ctx.createChannelSplitter(2), mg = ctx.createChannelMerger(2), g = ctx.createGain(); g.gain.value = 0.5; node.connect(sp); sp.connect(g, 0); sp.connect(g, 1); g.connect(mg, 0, 0); g.connect(mg, 0, 1); node = mg; }
+    for (const [type, f, q, gain] of S.f) { const bq = ctx.createBiquadFilter(); bq.type = type === 'peak' ? 'peaking' : type; bq.frequency.value = f; bq.Q.value = q; if (gain) bq.gain.value = gain; node.connect(bq); node = bq; }
+    if (S.comp) { const c = ctx.createDynamicsCompressor(); c.threshold.value = -24; c.ratio.value = 4; c.attack.value = 0.005; c.release.value = 0.12; node.connect(c); node = c; }
+    if (S.room) { const conv = ctx.createConvolver(), n = Math.round(ctx.sampleRate * 1.2), ir = ctx.createBuffer(2, n, ctx.sampleRate); for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.25)); } conv.buffer = ir; const wet = ctx.createGain(); wet.gain.value = 0.18; node.connect(conv).connect(wet); const sum = ctx.createGain(); node.connect(sum); wet.connect(sum); node = sum; }
+    const out = ctx.createGain(); out.gain.value = $('match').checked ? (MATCH[sys] || 1) : 1; node.connect(out); out.connect(ctx.destination);
+    if (S.noise) { const n = ctx.sampleRate * 2, b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0); let last = 0; for (let i = 0; i < n; i++) { last = last * 0.995 + (Math.random() * 2 - 1) * 0.05; d[i] = last; } const s = ctx.createBufferSource(); s.buffer = b; s.loop = true; const g = ctx.createGain(); g.gain.value = S.noise * 8; s.connect(g).connect(ctx.destination); s.start(); noiseSrc = s; }
+    return input;
+  }
+  let noiseSrc = null; const MATCH = {};
+  function start(at = 0) {
+    if (!A) return; const ctx = NX.player.ctx(); try { noiseSrc && noiseSrc.stop(); } catch (e) {} noiseSrc = null;
+    const input = buildChain(ctx), btn = $('play');
+    NX.player.play(A.L, A.R, A.sr, { id: 'sys', offset: at, dest: input, onStop: () => { try { noiseSrc && noiseSrc.stop(); } catch (e) {} btn.classList.remove('on'); btn.innerHTML = NX.ICON_PLAY; } }); btn.classList.add('on'); btn.innerHTML = NX.ICON_STOP; tick();
+  }
+  $('play').innerHTML = NX.ICON_PLAY; $('play').addEventListener('click', () => (NX.player.playing() ? NX.player.stop() : start(A ? A.L.length / A.sr * 0.3 : 0)));
+  $('wave').addEventListener('click', (e) => { if (!A) return; const r = e.currentTarget.getBoundingClientRect(); start((e.clientX - r.left) / r.width * A.L.length / A.sr); });
+  $('match').addEventListener('change', () => NX.player.playing() && start(NX.player.position()));
+  let raf; function tick() { cancelAnimationFrame(raf); drawW(); if (NX.player.playing()) raf = requestAnimationFrame(tick); }
+  function drawW() { if (!A) return; const { x, w, h } = NX.drawWave($('wave'), A.L, A.R); const p = NX.player.position(); if (p != null) { x.fillStyle = NX.css('--signal'); x.fillRect(p / (A.L.length / A.sr) * w, 0, 2, h); } }
+  // ---------- análisis offline de lo que se pierde
+  function analyze() {
+    const sr = A.sr, n = Math.min(A.L.length, sr * 90), off = Math.max(0, Math.floor(A.L.length / 2 - n / 2)), L = A.L.subarray(off, off + n), R = A.R.subarray(off, off + n);
+    const rmsDb = (x, y) => { let s = 0; for (let i = 0; i < x.length; i += 2) s += x[i] * x[i] + (y ? y[i] * y[i] : x[i] * x[i]); return 10 * Math.log10(s / x.length + 1e-15); };
+    const base = rmsDb(L, R), out = [];
+    // pérdida por sistema simulada offline con biquads
+    for (const [k, S] of Object.entries(SYS)) {
+      let l = L, r = R; if (S.mono === true) { const m = Float32Array.from(l, (v, i) => (v + r[i]) / 2); l = m; r = m; }
+      for (const [type, f, q, g] of S.f) { const co = NX.biquad(type, f, sr, q, g || 0); l = NX.filt(l, co); r = l === r ? l : NX.filt(r, co); }
+      const d = rmsDb(l, r) - base; MATCH[k] = NX.clamp(NX.undb(-d), 0.25, 4); const el = document.getElementById('score-' + k); if (el) el.textContent = (d >= 0 ? '+' : '') + d.toFixed(1).replace('.', ',') + ' dB';
+    }
+    // graves que el móvil no reproduce y si el bajo tiene armónicos audibles
+    const sub = NX.filt(NX.filt(L, NX.biquad('lowpass', 120, sr, 0.7)), NX.biquad('lowpass', 120, sr, 0.7)), harm = NX.filt(NX.filt(L, NX.biquad('highpass', 200, sr, 0.7)), NX.biquad('lowpass', 800, sr, 0.7));
+    const subShare = Math.pow(10, (rmsDb(sub) - rmsDb(L)) / 10), harmDb = rmsDb(harm) - rmsDb(sub);
+    // mono: energía que se anula al sumar canales
+    const mono = Float32Array.from(L, (v, i) => (v + R[i]) / 2), monoLoss = rmsDb(mono) - (rmsDb(L, R) - 3.01);
+    let sl = 0, sr2 = 0, sc = 0; for (let i = 0; i < n; i += 2) { sl += L[i] * L[i]; sr2 += R[i] * R[i]; sc += L[i] * R[i]; } const corr = sc / Math.sqrt(sl * sr2 + 1e-15);
+    const sideLow = (() => { const s = Float32Array.from(L, (v, i) => (v - R[i]) / 2), m2 = mono; const lp = (x) => NX.filt(NX.filt(x, NX.biquad('lowpass', 120, sr, 0.7)), NX.biquad('lowpass', 120, sr, 0.7)); return Math.pow(10, (rmsDb(lp(s)) - rmsDb(lp(m2))) / 20); })();
+    const lo = NX.loudness(A.L, A.R, sr), f1 = (v) => v.toFixed(1).replace('.', ',');
+    const add = (lvl, txt) => out.push({ lvl, txt });
+    if (subShare > 0.45 && harmDb < -14) add('bad', `Móvil y portátil: el ${Math.round(subShare * 100)} % de la energía está por debajo de 120 Hz y casi no tiene armónicos, así que el bajo desaparece. Satura un poco el bajo o añade una capa entre 200 y 800 Hz.`);
+    else if (subShare > 0.45) add('good', `Móvil: tus graves son profundos pero tienen armónicos, así que el bajo se sigue intuyendo en altavoces pequeños.`);
+    else add('good', 'Móvil: el bajo tiene presencia en medios; se oirá en altavoces pequeños.');
+    if (monoLoss < -1.5 || corr < 0.2) add('bad', `Mono (móvil, Bluetooth, bares): al sumar canales pierdes ${f1(-monoLoss)} dB. Algo está en contrafase: revisa ensanchadores y capas estéreo.`);
+    else add('good', `Mono: al sumar canales solo cambian ${f1(Math.abs(monoLoss))} dB. Aguanta bien.`);
+    if (sideLow > 0.3) add('warn', `Club: tus graves tienen bastante estéreo (${Math.round(sideLow * 100)} %). En un equipo grande se nota desigual según dónde estés: ponlos en mono por debajo de 120 Hz.`);
+    else add('good', 'Club: los graves están centrados; sonarán compactos en la pista.');
+    if (lo.truePeak > -1) add('warn', `Bluetooth y streaming: tu pico real es ${f1(lo.truePeak)} dBTP. Al convertirlo a AAC/MP3 puede saturar: déjalo en −1 dBTP.`);
+    if (lo.I < -14) add('info', `Coche: con ${f1(lo.I)} LUFS sonará más bajo que otros temas y el ruido de la carretera tapará los detalles. Sube el volumen del máster.`);
+    else add('good', `Coche: con ${f1(lo.I)} LUFS compite bien con el ruido del motor y la carretera.`);
+    const lbl = { good: 'bien', warn: 'ojo', bad: 'arreglar', info: 'idea' };
+    $('report').innerHTML = out.map((o) => `<li><span class="pill ${o.lvl === 'info' ? 'info' : o.lvl}">${lbl[o.lvl]}</span><span>${esc(o.txt)}</span></li>`).join('');
+  }
+  NX.dropzone($('drop'), $('in'), async (f) => { try { NX.player.stop(); A = await NX.decodeFile(f[0]); $('name').textContent = f[0].name; drawW(); analyze(); } catch (e) { NX.toast(e.message); } });
+  addEventListener('resize', drawW);
+  // ejemplo
+  (() => { const sr = 44100, n = sr * 12, L = new Float32Array(n), R = new Float32Array(n), beat = 60 / 124, f = (m) => 440 * Math.pow(2, (m - 69) / 12); for (let k = 0; k * beat < 12; k++) { const t0 = Math.round(k * beat * sr); let ph = 0; for (let i = 0; i < 0.35 * sr && t0 + i < n; i++) { const t = i / sr; ph += 2 * Math.PI * (48 + 100 * Math.exp(-t / 0.03)) / sr; const v = Math.sin(ph) * Math.exp(-t / 0.2) * 0.7; L[t0 + i] += v; R[t0 + i] += v * 0.7; } for (let i = 0; i < beat * sr && t0 + i < n; i++) { const t = i / sr; let v = 0; for (const m of [57, 60, 64]) v += Math.sin(2 * Math.PI * f(m) * t); L[t0 + i] += v * 0.04; R[t0 + i] -= v * 0.03; } } A = { L, R, sr }; $('name').textContent = 'Ejemplo: loop con graves profundos y estéreo problemático'; drawW(); analyze(); })();
+})();
+</script>

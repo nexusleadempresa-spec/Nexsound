@@ -1,0 +1,104 @@
+<title>Nexsound Rider y contrato</title>
+<!--HEAD-->
+<style>
+.checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; }
+.checks label { display: flex; gap: 8px; align-items: center; font-size: 14px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 560px) { .two { grid-template-columns: minmax(0, 1fr); } }
+pre.doc { white-space: pre-wrap; font: 13px/1.55 var(--f-mono); background: var(--sunk); border-radius: var(--r); padding: 14px; max-height: 60vh; overflow: auto; margin: 0; }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>Rider y contrato</h1>
+    <p class="lede">Prepara tu rider técnico y de hospitalidad y el contrato de actuación en minutos: marca el equipo que necesitas, pon los datos del bolo y descarga los dos documentos en PDF, listos para mandar al promotor y firmar.</p>
+  </header>
+  <div class="grid wide-left">
+    <div class="col">
+      <section class="panel">
+        <h2>Bolo</h2>
+        <div class="two">
+          <label class="field"><span>Artista</span><input type="text" id="artist" value="Nexsound"></label>
+          <label class="field"><span>Promotor / sala</span><input type="text" id="promoter" placeholder="Nombre o empresa"></label>
+          <label class="field"><span>Ciudad y sala</span><input type="text" id="venue" placeholder="Sala, ciudad"></label>
+          <label class="field"><span>Fecha</span><input type="date" id="date"></label>
+          <label class="field"><span>Hora de actuación</span><input type="text" id="time" value="01:00 – 03:00"></label>
+          <label class="field"><span>Prueba de sonido</span><input type="text" id="soundcheck" value="20:00"></label>
+          <label class="field"><span>Caché (€)</span><input type="number" id="fee" value="800"></label>
+          <label class="field"><span>Señal al firmar (%)</span><input type="number" id="deposit" value="50"></label>
+        </div>
+        <label class="field"><span>Viaje y alojamiento</span><select id="travel"><option value="promotor">Los paga el promotor</option><option value="artista">Incluidos en el caché</option><option value="local">No hay (bolo local)</option></select></label>
+      </section>
+      <section class="panel">
+        <h2>Equipo técnico</h2>
+        <div class="checks" id="tech"></div>
+        <label class="field"><span>Notas técnicas</span><textarea id="technotes" rows="3">Mesa a la altura de la cintura, estable y sin vibraciones. Monitores orientados al DJ. Cable de grabación (REC) para la sesión.</textarea></label>
+      </section>
+      <section class="panel">
+        <h2>Hospitalidad</h2>
+        <div class="checks" id="hosp"></div>
+        <label class="field"><span>Notas</span><textarea id="hospnotes" rows="2">Camerino o espacio privado cerca de la cabina.</textarea></label>
+      </section>
+      <section class="panel">
+        <h2>Condiciones del contrato</h2>
+        <label class="row small"><input type="checkbox" id="c-cancel" checked> Cancelación: si el promotor cancela con menos de 30 días, se paga el 100 %</label>
+        <label class="row small"><input type="checkbox" id="c-record" checked> El artista puede grabar audio y vídeo de su actuación</label>
+        <label class="row small"><input type="checkbox" id="c-promo" checked> El promotor usará el nombre y fotos facilitadas solo para promocionar el evento</label>
+        <label class="row small"><input type="checkbox" id="c-guest" checked> 4 invitaciones a nombre del artista</label>
+        <label class="field"><span>Otras cláusulas</span><textarea id="extra" rows="2"></textarea></label>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel">
+        <div class="row" style="justify-content:space-between"><h2>Documentos</h2><div class="seg" id="tab" role="group" aria-label="Documento"><button data-v="rider" aria-pressed="true">Rider</button><button data-v="contrato" aria-pressed="false">Contrato</button></div></div>
+        <pre class="doc" id="doc"></pre>
+        <div class="row"><button class="btn primary" id="pdf-r">Rider (PDF)</button><button class="btn primary" id="pdf-c">Contrato (PDF)</button><button class="btn" id="txt">Texto</button></div>
+        <p class="note">Plantilla orientativa: revisa las condiciones con tu agencia o un abogado antes de firmar contratos importantes. Se guarda sola en este navegador.</p>
+      </section>
+      <!--FOOT-->
+    </div>
+  </div>
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $, esc } = NX; const KEY = 'nexsound-rider-v1'; let tab = 'rider';
+  const TECH = ['2 reproductores CDJ-3000 (o CDJ-2000NXS2) en red', 'Mesa Pioneer DJM-900NXS2 / DJM-V10 o Allen & Heath Xone:96', '2 monitores de cabina de buena potencia', 'Micrófono inalámbrico', 'Toma de corriente libre en la cabina (para portátil)', 'Salida de grabación (REC/BOOTH) hacia una grabadora', 'Tocadiscos Technics SL-1210 MK2 con agujas', 'Iluminación de cabina regulable', 'Pantalla LED para visuales (entrada HDMI)'];
+  const HOSP = ['Agua sin gas (6 botellas)', 'Refrescos y zumos', 'Bebidas para el artista y 1 acompañante', 'Comida o dietas', 'Toallas pequeñas', 'Acceso de carga y descarga', 'Transporte hotel – sala – hotel', 'Hotel con desayuno (habitación doble)'];
+  let S = {}; try { S = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
+  const checks = (id, list, def) => { S[id] = S[id] || list.slice(0, def); $(id).innerHTML = list.map((t) => `<label><input type="checkbox" value="${esc(t)}" ${S[id].includes(t) ? 'checked' : ''}> ${esc(t)}</label>`).join(''); $(id).addEventListener('change', () => { S[id] = [...$(id).querySelectorAll('input:checked')].map((i) => i.value); persist(); }); };
+  checks('tech', TECH, 6); checks('hosp', HOSP, 4);
+  const IDS = ['artist', 'promoter', 'venue', 'date', 'time', 'soundcheck', 'fee', 'deposit', 'travel', 'technotes', 'hospnotes', 'extra', 'c-cancel', 'c-record', 'c-promo', 'c-guest'];
+  IDS.forEach((id) => { const el = $(id); if (S[id] != null) el.type === 'checkbox' ? (el.checked = S[id]) : (el.value = S[id]); el.addEventListener('input', () => { S[id] = el.type === 'checkbox' ? el.checked : el.value; persist(); }); });
+  if (!$('date').value) { const d = new Date(); d.setDate(d.getDate() + 30); $('date').value = d.toISOString().slice(0, 10); }
+  function persist() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} render(); }
+  const v = (id) => $(id).value.trim(), dateTxt = () => (v('date') ? new Date(v('date') + 'T12:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '—');
+  const money = (n) => (+n || 0).toLocaleString('es-ES') + ' €';
+  function rider() {
+    return ['# RIDER TÉCNICO Y DE HOSPITALIDAD', `${v('artist')} · ${v('venue') || '—'} · ${dateTxt()}`, '', '# Horarios', `Prueba de sonido: ${v('soundcheck') || 'a confirmar'}`, `Actuación: ${v('time') || 'a confirmar'}`, '', '# Equipo técnico', ...S.tech.map((t) => '- ' + t), ...(v('technotes') ? ['', ...v('technotes').split('\n')] : []), '', '# Hospitalidad', ...S.hosp.map((t) => '- ' + t), ...(v('hospnotes') ? ['', ...v('hospnotes').split('\n')] : []), '', 'Cualquier cambio en este rider debe acordarse por escrito con el artista antes del evento.'];
+  }
+  function contrato() {
+    const fee = +v('fee') || 0, dep = Math.round(fee * (+v('deposit') || 0) / 100);
+    const travel = { promotor: 'Los gastos de viaje, alojamiento y transporte local corren a cargo del PROMOTOR.', artista: 'Los gastos de viaje y alojamiento están incluidos en el caché.', local: 'No hay gastos de viaje ni alojamiento.' }[v('travel')];
+    const cl = [];
+    cl.push(`1. OBJETO. ${v('artist')} (el ARTISTA) actuará como DJ en ${v('venue') || '[sala, ciudad]'} el ${dateTxt()}, en horario ${v('time') || '[horario]'}, organizado por ${v('promoter') || '[promotor]'} (el PROMOTOR).`);
+    cl.push(`2. CACHÉ. El PROMOTOR pagará ${money(fee)} (impuestos aparte, según la legislación vigente). Señal del ${v('deposit')} % (${money(dep)}) a la firma; el resto (${money(fee - dep)}) antes del inicio de la actuación.`);
+    cl.push(`3. GASTOS. ${travel}`);
+    cl.push('4. RIDER. El PROMOTOR se compromete a cumplir el rider técnico y de hospitalidad adjunto. Si el equipo no está disponible, el ARTISTA podrá negarse a actuar sin perder el caché.');
+    if ($('c-cancel').checked) cl.push('5. CANCELACIÓN. Si el PROMOTOR cancela con menos de 30 días de antelación, abonará el 100 % del caché. Con más de 30 días, el ARTISTA conservará la señal. Las causas de fuerza mayor eximen a ambas partes.');
+    if ($('c-record').checked) cl.push('6. GRABACIÓN. El ARTISTA puede grabar audio y vídeo de su actuación y usarlo para su promoción.');
+    if ($('c-promo').checked) cl.push('7. PROMOCIÓN. El PROMOTOR usará el nombre, logos y fotos facilitados por el ARTISTA solo para promocionar este evento.');
+    if ($('c-guest').checked) cl.push('8. INVITACIONES. El ARTISTA dispondrá de 4 invitaciones a su nombre.');
+    if (v('extra')) cl.push('9. OTRAS CONDICIONES. ' + v('extra'));
+    return ['# CONTRATO DE ACTUACIÓN', `En ________________, a ____ de __________ de ______`, '', 'REUNIDOS', `De una parte, ${v('promoter') || '[promotor]'}, con DNI/CIF ____________ (el PROMOTOR).`, `De otra, ${v('artist')}, con DNI/NIF ____________ (el ARTISTA).`, '', 'ACUERDAN', ...cl.flatMap((c) => wrap(c, 92).concat([''])), 'Y en prueba de conformidad, firman por duplicado.', '', 'El PROMOTOR: ______________________          El ARTISTA: ______________________'];
+  }
+  const wrap = (s, n) => { const out = []; let cur = ''; for (const w of s.split(' ')) { if ((cur + ' ' + w).trim().length > n) { out.push(cur); cur = w; } else cur = (cur ? cur + ' ' : '') + w; } if (cur) out.push(cur); return out; };
+  function render() { $('doc').textContent = (tab === 'rider' ? rider() : contrato()).map((l) => l.replace(/^# /, '')).join('\n'); }
+  $('tab').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; tab = b.dataset.v; [...$('tab').children].forEach((x) => x.setAttribute('aria-pressed', x === b)); render(); });
+  const base = () => NX.cleanName(v('artist') + '_' + (v('venue') || 'bolo'));
+  $('pdf-r').addEventListener('click', () => NX.save(base() + '_rider.pdf', NX.textPdf(rider().flatMap((l) => (l.startsWith('# ') ? [l] : wrap(l, 92))), 'Rider ' + v('artist'))));
+  $('pdf-c').addEventListener('click', () => NX.save(base() + '_contrato.pdf', NX.textPdf(contrato(), 'Contrato ' + v('artist'))));
+  $('txt').addEventListener('click', () => NX.save(base() + '_' + tab + '.txt', $('doc').textContent));
+  render();
+})();
+</script>

@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style><title>Nexsound Reparto</title>
+<title>Nexsound Lanzamiento</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"><style>/* Nexsound · estilo común. Layout: mesa de trabajo — cabecera de herramienta, columna de entrada y banco de resultados. */
 :root {
   --bg: #EEF1EC; --surface: #F8FAF6; --sunk: #E3E8E2; --ink: #18211C; --muted: #5E6C64; --line: #CDD5CF;
@@ -109,74 +109,42 @@ table.data tr:last-child td { border-bottom: 0; }
 footer.nx { font-size: 12px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 14px; }
 footer.nx a { color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-</style></head><body>
+</style>
 <style>
-table.data td input, table.data td select { padding: 7px 8px; font-size: 13px; }
-table.data td.pct input { width: 76px; text-align: right; }
-table.data td.money { font-family: var(--f-mono); text-align: right; font-variant-numeric: tabular-nums; }
-.sum { font: 700 13px/1 var(--f-mono); }
-.sum.ok { color: var(--good); } .sum.bad { color: var(--danger); }
-.bars { display: grid; gap: 6px; }
-.barrow { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13px; }
-.stack { display: flex; height: 22px; border-radius: 4px; overflow: hidden; background: var(--sunk); }
-.stack i { display: block; height: 100%; }
-.keys { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
-.keys span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; background: var(--c); vertical-align: -1px; }
+.tl { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.tl li { display: grid; grid-template-columns: 92px 28px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.tl li.done .what { text-decoration: line-through; color: var(--muted); }
+.tl li.today { background: color-mix(in srgb, var(--signal) 10%, transparent); }
+.tl .date { font: 600 12px/1.3 var(--f-mono); color: var(--muted); }
+.tl .date b { display: block; color: var(--ink); font-size: 13px; }
+.tl .what b { display: block; font-size: 14px; }
+.tl .what span { font-size: 13px; color: var(--muted); }
+.tl .cat { font: 600 10px/1 var(--f-mono); text-transform: uppercase; letter-spacing: .05em; padding: 4px 6px; border-radius: 3px; border: 1px solid currentColor; white-space: nowrap; }
 .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-@media (max-width: 560px) { .two { grid-template-columns: minmax(0, 1fr); } }
 </style>
 <div class="wrap">
   <div class="top"><a class="brand" href="index.html"><b>Nexsound</b> · Herramientas</a><a class="btn small" href="index.html">Todas las herramientas</a></div>
   <header class="tool">
-    <h1>Reparto</h1>
-    <p class="lede">Deja claro quién se lleva qué antes de publicar. Apunta a cada colaborador con su parte de autoría (composición y letra) y su parte del máster (la grabación). Calcula lo que genera el tema por plataforma y descarga la hoja de reparto lista para firmar.</p>
+    <h1>Lanzamiento</h1>
+    <p class="lede">Pon la fecha de salida de tu tema y te monta el plan día a día: cuándo subirlo a la distribuidora, cuándo enviarlo a la editorial de Spotify, el pre-save, los teasers, la nota de prensa y qué revisar después. Marca lo que vas haciendo y llévate el plan a tu calendario.</p>
   </header>
-  <div class="grid wide-left">
+  <div class="grid">
     <div class="col">
       <section class="panel">
-        <div class="row" style="justify-content:space-between"><h2>Tema</h2><span class="tag" id="example-tag">Ejemplo · cámbialo por el tuyo</span></div>
-        <div class="two">
-          <label class="field"><span>Título</span><input type="text" id="title"></label>
-          <label class="field"><span>Artista principal</span><input type="text" id="artist"></label>
-          <label class="field"><span>ISRC (si lo tienes)</span><input type="text" id="isrc" placeholder="ES-XXX-26-00001"></label>
-          <label class="field"><span>Fecha del acuerdo</span><input type="text" id="date"></label>
-        </div>
+        <h2>Tu lanzamiento</h2>
+        <label class="field"><span>Título</span><input type="text" id="title" value="Conéctate"></label>
+        <label class="field"><span>Fecha de salida (mejor un viernes)</span><input type="date" id="date"></label>
+        <div class="two"><label class="field"><span>Formato</span><select id="kind"><option value="single">Single</option><option value="ep">EP</option><option value="album">Álbum</option></select></label><label class="field"><span>¿Hay videoclip?</span><select id="video"><option value="si">Sí</option><option value="no">No</option></select></label></div>
+        <label class="row small"><input type="checkbox" id="press" checked> Incluir prensa y blogs</label>
+        <label class="row small"><input type="checkbox" id="ads" checked> Incluir publicidad pagada</label>
       </section>
       <section class="panel">
-        <h2>Ingresos estimados</h2>
-        <div class="tablewrap"><table class="data" id="plat"><thead><tr><th>Plataforma</th><th class="num">Reproducciones</th><th class="num">€ por reproducción</th><th class="num">Bruto</th></tr></thead><tbody></tbody></table></div>
-        <div class="two">
-          <label class="field"><span>Comisión de la distribuidora <output id="o-fee"></output></span><input type="range" id="fee" min="0" max="30" value="10"></label>
-          <label class="field"><span>Derechos de autor sobre el bruto <output id="o-pub"></output></span><input type="range" id="pub" min="0" max="30" value="15"></label>
-        </div>
-        <p class="note">Las tarifas por reproducción son medias aproximadas y cambian por país, tipo de cuenta y mes: ajústalas con lo que ves en tu distribuidora. Los derechos de autor los cobra la entidad de gestión (SGAE u otra) y se reparten según la autoría.</p>
+        <div class="facts three"><div class="fact"><span>Faltan</span><b id="left">—</b><small>días</small></div><div class="fact"><span>Hecho</span><b id="done">—</b><small id="donep"></small></div><div class="fact"><span>Hoy toca</span><b id="today" style="font-size:16px">—</b></div></div>
+        <div class="row"><button class="btn primary" id="ics">Añadir al calendario (.ics)</button><button class="btn" id="txt">Lista en texto</button></div>
       </section>
     </div>
     <div class="col">
-      <section class="panel">
-        <div class="row" style="justify-content:space-between"><h2>Colaboradores</h2>
-          <div class="row"><button class="btn small" id="eq-pub">Autoría a partes iguales</button><button class="btn small" id="eq-mas">Máster a partes iguales</button></div></div>
-        <div class="tablewrap"><table class="data" id="people"><thead><tr><th>Nombre</th><th>Rol</th><th class="num">Autoría %</th><th class="num">Máster %</th><th class="num">Le toca</th><th></th></tr></thead><tbody></tbody>
-          <tfoot><tr><td><button class="btn small" id="add">Añadir colaborador</button></td><td class="muted small">Suma</td><td class="num"><span class="sum" id="sum-pub"></span></td><td class="num"><span class="sum" id="sum-mas"></span></td><td class="money" id="sum-money"></td><td></td></tr></tfoot></table></div>
-        <div class="bars"><div class="barrow"><span>Autoría</span><div class="stack" id="bar-pub"></div></div><div class="barrow"><span>Máster</span><div class="stack" id="bar-mas"></div></div></div>
-        <div class="keys" id="keys"></div>
-      </section>
-      <section class="panel">
-        <h2>Resumen</h2>
-        <div class="facts three">
-          <div class="fact"><span>Bruto total</span><b id="t-gross"></b><small id="t-streams"></small></div>
-          <div class="fact"><span>Para el máster</span><b id="t-master"></b><small>tras comisión y autoría</small></div>
-          <div class="fact"><span>Derechos de autor</span><b id="t-pub"></b><small>estimados</small></div>
-        </div>
-        <div class="row">
-          <button class="btn primary" id="pdf">Hoja de reparto (PDF)</button>
-          <button class="btn" id="csv">CSV</button>
-          <button class="btn" id="json">Guardar archivo</button>
-          <label class="btn" for="load">Abrir archivo</label><input type="file" id="load" accept=".json,application/json" hidden>
-        </div>
-        <div class="err" id="err" hidden></div>
-        <p class="note">Esta hoja documenta el acuerdo entre las partes y no sustituye el consejo de un abogado. Se guarda sola en este navegador mientras la editas.</p>
-      </section>
+      <section class="panel"><h2>Plan día a día</h2><ul class="tl" id="tl"></ul></section>
       <footer class="nx"><span>Nexsound · todo se procesa en tu navegador</span><a href="despiece.html">Despiece</a> <a href="master.html">Master</a> <a href="samplelab.html">Sample Lab</a> <a href="bpm.html">BPM y Tono</a> <a href="afinador.html">Afinador de voz</a> <a href="ritmos.html">Ritmos</a> <a href="comparador.html">Comparador</a> <a href="clips.html">Clips</a> <a href="visualizador.html">Visualizador</a> <a href="splits.html">Reparto</a> <a href="radar.html">Radar</a> <a href="setcam.html">Set Cam</a> <a href="obs.html">Directo OBS</a> <a href="tracklist.html">Tracklist</a> <a href="transiciones.html">Transiciones</a> <a href="ordenset.html">Orden de set</a> <a href="sistemas.html">Prueba de sistemas</a> <a href="portadas.html">Portadas</a> <a href="lanzamiento.html">Lanzamiento</a> <a href="epk.html">EPK</a> <a href="rider.html">Rider y contrato</a> <a href="cache.html">Caché y gira</a> <a href="samples.html">Samples</a> <a href="practica.html">Práctica</a></footer>
     </div>
   </div>
@@ -2472,78 +2440,51 @@ self.onmessage = async (e) => { try {
 </script>
 <script>
 (() => {
-  const { $, esc } = NX; const KEY = 'nexsound-reparto-v1';
-  const ROLES = ['Compositor/a', 'Letrista', 'Productor/a', 'Intérprete', 'Mezcla y máster', 'Sello', 'Otro'];
-  const COLS = ['#0F7A62', '#B8661F', '#3B6FB6', '#8A4FA8', '#A63A2B', '#4E8F3A', '#6B6B6B', '#C49A1B'];
-  const money = (v) => v.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: v < 100 ? 2 : 0 });
-  const EXAMPLE = { title: 'Conéctate', artist: 'Nexsound', isrc: '', date: new Date().toLocaleDateString('es-ES'), fee: 10, pub: 15, example: true,
-    people: [{ name: 'Nexsound', role: 'Productor/a', pub: 40, mas: 60 }, { name: 'Colaborador/a voz', role: 'Intérprete', pub: 30, mas: 25 }, { name: 'Letrista invitado/a', role: 'Letrista', pub: 30, mas: 15 }],
-    plat: [['Spotify', 250000, 0.0035], ['Apple Music', 40000, 0.007], ['YouTube', 300000, 0.0012], ['Amazon Music', 20000, 0.004], ['Deezer', 15000, 0.0035], ['TIDAL', 5000, 0.0125]] };
-  let S;
-  try { S = JSON.parse(localStorage.getItem(KEY)) || null; } catch (e) { S = null; }
-  if (!S || !S.people) S = JSON.parse(JSON.stringify(EXAMPLE));
+  const { $, esc } = NX; const KEY = 'nexsound-lanzamiento-v1'; let S = {};
+  try { S = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
-  function bindTop() {
-    for (const k of ['title', 'artist', 'isrc', 'date']) { $(k).value = S[k] || ''; $(k).oninput = () => { S[k] = $(k).value; S.example = false; save(); $('example-tag').hidden = true; }; }
-    $('fee').value = S.fee; $('pub').value = S.pub; $('example-tag').hidden = !S.example;
-    $('fee').oninput = () => { S.fee = +$('fee').value; calc(); }; $('pub').oninput = () => { S.pub = +$('pub').value; calc(); };
+  const COL = { audio: 'var(--accent)', distribución: 'var(--signal)', plataformas: '#3B6FB6', contenido: '#8A4FA8', prensa: 'var(--warn)', publicidad: 'var(--danger)', análisis: 'var(--muted)' };
+  // tareas: [días respecto a la salida, categoría, título, detalle, condición]
+  const TASKS = [
+    [-42, 'audio', 'Mezcla y máster cerrados', 'Escucha el máster en móvil, coche y club (Prueba de sistemas). Volumen en −9 a −14 LUFS y pico ≤ −1 dBTP.'],
+    [-35, 'contenido', 'Portada en 3000 × 3000', 'Sin URLs ni logos de tiendas; el texto debe coincidir con título y artista.'],
+    [-35, 'distribución', 'Metadatos y créditos', 'Título, artistas, compositores, productores, género, idioma, letra explícita sí/no y reparto firmado (Reparto).'],
+    [-28, 'distribución', 'Subir a la distribuidora', 'Con 4 semanas da tiempo a que llegue a todas las tiendas y a pedir playlists editoriales. Pide el ISRC y el código UPC.'],
+    [-26, 'plataformas', 'Enlace de pre-save', 'Crea la página de pre-guardado (la mayoría de distribuidoras lo generan) y ponlo en tu bio.'],
+    [-24, 'plataformas', 'Propuesta a la editorial de Spotify', 'En Spotify for Artists, «Proponer un tema»: como mínimo 7 días antes, mejor 2-4 semanas. Usa la ficha de Radar (género, estado de ánimo, instrumentos).'],
+    [-21, 'contenido', 'Plan de contenido', '6-10 piezas cortas: detrás de las cámaras, el drop (Clips), el visualizador, el proceso en el estudio.'],
+    [-18, 'contenido', 'Grabar el videoclip o visualizer', 'Si no hay videoclip, un visualizer con la portada (Visualizador) para YouTube y Canvas de Spotify.', 'video'],
+    [-14, 'prensa', 'Nota de prensa y EPK', 'Una página con bio, fotos, el tema en privado y contacto (EPK).', 'press'],
+    [-12, 'prensa', 'Enviar a blogs, radios y curadores', 'Mensajes personales, con el enlace privado y la ficha. Nada de envíos masivos.', 'press'],
+    [-10, 'contenido', 'Primer teaser', '15 s del mejor momento, en vertical, con el enlace de pre-save.'],
+    [-7, 'plataformas', 'Canvas de Spotify y perfil al día', 'Vídeo vertical de 3-8 s en bucle; foto y bio actualizadas en todas las plataformas.'],
+    [-5, 'contenido', 'Segundo teaser', 'Otro ángulo: la letra, la reacción del público, el antes y después.'],
+    [-3, 'publicidad', 'Preparar anuncios', 'Campaña pequeña en Instagram/TikTok apuntando al pre-save o al tema el día de salida.', 'ads'],
+    [-1, 'contenido', 'Cuenta atrás', 'Historias con cuenta atrás y recordatorio.'],
+    [0, 'plataformas', 'Día de salida', 'Publica en todas las redes con el enlace, comparte las playlists y responde a todos.'],
+    [0, 'publicidad', 'Lanzar anuncios', 'Presupuesto diario pequeño los primeros 7 días; mide el coste por oyente.', 'ads'],
+    [1, 'contenido', 'Gracias y reacciones', 'Comparte las historias de quien lo escuche y comparta.'],
+    [3, 'contenido', 'Clip del drop', 'El momento más fuerte en 15 s; prueba varias versiones.'],
+    [7, 'análisis', 'Revisar números', 'Oyentes, guardados y de dónde vienen (Spotify for Artists). Ajusta anuncios y contenido.'],
+    [14, 'plataformas', 'Curadores independientes', 'Con datos de la primera semana, envíalo a playlists independientes de tu estilo.'],
+    [28, 'análisis', 'Balance del lanzamiento', 'Qué contenido funcionó, qué playlists entraron y qué repetir en el siguiente.'],
+  ];
+  if (!S.date) { const d = new Date(); d.setDate(d.getDate() + 35); d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7)); S.date = d.toISOString().slice(0, 10); }
+  $('date').value = S.date; $('title').value = S.title || 'Conéctate'; $('kind').value = S.kind || 'single'; $('video').value = S.video || 'si'; $('press').checked = S.press !== false; $('ads').checked = S.ads !== false; S.done = S.done || {};
+  ['date', 'title', 'kind', 'video', 'press', 'ads'].forEach((id) => $(id).addEventListener('input', () => { S[id] = $(id).type === 'checkbox' ? $(id).checked : $(id).value; save(); render(); }));
+  const day = (off) => { const d = new Date(S.date + 'T12:00:00'); d.setDate(d.getDate() + off - (S.kind === 'album' && off < 0 ? 14 : S.kind === 'ep' && off < 0 ? 7 : 0)); return d; };
+  const list = () => TASKS.filter((t) => !t[4] || (t[4] === 'video' ? $('video').value === 'si' : $(t[4]).checked)).map((t, i) => ({ id: t[2], off: t[0], cat: t[1], title: t[2], text: t[3], date: day(t[0]) }));
+  const fmt = (d) => d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+  function render() {
+    const L = list(), now = new Date(); now.setHours(12, 0, 0, 0); const rel = new Date(S.date + 'T12:00:00');
+    $('left').textContent = Math.round((rel - now) / 864e5); const dn = L.filter((t) => S.done[t.id]).length; $('done').textContent = `${dn}/${L.length}`; $('donep').textContent = Math.round(dn / L.length * 100) + ' %';
+    const next = L.find((t) => !S.done[t.id]); $('today').textContent = next ? next.title : '¡Todo hecho!';
+    $('tl').innerHTML = L.map((t) => { const isToday = t.date.toDateString() === now.toDateString(), late = t.date < now && !S.done[t.id]; return `<li class="${S.done[t.id] ? 'done' : ''} ${isToday ? 'today' : ''}"><div class="date"><b>${fmt(t.date)}</b>${t.off === 0 ? 'salida' : (t.off > 0 ? '+' : '') + t.off + ' días'}${late ? ' · <span style="color:var(--danger)">atrasado</span>' : ''}</div><input type="checkbox" data-id="${esc(t.id)}" ${S.done[t.id] ? 'checked' : ''} aria-label="Hecho: ${esc(t.title)}"><div class="what"><b>${esc(t.title)}</b><span>${esc(t.text)}</span></div><span class="cat" style="color:${COL[t.cat]}">${t.cat}</span></li>`; }).join('');
   }
-  function renderPeople() {
-    $('people').tBodies[0].innerHTML = S.people.map((p, i) => `<tr data-i="${i}"><td><input type="text" data-k="name" value="${esc(p.name)}" aria-label="Nombre" style="border-left:4px solid ${COLS[i % COLS.length]}"></td>
-      <td><select data-k="role" aria-label="Rol">${ROLES.map((r) => `<option ${r === p.role ? 'selected' : ''}>${r}</option>`).join('')}</select></td>
-      <td class="pct"><input type="number" data-k="pub" min="0" max="100" step="0.5" value="${p.pub}" aria-label="Autoría %"></td>
-      <td class="pct"><input type="number" data-k="mas" min="0" max="100" step="0.5" value="${p.mas}" aria-label="Máster %"></td>
-      <td class="money" data-money="${i}"></td><td><button class="dl" data-del="${i}" aria-label="Quitar">Quitar</button></td></tr>`).join('');
-    calc();
-  }
-  function renderPlat() {
-    $('plat').tBodies[0].innerHTML = S.plat.map((r, i) => `<tr data-p="${i}"><td>${esc(r[0])}</td><td class="pct"><input type="number" data-pk="1" min="0" step="1000" value="${r[1]}" aria-label="Reproducciones en ${esc(r[0])}" style="width:120px"></td><td class="pct"><input type="number" data-pk="2" min="0" step="0.0001" value="${r[2]}" aria-label="Euros por reproducción en ${esc(r[0])}" style="width:100px"></td><td class="money" data-gross="${i}"></td></tr>`).join('');
-  }
-  $('people').addEventListener('input', (e) => { const tr = e.target.closest('tr[data-i]'); if (!tr) return; const p = S.people[+tr.dataset.i], k = e.target.dataset.k; p[k] = k === 'pub' || k === 'mas' ? Math.max(0, +e.target.value || 0) : e.target.value; S.example = false; $('example-tag').hidden = true; calc(); });
-  $('people').addEventListener('change', (e) => { if (e.target.dataset.k === 'role') { const tr = e.target.closest('tr[data-i]'); S.people[+tr.dataset.i].role = e.target.value; save(); } });
-  $('people').addEventListener('click', (e) => { const d = e.target.closest('[data-del]'); if (d) { S.people.splice(+d.dataset.del, 1); renderPeople(); } });
-  $('plat').addEventListener('input', (e) => { const tr = e.target.closest('tr[data-p]'); if (!tr) return; S.plat[+tr.dataset.p][+e.target.dataset.pk] = Math.max(0, +e.target.value || 0); calc(); });
-  $('add').addEventListener('click', () => { S.people.push({ name: '', role: 'Compositor/a', pub: 0, mas: 0 }); renderPeople(); const ins = $('people').querySelectorAll('input[data-k="name"]'); ins[ins.length - 1].focus(); });
-  const equal = (k) => { const n = S.people.length; if (!n) return; const v = Math.floor(10000 / n) / 100; S.people.forEach((p, i) => (p[k] = i === n - 1 ? Math.round((100 - v * (n - 1)) * 100) / 100 : v)); renderPeople(); };
-  $('eq-pub').addEventListener('click', () => equal('pub')); $('eq-mas').addEventListener('click', () => equal('mas'));
-  function totals() {
-    const gross = S.plat.reduce((s, r) => s + r[1] * r[2], 0), streams = S.plat.reduce((s, r) => s + r[1], 0);
-    const pubPool = gross * S.pub / 100, masterPool = (gross - pubPool) * (1 - S.fee / 100);
-    return { gross, streams, pubPool, masterPool };
-  }
-  function calc() {
-    const sp = S.people.reduce((s, p) => s + (+p.pub || 0), 0), sm = S.people.reduce((s, p) => s + (+p.mas || 0), 0), t = totals();
-    $('sum-pub').textContent = sp.toFixed(1).replace('.', ',') + ' %'; $('sum-pub').className = 'sum ' + (Math.abs(sp - 100) < 0.01 ? 'ok' : 'bad');
-    $('sum-mas').textContent = sm.toFixed(1).replace('.', ',') + ' %'; $('sum-mas').className = 'sum ' + (Math.abs(sm - 100) < 0.01 ? 'ok' : 'bad');
-    S.people.forEach((p, i) => { const el = document.querySelector(`[data-money="${i}"]`); if (el) el.textContent = money(t.pubPool * p.pub / 100 + t.masterPool * p.mas / 100); });
-    $('sum-money').textContent = money(t.pubPool * sp / 100 + t.masterPool * sm / 100);
-    S.plat.forEach((r, i) => { const el = document.querySelector(`[data-gross="${i}"]`); if (el) el.textContent = money(r[1] * r[2]); });
-    $('t-gross').textContent = money(t.gross); $('t-streams').textContent = t.streams.toLocaleString('es-ES') + ' reproducciones'; $('t-master').textContent = money(t.masterPool); $('t-pub').textContent = money(t.pubPool);
-    $('o-fee').textContent = S.fee + ' %'; $('o-pub').textContent = S.pub + ' %';
-    const bar = (k) => S.people.map((p, i) => `<i style="width:${Math.max(0, p[k])}%;background:${COLS[i % COLS.length]}" title="${esc(p.name || 'Sin nombre')}: ${p[k]} %"></i>`).join('');
-    $('bar-pub').innerHTML = bar('pub'); $('bar-mas').innerHTML = bar('mas');
-    $('keys').innerHTML = S.people.map((p, i) => `<span style="--c:${COLS[i % COLS.length]}">${esc(p.name || 'Sin nombre')}</span>`).join('');
-    const okAll = Math.abs(sp - 100) < 0.01 && Math.abs(sm - 100) < 0.01 && S.people.every((p) => p.name.trim());
-    $('err').hidden = okAll; $('err').textContent = !S.people.every((p) => p.name.trim()) ? 'Falta el nombre de algún colaborador.' : 'La autoría y el máster tienen que sumar 100 % cada uno antes de firmar.';
-    save();
-  }
-  // exportar
-  function lines() {
-    const t = totals(), L = ['# HOJA DE REPARTO', `Tema: ${S.title || '—'}`, `Artista principal: ${S.artist || '—'}`, `ISRC: ${S.isrc || '—'}`, `Fecha del acuerdo: ${S.date || '—'}`, '',
-      'Las partes acuerdan el siguiente reparto de la obra (autoría: música y letra) y de la grabación (máster):', '', '# Reparto'];
-    S.people.forEach((p) => L.push(`${(p.name || '—').padEnd(32).slice(0, 32)}  ${p.role.padEnd(16)}  Autoría ${String(p.pub).padStart(5)} %   Máster ${String(p.mas).padStart(5)} %`));
-    L.push('', `Total autoría: ${S.people.reduce((s, p) => s + +p.pub, 0)} %   Total máster: ${S.people.reduce((s, p) => s + +p.mas, 0)} %`, '', '# Estimación de ingresos (orientativa)');
-    S.plat.forEach((r) => L.push(`${r[0].padEnd(14)} ${String(r[1].toLocaleString('es-ES')).padStart(12)} reproducciones x ${r[2]} € = ${money(r[1] * r[2])}`));
-    L.push(`Bruto: ${money(t.gross)} · Derechos de autor (${S.pub} %): ${money(t.pubPool)} · Máster tras comisión (${S.fee} %): ${money(t.masterPool)}`, '', '# Firmas');
-    S.people.forEach((p) => L.push('', `${p.name || '—'} (${p.role})`, 'Firma: ______________________________   DNI/NIE: ________________'));
-    return L;
-  }
-  const base = () => 'reparto_' + NX.cleanName(S.title || 'tema');
-  $('pdf').addEventListener('click', () => NX.save(base() + '.pdf', NX.textPdf(lines(), 'Hoja de reparto · ' + (S.title || ''))));
-  $('csv').addEventListener('click', () => NX.save(base() + '.csv', '﻿' + ['nombre;rol;autoria_pct;master_pct', ...S.people.map((p) => `"${p.name.replace(/"/g, '""')}";${p.role};${p.pub};${p.mas}`)].join('\n')));
-  $('json').addEventListener('click', () => NX.save(base() + '.json', JSON.stringify(S, null, 1)));
-  $('load').addEventListener('change', async (e) => { const f = e.target.files[0]; if (!f) return; try { const d = JSON.parse(await f.text()); if (!Array.isArray(d.people)) throw 0; S = d; bindTop(); renderPlat(); renderPeople(); NX.toast('Reparto cargado: ' + (S.title || f.name)); } catch (err) { NX.toast('Ese archivo no es un reparto de Nexsound.'); } e.target.value = ''; });
-  bindTop(); renderPlat(); renderPeople();
+  $('tl').addEventListener('change', (e) => { const id = e.target.dataset.id; if (id) { S.done[id] = e.target.checked; save(); render(); } });
+  const ymd = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
+  $('ics').addEventListener('click', () => { const L = list(), esc2 = (s) => s.replace(/[,;\\]/g, (m) => '\\' + m), stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z'; const ev = L.map((t, i) => { const e = new Date(t.date); e.setDate(e.getDate() + 1); return ['BEGIN:VEVENT', `UID:nexsound-${ymd(t.date)}-${i}@nexsound.es`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${ymd(t.date)}`, `DTEND;VALUE=DATE:${ymd(e)}`, `SUMMARY:${esc2($('title').value + ' · ' + t.title)}`, `DESCRIPTION:${esc2(t.text)}`, 'END:VEVENT'].join('\r\n'); }); NX.save(NX.cleanName($('title').value) + '_lanzamiento.ics', ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Nexsound//Lanzamiento//ES', 'CALSCALE:GREGORIAN', ...ev, 'END:VCALENDAR'].join('\r\n')); });
+  $('txt').addEventListener('click', () => NX.save(NX.cleanName($('title').value) + '_lanzamiento.txt', `Plan de lanzamiento · ${$('title').value} · sale el ${fmt(new Date(S.date + 'T12:00:00'))}\n\n` + list().map((t) => `[${S.done[t.id] ? 'x' : ' '}] ${fmt(t.date)} — ${t.title}: ${t.text}`).join('\n') + '\n'));
+  render();
 })();
 </script>
-</body></html>

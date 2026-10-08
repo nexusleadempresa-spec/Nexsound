@@ -1,0 +1,84 @@
+<title>Nexsound Portadas</title>
+<!--HEAD-->
+<style>
+.stage { display: grid; place-items: center; background: var(--sunk); border-radius: var(--r); padding: 12px; }
+.stage canvas { width: 100%; max-width: 560px; aspect-ratio: 1; height: auto; box-shadow: 0 8px 28px rgba(0,0,0,.2); display: block; }
+.tpls { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.tpls button { padding: 8px; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font: 600 12px/1.2 var(--f-body); }
+.tpls button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.colors { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.colors input[type="color"] { width: 44px; height: 34px; border: 1px solid var(--line); border-radius: var(--r); background: none; padding: 2px; }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>Portadas</h1>
+    <p class="lede">Crea la portada de tu tema en 3000 × 3000 píxeles, el tamaño que piden Spotify, Apple Music y todas las distribuidoras. Elige una plantilla, pon tu foto, título y nombre, ajusta colores y grano, y descárgala en PNG o JPG.</p>
+  </header>
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2>Texto</h2>
+        <label class="field"><span>Título</span><input type="text" id="title" value="Conéctate"></label>
+        <label class="field"><span>Artista</span><input type="text" id="artist" value="Nexsound"></label>
+        <label class="field"><span>Línea extra (opcional)</span><input type="text" id="extra" placeholder="feat. · remix · single"></label>
+        <label class="field"><span>Letra</span><select id="font"><option value="Archivo">Archivo (ancha)</option><option value="IBM Plex Sans">Plex Sans</option><option value="IBM Plex Mono">Plex Mono</option><option value="Georgia">Georgia (serif)</option><option value="Impact">Impact (compacta)</option></select></label>
+      </section>
+      <section class="panel">
+        <h2>Imagen</h2>
+        <label class="drop" id="drop" for="in"><strong>Suelta una foto</strong><small>JPG o PNG (si no, solo color)</small></label><input type="file" id="in" accept="image/*" hidden>
+        <div class="row"><span class="file" id="iname">Sin foto</span><button class="btn small" id="clear" hidden>Quitar</button></div>
+        <label class="field"><span>Zoom de la foto <output id="o-zoom"></output></span><input type="range" id="zoom" min="100" max="250" value="100"></label>
+        <label class="field"><span>Mover foto (horizontal) <output id="o-px"></output></span><input type="range" id="px" min="-50" max="50" value="0"></label>
+        <label class="field"><span>Mover foto (vertical) <output id="o-py"></output></span><input type="range" id="py" min="-50" max="50" value="0"></label>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel">
+        <h2>Plantilla</h2>
+        <div class="tpls" id="tpls"></div>
+        <div class="colors"><label class="small muted">Fondo <input type="color" id="c1" value="#0F3B31"></label><label class="small muted">Degradado <input type="color" id="c2" value="#06110C"></label><label class="small muted">Texto <input type="color" id="c3" value="#FFFFFF"></label><label class="small muted">Acento <input type="color" id="c4" value="#43C19F"></label><button class="btn small" id="fromimg" disabled>Colores de la foto</button></div>
+        <div class="two"><label class="field"><span>Grano <output id="o-grain"></output></span><input type="range" id="grain" min="0" max="60" value="14"></label><label class="field"><span>Tamaño del título <output id="o-size"></output></span><input type="range" id="size" min="50" max="160" value="100"></label></div>
+        <div class="stage"><canvas id="cv" width="3000" height="3000" aria-label="Vista previa de la portada"></canvas></div>
+        <div class="row"><button class="btn primary" id="png">Descargar PNG 3000 × 3000</button><button class="btn" id="jpg">JPG</button><button class="btn" id="sq">Versión 1080 para redes</button></div>
+        <p class="note">Las distribuidoras rechazan portadas con URLs, redes sociales, precios o logos de tiendas, y piden que el texto coincida con el título y el artista que subes.</p>
+      </section>
+      <!--FOOT-->
+    </div>
+  </div>
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $ } = NX; let img = null, tpl = 'foto';
+  const TPL = { foto: 'Foto + degradado', tipo: 'Tipográfica', neon: 'Neón', circulo: 'Círculo', marco: 'Marco', bandas: 'Bandas' };
+  $('tpls').innerHTML = Object.entries(TPL).map(([k, n]) => `<button data-t="${k}" aria-pressed="${k === tpl}">${n}</button>`).join('');
+  $('tpls').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; tpl = b.dataset.t; [...$('tpls').children].forEach((x) => x.setAttribute('aria-pressed', x === b)); draw(); });
+  const outs = { zoom: (v) => v + ' %', px: (v) => v, py: (v) => v, grain: (v) => v, size: (v) => v + ' %' };
+  for (const [id, f] of Object.entries(outs)) { const u = () => ($('o-' + id).textContent = f(+$(id).value)); $(id).addEventListener('input', () => { u(); draw(); }); u(); }
+  ['title', 'artist', 'extra', 'font', 'c1', 'c2', 'c3', 'c4'].forEach((id) => $(id).addEventListener('input', draw));
+  NX.dropzone($('drop'), $('in'), (f) => { const im = new Image(); im.onload = () => { img = im; $('iname').textContent = f[0].name; $('clear').hidden = false; $('fromimg').disabled = false; draw(); }; im.src = URL.createObjectURL(f[0]); });
+  $('clear').addEventListener('click', () => { img = null; $('iname').textContent = 'Sin foto'; $('clear').hidden = true; $('fromimg').disabled = true; draw(); });
+  $('fromimg').addEventListener('click', () => { const c = NX.imageColors(img), hex = (s) => '#' + (s.match(/\d+/g) || [0, 0, 0]).slice(0, 3).map((v) => (+v).toString(16).padStart(2, '0')).join(''); $('c1').value = hex(c.bg1); $('c2').value = hex(c.bg2); $('c4').value = hex(c.accent); draw(); });
+  function cover(x, S, rect) { if (!img) return false; const [rx, ry, rw, rh] = rect || [0, 0, S, S], z = +$('zoom').value / 100, s = Math.max(rw / img.width, rh / img.height) * z, w = img.width * s, h = img.height * s, ox = (+$('px').value / 100) * (w - rw), oy = (+$('py').value / 100) * (h - rh); x.drawImage(img, rx + (rw - w) / 2 + ox, ry + (rh - h) / 2 + oy, w, h); return true; }
+  function fit(x, text, maxW, size, weight, font) { let s = size; x.font = `${weight} ${s}px "${font}", Arial, sans-serif`; while (s > 40 && x.measureText(text).width > maxW) { s -= 8; x.font = `${weight} ${s}px "${font}", Arial, sans-serif`; } return s; }
+  function draw(target) {
+    const cv = target || $('cv'), S = cv.width, x = cv.getContext('2d'), u = S / 3000, c1 = $('c1').value, c2 = $('c2').value, c3 = $('c3').value, c4 = $('c4').value, F = $('font').value, sz = +$('size').value / 100;
+    const T = $('title').value, A = $('artist').value, E = $('extra').value; x.save(); x.clearRect(0, 0, S, S); x.textBaseline = 'alphabetic';
+    const g = x.createLinearGradient(0, 0, S, S); g.addColorStop(0, c1); g.addColorStop(1, c2); x.fillStyle = g; x.fillRect(0, 0, S, S);
+    if (tpl === 'foto') { cover(x, S); const gr = x.createLinearGradient(0, S * 0.45, 0, S); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, c2 + 'EE'); x.fillStyle = gr; x.fillRect(0, 0, S, S); x.textAlign = 'left'; x.fillStyle = c3; fit(x, T.toUpperCase(), S * 0.86, 330 * u * sz, 800, F); x.fillText(T.toUpperCase(), 210 * u, S - 380 * u); x.fillStyle = c4; x.font = `600 ${130 * u}px "${F}", Arial`; x.fillText(A, 210 * u, S - 210 * u); if (E) { x.fillStyle = c3; x.globalAlpha = 0.7; x.font = `500 ${90 * u}px "${F}", Arial`; x.fillText(E, 210 * u, S - 640 * u); x.globalAlpha = 1; } }
+    if (tpl === 'tipo') { if (cover(x, S)) { x.fillStyle = c1 + 'D0'; x.fillRect(0, 0, S, S); } x.fillStyle = c3; x.textAlign = 'left'; const words = T.toUpperCase().split(/\s+/); let y = 520 * u; for (const w of words) { const s = fit(x, w, S * 0.86, 620 * u * sz, 800, F); y += s * 0.86; x.fillText(w, 200 * u, y); } x.fillStyle = c4; x.fillRect(200 * u, S - 470 * u, 480 * u, 22 * u); x.fillStyle = c3; x.font = `600 ${140 * u}px "${F}", Arial`; x.fillText(A.toUpperCase(), 200 * u, S - 260 * u); if (E) { x.font = `500 ${90 * u}px "${F}", Arial`; x.globalAlpha = 0.75; x.fillText(E, 200 * u, S - 140 * u); x.globalAlpha = 1; } }
+    if (tpl === 'neon') { x.fillStyle = '#05060A'; x.fillRect(0, 0, S, S); if (img) { x.globalAlpha = 0.35; cover(x, S); x.globalAlpha = 1; } x.textAlign = 'center'; x.shadowColor = c4; x.shadowBlur = 120 * u; x.strokeStyle = c4; x.lineWidth = 16 * u; fit(x, T, S * 0.84, 420 * u * sz, 800, F); x.strokeText(T, S / 2, S * 0.55); x.shadowBlur = 40 * u; x.fillStyle = c3; x.fillText(T, S / 2, S * 0.55); x.shadowBlur = 50 * u; x.font = `600 ${140 * u}px "${F}", Arial`; x.fillStyle = c4; x.fillText(A, S / 2, S * 0.72); x.shadowBlur = 0; if (E) { x.fillStyle = c3; x.font = `500 ${90 * u}px "${F}", Arial`; x.fillText(E, S / 2, S * 0.3); } }
+    if (tpl === 'circulo') { x.save(); x.beginPath(); x.arc(S / 2, S * 0.44, S * 0.3, 0, Math.PI * 2); x.closePath(); x.lineWidth = 30 * u; x.strokeStyle = c4; x.stroke(); x.clip(); if (!cover(x, S, [S * 0.2, S * 0.14, S * 0.6, S * 0.6])) { x.fillStyle = c4; x.globalAlpha = 0.3; x.fillRect(0, 0, S, S); x.globalAlpha = 1; } x.restore(); x.textAlign = 'center'; x.fillStyle = c3; fit(x, T, S * 0.84, 260 * u * sz, 800, F); x.fillText(T, S / 2, S * 0.86); x.fillStyle = c4; x.font = `600 ${120 * u}px "${F}", Arial`; x.fillText(A, S / 2, S * 0.94); }
+    if (tpl === 'marco') { const m = 170 * u; if (!cover(x, S, [m, m, S - 2 * m, S - 2 * m - 520 * u])) { x.fillStyle = c4; x.fillRect(m, m, S - 2 * m, S - 2 * m - 520 * u); } x.fillStyle = c3; x.textAlign = 'left'; fit(x, T, S - 2 * m, 240 * u * sz, 800, F); x.fillText(T, m, S - 300 * u); x.textAlign = 'right'; x.font = `500 ${110 * u}px "${F}", Arial`; x.fillStyle = c4; x.fillText(A, S - m, S - 160 * u); x.textAlign = 'left'; if (E) { x.fillStyle = c3; x.globalAlpha = 0.7; x.fillText(E, m, S - 160 * u); x.globalAlpha = 1; } }
+    if (tpl === 'bandas') { cover(x, S); for (let i = 0; i < 6; i++) { x.fillStyle = i % 2 ? c4 : c1; x.globalAlpha = 0.75; x.fillRect(0, S * 0.58 + i * 70 * u, S, 40 * u); } x.globalAlpha = 1; x.fillStyle = c2; x.fillRect(0, S * 0.7, S, S * 0.3); x.fillStyle = c3; x.textAlign = 'center'; fit(x, T.toUpperCase(), S * 0.88, 300 * u * sz, 800, F); x.fillText(T.toUpperCase(), S / 2, S * 0.85); x.fillStyle = c4; x.font = `600 ${120 * u}px "${F}", Arial`; x.fillText(A, S / 2, S * 0.94); }
+    // grano de película
+    const gr = +$('grain').value; if (gr) { const t = document.createElement('canvas'); t.width = t.height = 256; const tx = t.getContext('2d'), d = tx.createImageData(256, 256); for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = gr * 2.2; } tx.putImageData(d, 0, 0); x.globalCompositeOperation = 'overlay'; x.fillStyle = x.createPattern(t, 'repeat'); x.save(); x.scale(u * 3, u * 3); x.fillRect(0, 0, S / (u * 3), S / (u * 3)); x.restore(); x.globalCompositeOperation = 'source-over'; }
+    x.restore();
+  }
+  const out = (type, size, ext) => { let cv = $('cv'); if (size !== 3000) { cv = document.createElement('canvas'); cv.width = cv.height = size; draw(cv); } cv.toBlob((b) => NX.save(`${NX.cleanName($('artist').value + '_' + $('title').value)}_portada_${size}.${ext}`, b), type, 0.95); };
+  $('png').addEventListener('click', () => out('image/png', 3000, 'png')); $('jpg').addEventListener('click', () => out('image/jpeg', 3000, 'jpg')); $('sq').addEventListener('click', () => out('image/jpeg', 1080, 'jpg'));
+  draw(); document.fonts && document.fonts.ready.then(() => draw());
+})();
+</script>

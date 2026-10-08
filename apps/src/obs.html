@@ -1,0 +1,141 @@
+<title>Nexsound Directo OBS</title>
+<!--HEAD-->
+<style>
+.beatled { width: 100%; height: 120px; display: block; border-radius: var(--r); background: var(--sunk); }
+.scenes { display: grid; gap: 6px; }
+.scene { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; background: var(--surface); }
+.scene.live { border-color: var(--danger); box-shadow: inset 4px 0 0 var(--danger); }
+.scene select { width: auto; }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>Directo OBS</h1>
+    <p class="lede">Cambia de cámara al ritmo mientras pinchas en directo. La página escucha la música (la entrada de tu tarjeta de sonido o un micro), detecta el tempo y los drops, y le dice a OBS qué escena poner: una cámara nueva cada 4, 8 o 16 tiempos y el plano que elijas cuando entra el drop.</p>
+  </header>
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2>1 · Conectar con OBS</h2>
+        <div class="two"><label class="field"><span>Dirección</span><input type="text" id="host" value="localhost:4455"></label><label class="field"><span>Contraseña</span><input type="text" id="pass" placeholder="la de obs-websocket"></label></div>
+        <div class="row"><button class="btn primary" id="connect">Conectar</button><span class="pill" id="obsstate">sin conectar</span></div>
+        <p class="note">En OBS: Herramientas → Configuración del servidor WebSocket → activar. Copia aquí el puerto y la contraseña. Sin OBS puedes probarlo igual: verás qué escena pondría.</p>
+      </section>
+      <section class="panel">
+        <h2>2 · Escuchar la música</h2>
+        <div class="row"><button class="btn primary" id="mic">Usar entrada de audio</button><label class="btn" for="file">Probar con un tema</label><input type="file" id="file" accept="audio/*" hidden></div>
+        <select id="dev" aria-label="Entrada de audio" hidden></select>
+        <p class="note small">Para la mejor detección, usa la salida de la mesa (REC o BOOTH) metida en la tarjeta de sonido.</p>
+      </section>
+      <section class="panel">
+        <h2>3 · Reglas</h2>
+        <label class="field"><span>Cambiar de cámara cada</span><div class="seg" id="every" role="group" aria-label="Cada cuántos tiempos"><button data-v="4" aria-pressed="false">4 tiempos</button><button data-v="8" aria-pressed="true">8</button><button data-v="16" aria-pressed="false">16</button><button data-v="32" aria-pressed="false">32</button></div></label>
+        <label class="row small"><input type="checkbox" id="dropmode" checked> En el drop, ir a la escena de drop y cortar más rápido durante 8 compases</label>
+        <label class="field"><span>Sensibilidad al drop <output id="o-sens"></output></span><input type="range" id="sens" min="1" max="10" value="5"></label>
+        <label class="field"><span>Tempo fijo (opcional)</span><input type="number" id="fixbpm" min="60" max="200" step="0.1" placeholder="automático"></label>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel">
+        <div class="facts three"><div class="fact"><span>Tempo</span><b id="bpm">—</b><small id="conf">esperando música</small></div><div class="fact"><span>Tiempo</span><b id="beat">—</b><small>del compás</small></div><div class="fact"><span>En el aire</span><b id="live" style="font-size:18px">—</b><small id="next"></small></div></div>
+        <canvas class="beatled" id="viz" aria-label="Energía y golpes detectados"></canvas>
+      </section>
+      <section class="panel">
+        <div class="row" style="justify-content:space-between"><h2>Escenas</h2><button class="btn small" id="addscene">Añadir escena</button></div>
+        <div class="scenes" id="scenes"></div>
+        <p class="note">Marca las escenas que entran en la rotación y cuál es la del drop. Con OBS conectado, la lista sale de tu colección de escenas.</p>
+      </section>
+      <!--FOOT-->
+    </div>
+  </div>
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $, esc } = NX; let ws = null, obsOk = false, reqId = 0;
+  let scenes = [{ name: 'Cámara 1', on: true }, { name: 'Cámara 2', on: true }, { name: 'Cámara 3', on: true }, { name: 'Plano general', on: true }], dropScene = 'Plano general', live = null;
+  // ---------- OBS WebSocket v5
+  const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const sha = async (s) => b64(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
+  function setState(t, cls) { $('obsstate').textContent = t; $('obsstate').className = 'pill ' + cls; }
+  $('connect').addEventListener('click', () => {
+    try { ws && ws.close(); } catch (e) {}
+    setState('conectando…', 'info'); ws = new WebSocket('ws://' + $('host').value.trim());
+    ws.onerror = () => setState('no responde', 'bad'); ws.onclose = () => { obsOk = false; if ($('obsstate').textContent !== 'no responde') setState('desconectado', 'warn'); };
+    ws.onmessage = async (ev) => {
+      const m = JSON.parse(ev.data);
+      if (m.op === 0) { const d = { rpcVersion: 1 }; if (m.d.authentication) { const secret = await sha($('pass').value + m.d.authentication.salt); d.authentication = await sha(secret + m.d.authentication.challenge); } ws.send(JSON.stringify({ op: 1, d })); }
+      else if (m.op === 2) { obsOk = true; setState('conectado', 'good'); send('GetSceneList'); }
+      else if (m.op === 7 && m.d.requestType === 'GetSceneList' && m.d.responseData) { const list = m.d.responseData.scenes.map((s) => s.sceneName).reverse(); scenes = list.map((n) => ({ name: n, on: true })); dropScene = list[list.length - 1] || ''; renderScenes(); }
+    };
+  });
+  function send(type, data) { if (ws && obsOk) ws.send(JSON.stringify({ op: 6, d: { requestType: type, requestId: String(++reqId), requestData: data || {} } })); }
+  function goLive(name) { if (!name || name === live) return; live = name; send('SetCurrentProgramScene', { sceneName: name }); $('live').textContent = name; renderScenes(); }
+  function renderScenes() {
+    $('scenes').innerHTML = scenes.map((s, i) => `<div class="scene ${s.name === live ? 'live' : ''}"><input type="checkbox" data-on="${i}" ${s.on ? 'checked' : ''} aria-label="En rotación"><input type="text" data-name="${i}" value="${esc(s.name)}" aria-label="Nombre de la escena" ${obsOk ? 'readonly' : ''}><label class="small row"><input type="radio" name="drop" data-drop="${i}" ${s.name === dropScene ? 'checked' : ''}> drop</label></div>`).join('');
+  }
+  $('scenes').addEventListener('change', (e) => { const t = e.target; if (t.dataset.on) scenes[+t.dataset.on].on = t.checked; if (t.dataset.drop) dropScene = scenes[+t.dataset.drop].name; });
+  $('scenes').addEventListener('input', (e) => { const t = e.target; if (t.dataset.name) { if (dropScene === scenes[+t.dataset.name].name) dropScene = t.value; scenes[+t.dataset.name].name = t.value; } });
+  $('addscene').addEventListener('click', () => { scenes.push({ name: 'Cámara ' + (scenes.length + 1), on: true }); renderScenes(); });
+  renderScenes();
+  let every = 8; $('every').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; every = +b.dataset.v; [...$('every').children].forEach((x) => x.setAttribute('aria-pressed', x === b)); });
+  const so = () => ($('o-sens').textContent = $('sens').value); $('sens').addEventListener('input', so); so();
+  // ---------- escucha y detección de pulso en tiempo real
+  let ctx = null, an = null, srcNode = null, running = false;
+  async function startStream(stream) { ensure(); stopSrc(); srcNode = ctx.createMediaStreamSource(stream); srcNode.connect(an); run(); }
+  function ensure() { if (ctx) return; ctx = new (window.AudioContext || window.webkitAudioContext)(); an = ctx.createAnalyser(); an.fftSize = 1024; an.smoothingTimeConstant = 0; }
+  function stopSrc() { try { srcNode && srcNode.disconnect(); srcNode && srcNode.stop && srcNode.stop(); } catch (e) {} }
+  $('mic').addEventListener('click', async () => {
+    try { const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, deviceId: $('dev').value || undefined } }); await startStream(s); const devs = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput'); $('dev').innerHTML = devs.map((d) => `<option value="${d.deviceId}">${esc(d.label || 'Entrada')}</option>`).join(''); $('dev').hidden = devs.length < 2; }
+    catch (e) { NX.toast('No hay acceso a la entrada de audio. Ábrelo desde nexsound.es (aquí el navegador lo bloquea) o prueba con un tema.'); }
+  });
+  $('dev').addEventListener('change', () => $('mic').click());
+  $('file').addEventListener('change', async (e) => { const f = e.target.files[0]; if (!f) return; try { const a = await NX.decodeFile(f); ensure(); stopSrc(); const b = ctx.createBuffer(2, a.L.length, a.sr); b.copyToChannel(a.L, 0); b.copyToChannel(a.R, 1); const s = ctx.createBufferSource(); s.buffer = b; s.connect(an); s.connect(ctx.destination); s.start(); srcNode = s; run(); } catch (err) { NX.toast(err.message); } });
+  // estado del detector
+  const hist = [], onsets = []; let startT = null, prevSpec = null, lastBeat = 0, beatN = 0, period = 0.5, energyLong = 0, energyShort = 0, dropUntil = 0, lastDrop = -99, rot = 0;
+  function run() { if (running) return; running = true; const freq = new Float32Array(an.frequencyBinCount); const loop = () => { tick(freq); requestAnimationFrame(loop); }; loop(); }
+  function tick(freq) {
+    an.getFloatFrequencyData(freq); const now = ctx.currentTime, binHz = ctx.sampleRate / an.fftSize;
+    // flujo espectral con más peso en graves (bombo)
+    let flux = 0, e = 0; const lim = Math.floor(5000 / binHz);
+    for (let k = 1; k < lim; k++) { const m = Math.pow(10, freq[k] / 20), w = k * binHz < 150 ? 3 : 1; e += m * m; if (prevSpec) flux += Math.max(0, m - prevSpec[k]) * w; }
+    prevSpec = Float32Array.from(freq.subarray(0, lim), (v) => Math.pow(10, v / 20));
+    hist.push({ t: now, flux, e }); while (hist.length && now - hist[0].t > 8) hist.shift();
+    const fl = hist.map((h) => h.flux), mean = fl.reduce((s, v) => s + v, 0) / fl.length, sd = Math.sqrt(fl.reduce((s, v) => s + (v - mean) ** 2, 0) / fl.length);
+    const isOnset = flux > mean + 1.4 * sd && now - (onsets[onsets.length - 1] || 0) > 0.18;
+    if (isOnset) { onsets.push(now); while (onsets.length > 64) onsets.shift(); }
+    // tempo: histograma de intervalos entre ataques
+    const fixed = +$('fixbpm').value;
+    if (fixed) period = 60 / fixed;
+    else if (onsets.length > 8) {
+      const bins = new Map(); for (let i = 1; i < onsets.length; i++) for (let j = i - 1; j >= Math.max(0, i - 6); j--) { let iv = onsets[i] - onsets[j]; while (iv > 0 && iv < 0.33) iv *= 2; while (iv > 0.75) iv /= 2; const k = Math.round(iv * 200); bins.set(k, (bins.get(k) || 0) + 1 + (bins.get(k - 1) || 0) * 0.3); }
+      let bk = 0, bv = 0; for (const [k, v] of bins) if (v > bv) { bv = v; bk = k; } if (bk) period = period * 0.9 + (bk / 200) * 0.1;
+      $('conf').textContent = `${onsets.length} golpes escuchados`;
+    }
+    $('bpm').textContent = (60 / period).toFixed(1).replace('.', ',');
+    // fase: avanza un tiempo cada periodo y se corrige hacia los ataques cercanos
+    if (now - lastBeat >= period) { lastBeat += period; if (now - lastBeat > period) lastBeat = now; beatN++; onBeat(now); }
+    if (isOnset) { const d = now - lastBeat; if (d < period * 0.25) lastBeat += d * 0.25; else if (period - d < period * 0.25) lastBeat -= (period - d) * 0.25; }
+    // energía corta vs larga para detectar el drop
+    energyShort = energyShort * 0.9 + e * 0.1; energyLong = energyLong * 0.995 + e * 0.005;
+    const sens = +$('sens').value, ratio = energyShort / (energyLong + 1e-12);
+    if ($('dropmode').checked && ratio > 2.6 - sens * 0.14 && now - lastDrop > 30 && now - (startT ??= now) > 20) { lastDrop = now; dropUntil = now + period * 32; goLive(dropScene); NX.toast('Drop detectado'); }
+    draw(now, ratio);
+  }
+  function onBeat(now) {
+    $('beat').textContent = ((beatN - 1) % 4) + 1;
+    const fast = now < dropUntil, step = fast ? 2 : every;
+    if (beatN % step === 0) { const pool = scenes.filter((s) => s.on && s.name && s.name !== live); if (pool.length) goLive(pool[rot++ % pool.length].name); }
+    $('next').textContent = fast ? 'modo drop: corte cada 2 tiempos' : `próximo corte en ${step - (beatN % step)} tiempos`;
+  }
+  function draw(now, ratio) {
+    const { x, w, h } = NX.setupCanvas($('viz')); x.clearRect(0, 0, w, h);
+    const mx = Math.max(...hist.map((p) => p.flux), 1e-9); x.fillStyle = NX.css('--accent');
+    hist.forEach((p) => { const px = w - (now - p.t) / 8 * w, hh = p.flux / mx * (h - 20); x.fillRect(px, h - hh, 2, hh); });
+    x.fillStyle = NX.css('--signal'); onsets.forEach((t) => { const px = w - (now - t) / 8 * w; if (px > 0) x.fillRect(px, 0, 2, 10); });
+    const ph = (now - lastBeat) / period; x.globalAlpha = Math.max(0, 1 - ph * 2.5); x.fillStyle = NX.css('--danger'); x.beginPath(); x.arc(w - 24, 34, 14, 0, Math.PI * 2); x.fill(); x.globalAlpha = 1;
+    x.fillStyle = NX.css('--muted'); x.font = '11px ' + NX.css('--f-mono'); x.fillText('energía ×' + ratio.toFixed(1), 8, 16);
+  }
+})();
+</script>

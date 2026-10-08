@@ -1,0 +1,92 @@
+<title>Nexsound Lanzamiento</title>
+<!--HEAD-->
+<style>
+.tl { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.tl li { display: grid; grid-template-columns: 92px 28px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.tl li.done .what { text-decoration: line-through; color: var(--muted); }
+.tl li.today { background: color-mix(in srgb, var(--signal) 10%, transparent); }
+.tl .date { font: 600 12px/1.3 var(--f-mono); color: var(--muted); }
+.tl .date b { display: block; color: var(--ink); font-size: 13px; }
+.tl .what b { display: block; font-size: 14px; }
+.tl .what span { font-size: 13px; color: var(--muted); }
+.tl .cat { font: 600 10px/1 var(--f-mono); text-transform: uppercase; letter-spacing: .05em; padding: 4px 6px; border-radius: 3px; border: 1px solid currentColor; white-space: nowrap; }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>Lanzamiento</h1>
+    <p class="lede">Pon la fecha de salida de tu tema y te monta el plan día a día: cuándo subirlo a la distribuidora, cuándo enviarlo a la editorial de Spotify, el pre-save, los teasers, la nota de prensa y qué revisar después. Marca lo que vas haciendo y llévate el plan a tu calendario.</p>
+  </header>
+  <div class="grid">
+    <div class="col">
+      <section class="panel">
+        <h2>Tu lanzamiento</h2>
+        <label class="field"><span>Título</span><input type="text" id="title" value="Conéctate"></label>
+        <label class="field"><span>Fecha de salida (mejor un viernes)</span><input type="date" id="date"></label>
+        <div class="two"><label class="field"><span>Formato</span><select id="kind"><option value="single">Single</option><option value="ep">EP</option><option value="album">Álbum</option></select></label><label class="field"><span>¿Hay videoclip?</span><select id="video"><option value="si">Sí</option><option value="no">No</option></select></label></div>
+        <label class="row small"><input type="checkbox" id="press" checked> Incluir prensa y blogs</label>
+        <label class="row small"><input type="checkbox" id="ads" checked> Incluir publicidad pagada</label>
+      </section>
+      <section class="panel">
+        <div class="facts three"><div class="fact"><span>Faltan</span><b id="left">—</b><small>días</small></div><div class="fact"><span>Hecho</span><b id="done">—</b><small id="donep"></small></div><div class="fact"><span>Hoy toca</span><b id="today" style="font-size:16px">—</b></div></div>
+        <div class="row"><button class="btn primary" id="ics">Añadir al calendario (.ics)</button><button class="btn" id="txt">Lista en texto</button></div>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel"><h2>Plan día a día</h2><ul class="tl" id="tl"></ul></section>
+      <!--FOOT-->
+    </div>
+  </div>
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $, esc } = NX; const KEY = 'nexsound-lanzamiento-v1'; let S = {};
+  try { S = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+  const COL = { audio: 'var(--accent)', distribución: 'var(--signal)', plataformas: '#3B6FB6', contenido: '#8A4FA8', prensa: 'var(--warn)', publicidad: 'var(--danger)', análisis: 'var(--muted)' };
+  // tareas: [días respecto a la salida, categoría, título, detalle, condición]
+  const TASKS = [
+    [-42, 'audio', 'Mezcla y máster cerrados', 'Escucha el máster en móvil, coche y club (Prueba de sistemas). Volumen en −9 a −14 LUFS y pico ≤ −1 dBTP.'],
+    [-35, 'contenido', 'Portada en 3000 × 3000', 'Sin URLs ni logos de tiendas; el texto debe coincidir con título y artista.'],
+    [-35, 'distribución', 'Metadatos y créditos', 'Título, artistas, compositores, productores, género, idioma, letra explícita sí/no y reparto firmado (Reparto).'],
+    [-28, 'distribución', 'Subir a la distribuidora', 'Con 4 semanas da tiempo a que llegue a todas las tiendas y a pedir playlists editoriales. Pide el ISRC y el código UPC.'],
+    [-26, 'plataformas', 'Enlace de pre-save', 'Crea la página de pre-guardado (la mayoría de distribuidoras lo generan) y ponlo en tu bio.'],
+    [-24, 'plataformas', 'Propuesta a la editorial de Spotify', 'En Spotify for Artists, «Proponer un tema»: como mínimo 7 días antes, mejor 2-4 semanas. Usa la ficha de Radar (género, estado de ánimo, instrumentos).'],
+    [-21, 'contenido', 'Plan de contenido', '6-10 piezas cortas: detrás de las cámaras, el drop (Clips), el visualizador, el proceso en el estudio.'],
+    [-18, 'contenido', 'Grabar el videoclip o visualizer', 'Si no hay videoclip, un visualizer con la portada (Visualizador) para YouTube y Canvas de Spotify.', 'video'],
+    [-14, 'prensa', 'Nota de prensa y EPK', 'Una página con bio, fotos, el tema en privado y contacto (EPK).', 'press'],
+    [-12, 'prensa', 'Enviar a blogs, radios y curadores', 'Mensajes personales, con el enlace privado y la ficha. Nada de envíos masivos.', 'press'],
+    [-10, 'contenido', 'Primer teaser', '15 s del mejor momento, en vertical, con el enlace de pre-save.'],
+    [-7, 'plataformas', 'Canvas de Spotify y perfil al día', 'Vídeo vertical de 3-8 s en bucle; foto y bio actualizadas en todas las plataformas.'],
+    [-5, 'contenido', 'Segundo teaser', 'Otro ángulo: la letra, la reacción del público, el antes y después.'],
+    [-3, 'publicidad', 'Preparar anuncios', 'Campaña pequeña en Instagram/TikTok apuntando al pre-save o al tema el día de salida.', 'ads'],
+    [-1, 'contenido', 'Cuenta atrás', 'Historias con cuenta atrás y recordatorio.'],
+    [0, 'plataformas', 'Día de salida', 'Publica en todas las redes con el enlace, comparte las playlists y responde a todos.'],
+    [0, 'publicidad', 'Lanzar anuncios', 'Presupuesto diario pequeño los primeros 7 días; mide el coste por oyente.', 'ads'],
+    [1, 'contenido', 'Gracias y reacciones', 'Comparte las historias de quien lo escuche y comparta.'],
+    [3, 'contenido', 'Clip del drop', 'El momento más fuerte en 15 s; prueba varias versiones.'],
+    [7, 'análisis', 'Revisar números', 'Oyentes, guardados y de dónde vienen (Spotify for Artists). Ajusta anuncios y contenido.'],
+    [14, 'plataformas', 'Curadores independientes', 'Con datos de la primera semana, envíalo a playlists independientes de tu estilo.'],
+    [28, 'análisis', 'Balance del lanzamiento', 'Qué contenido funcionó, qué playlists entraron y qué repetir en el siguiente.'],
+  ];
+  if (!S.date) { const d = new Date(); d.setDate(d.getDate() + 35); d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7)); S.date = d.toISOString().slice(0, 10); }
+  $('date').value = S.date; $('title').value = S.title || 'Conéctate'; $('kind').value = S.kind || 'single'; $('video').value = S.video || 'si'; $('press').checked = S.press !== false; $('ads').checked = S.ads !== false; S.done = S.done || {};
+  ['date', 'title', 'kind', 'video', 'press', 'ads'].forEach((id) => $(id).addEventListener('input', () => { S[id] = $(id).type === 'checkbox' ? $(id).checked : $(id).value; save(); render(); }));
+  const day = (off) => { const d = new Date(S.date + 'T12:00:00'); d.setDate(d.getDate() + off - (S.kind === 'album' && off < 0 ? 14 : S.kind === 'ep' && off < 0 ? 7 : 0)); return d; };
+  const list = () => TASKS.filter((t) => !t[4] || (t[4] === 'video' ? $('video').value === 'si' : $(t[4]).checked)).map((t, i) => ({ id: t[2], off: t[0], cat: t[1], title: t[2], text: t[3], date: day(t[0]) }));
+  const fmt = (d) => d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+  function render() {
+    const L = list(), now = new Date(); now.setHours(12, 0, 0, 0); const rel = new Date(S.date + 'T12:00:00');
+    $('left').textContent = Math.round((rel - now) / 864e5); const dn = L.filter((t) => S.done[t.id]).length; $('done').textContent = `${dn}/${L.length}`; $('donep').textContent = Math.round(dn / L.length * 100) + ' %';
+    const next = L.find((t) => !S.done[t.id]); $('today').textContent = next ? next.title : '¡Todo hecho!';
+    $('tl').innerHTML = L.map((t) => { const isToday = t.date.toDateString() === now.toDateString(), late = t.date < now && !S.done[t.id]; return `<li class="${S.done[t.id] ? 'done' : ''} ${isToday ? 'today' : ''}"><div class="date"><b>${fmt(t.date)}</b>${t.off === 0 ? 'salida' : (t.off > 0 ? '+' : '') + t.off + ' días'}${late ? ' · <span style="color:var(--danger)">atrasado</span>' : ''}</div><input type="checkbox" data-id="${esc(t.id)}" ${S.done[t.id] ? 'checked' : ''} aria-label="Hecho: ${esc(t.title)}"><div class="what"><b>${esc(t.title)}</b><span>${esc(t.text)}</span></div><span class="cat" style="color:${COL[t.cat]}">${t.cat}</span></li>`; }).join('');
+  }
+  $('tl').addEventListener('change', (e) => { const id = e.target.dataset.id; if (id) { S.done[id] = e.target.checked; save(); render(); } });
+  const ymd = (d) => d.toISOString().slice(0, 10).replace(/-/g, '');
+  $('ics').addEventListener('click', () => { const L = list(), esc2 = (s) => s.replace(/[,;\\]/g, (m) => '\\' + m), stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z'; const ev = L.map((t, i) => { const e = new Date(t.date); e.setDate(e.getDate() + 1); return ['BEGIN:VEVENT', `UID:nexsound-${ymd(t.date)}-${i}@nexsound.es`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${ymd(t.date)}`, `DTEND;VALUE=DATE:${ymd(e)}`, `SUMMARY:${esc2($('title').value + ' · ' + t.title)}`, `DESCRIPTION:${esc2(t.text)}`, 'END:VEVENT'].join('\r\n'); }); NX.save(NX.cleanName($('title').value) + '_lanzamiento.ics', ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Nexsound//Lanzamiento//ES', 'CALSCALE:GREGORIAN', ...ev, 'END:VCALENDAR'].join('\r\n')); });
+  $('txt').addEventListener('click', () => NX.save(NX.cleanName($('title').value) + '_lanzamiento.txt', `Plan de lanzamiento · ${$('title').value} · sale el ${fmt(new Date(S.date + 'T12:00:00'))}\n\n` + list().map((t) => `[${S.done[t.id] ? 'x' : ' '}] ${fmt(t.date)} — ${t.title}: ${t.text}`).join('\n') + '\n'));
+  render();
+})();
+</script>

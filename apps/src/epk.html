@@ -1,0 +1,98 @@
+<title>Nexsound EPK</title>
+<!--HEAD-->
+<style>
+.preview { width: 100%; height: 78vh; border: 1px solid var(--line); border-radius: var(--r); background: #fff; }
+.photos { display: flex; gap: 6px; flex-wrap: wrap; }
+.photos div { position: relative; }
+.photos img { width: 72px; height: 72px; object-fit: cover; border-radius: 4px; display: block; }
+.photos button { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #fff; cursor: pointer; font-size: 12px; }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+</style>
+<div class="wrap">
+  <!--NAV-->
+  <header class="tool">
+    <h1>EPK</h1>
+    <p class="lede">Tu kit de prensa en una sola página: foto, bio, temas, vídeos, números, frases de prensa y contacto de booking. Lo rellenas aquí, lo ves al momento y te llevas un único archivo HTML para subir a tu web o mandar a promotores y salas.</p>
+  </header>
+  <div class="grid wide-left">
+    <div class="col">
+      <section class="panel">
+        <h2>Artista</h2>
+        <label class="field"><span>Nombre</span><input type="text" id="name"></label>
+        <label class="field"><span>Frase corta</span><input type="text" id="tagline"></label>
+        <div class="two"><label class="field"><span>Estilo</span><input type="text" id="genre"></label><label class="field"><span>Ciudad</span><input type="text" id="city"></label></div>
+        <label class="field"><span>Bio</span><textarea id="bio" rows="6"></textarea></label>
+      </section>
+      <section class="panel">
+        <h2>Fotos</h2>
+        <label class="drop" id="drop" for="in"><strong>Suelta tus fotos</strong><small>La primera es la principal. Se reducen para que el archivo pese poco.</small></label><input type="file" id="in" accept="image/*" multiple hidden>
+        <div class="photos" id="photos"></div>
+      </section>
+      <section class="panel">
+        <h2>Música y vídeo</h2>
+        <label class="field"><span>Enlaces (uno por línea: Spotify, SoundCloud, YouTube, Bandcamp…)</span><textarea id="links" rows="4"></textarea></label>
+        <label class="field"><span>Vídeo de YouTube destacado (enlace)</span><input type="url" id="yt"></label>
+      </section>
+      <section class="panel">
+        <h2>Números y prensa</h2>
+        <div class="two"><label class="field"><span>Oyentes mensuales</span><input type="text" id="s1"></label><label class="field"><span>Seguidores</span><input type="text" id="s2"></label><label class="field"><span>Bolos / fechas</span><input type="text" id="s3"></label><label class="field"><span>Otro dato</span><input type="text" id="s4"></label></div>
+        <label class="field"><span>Hitos (uno por línea)</span><textarea id="hits" rows="4"></textarea></label>
+        <label class="field"><span>Frases de prensa (una por línea: «cita» — medio)</span><textarea id="quotes" rows="3"></textarea></label>
+      </section>
+      <section class="panel">
+        <h2>Contacto</h2>
+        <div class="two"><label class="field"><span>Email de booking</span><input type="text" id="email"></label><label class="field"><span>Teléfono</span><input type="text" id="phone"></label><label class="field"><span>Instagram</span><input type="text" id="ig"></label><label class="field"><span>Web</span><input type="text" id="web"></label></div>
+        <div class="two"><label class="field"><span>Estilo de la página</span><select id="theme"><option value="dark">Oscuro</option><option value="light">Claro</option></select></label><label class="field"><span>Color de acento</span><input type="color" id="accent" value="#43C19F" style="height:38px"></label></div>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel">
+        <div class="row" style="justify-content:space-between"><h2>Vista previa</h2><button class="btn primary" id="dl">Descargar EPK (HTML)</button></div>
+        <iframe class="preview" id="pv" title="Vista previa del EPK" sandbox="allow-same-origin"></iframe>
+        <p class="note">Se guarda solo en este navegador mientras escribes (sin las fotos). El archivo descargado funciona solo, sin internet, y se puede subir tal cual a cualquier web.</p>
+      </section>
+      <!--FOOT-->
+    </div>
+  </div>
+</div>
+<!--LIBS-->
+<script>
+(() => {
+  const { $ } = NX; const KEY = 'nexsound-epk-v1'; const FIELDS = ['name', 'tagline', 'genre', 'city', 'bio', 'links', 'yt', 's1', 's2', 's3', 's4', 'hits', 'quotes', 'email', 'phone', 'ig', 'web', 'theme', 'accent'];
+  const EX = { name: 'Nexsound', tagline: 'Electrónica latina para pistas que no paran', genre: 'Afro house · tech house', city: 'Madrid', bio: 'Productor y DJ. Mezcla percusión latina con graves de club y melodías que se quedan. Sus sesiones suben poco a poco hasta un final que nadie quiere que acabe.\n\nEjemplo: cambia este texto por tu bio real.', links: 'https://open.spotify.com/\nhttps://soundcloud.com/', yt: '', s1: '12.000', s2: '8.500', s3: '40+', s4: '', hits: 'Ejemplo: residente en una sala de tu ciudad\nEjemplo: tema en playlists editoriales', quotes: '', email: 'booking@nexsound.es', phone: '', ig: '@nexsound', web: 'nexsound.es', theme: 'dark', accent: '#43C19F' };
+  let D; try { D = JSON.parse(localStorage.getItem(KEY)) || EX; } catch (e) { D = EX; } let photos = [];
+  FIELDS.forEach((k) => { $(k).value = D[k] ?? ''; $(k).addEventListener('input', () => { D[k] = $(k).value; try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) {} schedule(); }); });
+  NX.dropzone($('drop'), $('in'), async (fs) => { for (const f of fs) photos.push(await shrink(f)); renderPhotos(); schedule(); });
+  function shrink(f) { return new Promise((res) => { const im = new Image(); im.onload = () => { const s = Math.min(1, 1600 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * s); c.height = Math.round(im.height * s); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', 0.82)); }; im.src = URL.createObjectURL(f); }); }
+  function renderPhotos() { $('photos').innerHTML = photos.map((p, i) => `<div><img src="${p}" alt="Foto ${i + 1}"><button data-del="${i}" aria-label="Quitar foto">×</button></div>`).join(''); }
+  $('photos').addEventListener('click', (e) => { const b = e.target.closest('[data-del]'); if (b) { photos.splice(+b.dataset.del, 1); renderPhotos(); schedule(); } });
+  const e = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const ytId = (u) => { const m = String(u || '').match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/); return m ? m[1] : null; };
+  const label = (u) => /spotify/.test(u) ? 'Spotify' : /soundcloud/.test(u) ? 'SoundCloud' : /youtu/.test(u) ? 'YouTube' : /bandcamp/.test(u) ? 'Bandcamp' : /apple/.test(u) ? 'Apple Music' : /beatport/.test(u) ? 'Beatport' : u.replace(/^https?:\/\//, '').split('/')[0];
+  function build() {
+    const dark = D.theme !== 'light', bg = dark ? '#0d0f0e' : '#f6f6f2', fg = dark ? '#f2f2ee' : '#141414', mu = dark ? '#9aa39e' : '#5c625f', ln = dark ? '#262b28' : '#dcdcd5', ac = D.accent || '#43C19F';
+    const stats = [['Oyentes al mes', D.s1], ['Seguidores', D.s2], ['Fechas', D.s3], ['', D.s4]].filter((s) => s[1]);
+    const links = String(D.links || '').split('\n').map((s) => s.trim()).filter(Boolean), hits = String(D.hits || '').split('\n').filter((s) => s.trim()), quotes = String(D.quotes || '').split('\n').filter((s) => s.trim()), yid = ytId(D.yt);
+    const hero = photos[0] ? `<img class="hero" src="${photos[0]}" alt="${e(D.name)}">` : '';
+    return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(D.name)} · EPK</title>
+<style>*{box-sizing:border-box}body{margin:0;background:${bg};color:${fg};font:17px/1.6 "Helvetica Neue",Arial,sans-serif}main{max-width:980px;margin:0 auto;padding:0 20px 60px}
+.hero{width:100%;max-height:70vh;object-fit:cover;display:block}h1{font:900 clamp(44px,9vw,104px)/.9 "Arial Black","Helvetica Neue",Arial,sans-serif;letter-spacing:-.02em;margin:36px 0 10px}
+.tag{font-size:22px;color:${ac};margin:0 0 6px}.meta{color:${mu};text-transform:uppercase;letter-spacing:.12em;font-size:13px}h2{font-size:13px;text-transform:uppercase;letter-spacing:.14em;color:${mu};margin:48px 0 14px;border-top:1px solid ${ln};padding-top:18px}
+.bio{white-space:pre-line;max-width:68ch}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}.stats div{border:1px solid ${ln};padding:16px;border-radius:6px}.stats b{display:block;font-size:34px;color:${ac}}.stats span{color:${mu};font-size:14px}
+.links{display:flex;flex-wrap:wrap;gap:10px}.links a{color:${fg};border:1px solid ${ac};padding:10px 16px;border-radius:99px;text-decoration:none}.links a:hover{background:${ac};color:${bg}}
+ul{padding-left:20px}blockquote{margin:0 0 14px;font-size:22px;border-left:3px solid ${ac};padding-left:16px}.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}.gal img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px}
+.video{position:relative;padding-top:56.25%}.video iframe{position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:6px}.contact a{color:${ac}}footer{color:${mu};font-size:13px;margin-top:40px}</style></head><body>${hero}<main>
+<h1>${e(D.name)}</h1>${D.tagline ? `<p class="tag">${e(D.tagline)}</p>` : ''}<p class="meta">${[D.genre, D.city].filter(Boolean).map(e).join(' · ')}</p>
+${D.bio ? `<h2>Bio</h2><p class="bio">${e(D.bio)}</p>` : ''}${stats.length ? `<h2>Números</h2><div class="stats">${stats.map((s) => `<div><b>${e(s[1])}</b><span>${e(s[0])}</span></div>`).join('')}</div>` : ''}
+${links.length ? `<h2>Escuchar</h2><div class="links">${links.map((l) => `<a href="${e(l)}" target="_blank" rel="noopener">${e(label(l))}</a>`).join('')}</div>` : ''}
+${yid ? `<h2>Vídeo</h2><div class="video"><iframe src="https://www.youtube-nocookie.com/embed/${yid}" title="Vídeo" allowfullscreen></iframe></div>` : ''}
+${hits.length ? `<h2>Hitos</h2><ul>${hits.map((h) => `<li>${e(h)}</li>`).join('')}</ul>` : ''}${quotes.length ? `<h2>Prensa</h2>${quotes.map((q) => `<blockquote>${e(q)}</blockquote>`).join('')}` : ''}
+${photos.length > 1 ? `<h2>Fotos de prensa</h2><div class="gal">${photos.slice(1).map((p, i) => `<a href="${p}" download="${e(D.name)}_foto_${i + 2}.jpg"><img src="${p}" alt="Foto ${i + 2}"></a>`).join('')}</div>` : ''}
+<h2>Contacto</h2><p class="contact">${[D.email && `Booking: <a href="mailto:${e(D.email)}">${e(D.email)}</a>`, D.phone && `Teléfono: ${e(D.phone)}`, D.ig && `Instagram: ${e(D.ig)}`, D.web && `Web: ${e(D.web)}`].filter(Boolean).join('<br>')}</p>
+<footer>${e(D.name)} · kit de prensa · ${new Date().getFullYear()}</footer></main></body></html>`;
+  }
+  let t; function schedule() { clearTimeout(t); t = setTimeout(() => ($('pv').srcdoc = build()), 200); }
+  $('dl').addEventListener('click', () => NX.save(NX.cleanName(D.name || 'artista') + '_EPK.html', build()));
+  schedule();
+})();
+</script>
